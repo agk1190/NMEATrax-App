@@ -55,11 +55,47 @@ class _MyHomePageState extends State<MyHomePage> {
   int curLineNum = 1;
   File csvFilePath = File("c");
   num maxLines = 1;
-  List<List<dynamic>> limits = [[0,0,0,300,0,10,0,0,0,5,2,12,0,0,47,-125,16,0],[3800,80,115,700,50,100,100,25,359,1000,20,15,1000,0,49,-122,17,0]];
+  // List<dynamic> dataParameters = ['RPM','Engine Temp (C)','Oil Temp (C)','Oil Pressure (kpa)','Fuel Rate (L/h)','Fuel Level (%)','Leg Tilt (%)','Speed (kn)','Heading (*)','Depth (ft)','Water Temp (C)','Battery Voltage (V)','Latitude','Longitude','Magnetic Variation (*)'];
+  // List<List<dynamic>> limits = [[0,0,0,300,0,10,0,0,0,5,2,12,0,0,47,-125,16,0],[3800,80,115,700,50,100,100,25,359,1000,20,15,1000,0,49,-122,17,0]];
   String analyzedResults = "";
   int errCount = 0;
   bool sta = false;
-  // var alert;
+  var lowerLimits = <String, int>{
+    'RPM':0,
+    'Engine Temp (C)':0,
+    'Oil Temp (C)':0,
+    'Oil Pressure (kpa)':300,
+    'Fuel Rate (L/h)':0,
+    'Fuel Level (%)':10,
+    'Leg Tilt (%)':0,
+    'Speed (kn)':0,
+    'Heading (*)':0,
+    'Depth (ft)':5,
+    'Water Temp (C)':2,
+    'Battery Voltage (V)':12,
+    'Engine Hours (h)':0,
+    'Latitude':47,
+    'Longitude':-125,
+    'Magnetic Variation (*)':16,
+  };
+  var upperLimits = <String, int>{
+    'RPM':3800,
+    'Engine Temp (C)':80,
+    'Oil Temp (C)':115,
+    'Oil Pressure (kpa)':700,
+    'Fuel Rate (L/h)':50,
+    'Fuel Level (%)':100,
+    'Leg Tilt (%)':100,
+    'Speed (kn)':25,
+    'Heading (*)':360,
+    'Depth (ft)':1000,
+    'Water Temp (C)':20,
+    'Battery Voltage (V)':15,
+    'Engine Hours (h)':10000,
+    'Latitude':49,
+    'Longitude':-122,
+    'Magnetic Variation (*)':17,
+  };
 
   void _onSliderChanged(double value) {
     setState(() {
@@ -105,8 +141,8 @@ class _MyHomePageState extends State<MyHomePage> {
       if (i > 0) {
         int j = 0;
         for (var col in row) {
-          if (col is! String) {
-            if (col < limits[0][j] || col > limits[1][j]) {
+          if (col is! String && j!=12 && j!=13 && j!=17) {
+            if (col < lowerLimits[csvHeaderData[j]] || col > upperLimits[csvHeaderData[j]]) {
               analyzedResults += csvHeaderData[j] + ": " + col.toString() + " @ line " + i.toString() + "\n";
               errCount++;
             }
@@ -175,47 +211,38 @@ class _MyHomePageState extends State<MyHomePage> {
                 platform: DevicePlatform.android,
                 sections: [
                   SettingsSection(
-                    title: const Text("Analyze Limits"),
-                    tiles: <SettingsTile>[
-                      SettingsTile.navigation(
+                    title: const Text("Analyze - Lower Limits", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),),
+                    // tiles: <SettingsTile>[
+                    //   // SettingsTile.switchTile(
+                    //   //   onToggle: (value) {sta = !sta; setState(() {});},
+                    //   //   initialValue: sta,
+                    //   //   leading: Icon(Icons.format_paint),
+                    //   //   title: Text('Enable custom theme'),
+                    //   // ),
+                    // ],
+                    
+                    //https://stackoverflow.com/a/61674640 .map()
+                    tiles: csvHeaderData.map((e) => SettingsTile.navigation(
                         leading: const Icon(Icons.settings_applications),
-                        title: const Text("Lower RPM Limit"),
-                        value: Text(limits[0][0].toString()),
+                        title: Text("Lower $e Limit"),
+                        value: Text(lowerLimits[e].toString()),
                         onPressed: (context) {
-                          showInputDialog(context, "Lower RPM Limit", 0, 0);
+                          showInputDialog(context, "Lower $e Limit", e, false);
                         },
-                      ),
-                      SettingsTile.navigation(
+                      )
+                    ).toList(),
+                  ),
+                  SettingsSection(
+                    title: const Text("Analyze - Upper Limits", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),),
+                    tiles: csvHeaderData.map((e) => SettingsTile.navigation(
                         leading: const Icon(Icons.settings_applications),
-                        title: const Text("Upper RPM Limit"),
-                        value: Text(limits[1][0].toString()),
+                        title: Text("Upper $e Limit"),
+                        value: Text(upperLimits[e].toString()),
                         onPressed: (context) {
-                          showInputDialog(context, "Upper RPM Limit", 1, 0);
+                          showInputDialog(context, "Upper $e Limit", e, true);
                         },
-                      ),
-                      SettingsTile.navigation(
-                        leading: const Icon(Icons.settings_applications),
-                        title: const Text("Lower Engine Temp Limit"),
-                        value: Text(limits[0][1].toString()),
-                        onPressed: (context) {
-                          showInputDialog(context, "Lower Engine Temp Limit", 0, 1);
-                        },
-                      ),
-                      SettingsTile.navigation(
-                        leading: const Icon(Icons.settings_applications),
-                        title: const Text("Upper Engine Temp Limit"),
-                        value: Text(limits[1][1].toString()),
-                        onPressed: (context) {
-                          showInputDialog(context, "Upper Engine Temp Limit", 1, 1);
-                        },
-                      ),
-                      // SettingsTile.switchTile(
-                      //   onToggle: (value) {sta = !sta; setState(() {});},
-                      //   initialValue: sta,
-                      //   leading: Icon(Icons.format_paint),
-                      //   title: Text('Enable custom theme'),
-                      // ),
-                    ],
+                      )
+                    ).toList(),
                   ),
                 ],
               ),
@@ -227,14 +254,18 @@ class _MyHomePageState extends State<MyHomePage> {
   }
   
   //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
-  showInputDialog(BuildContext context, String title, int pos1, int pos2) {
+  showInputDialog(BuildContext context, String title, dynamic e, bool upper) {
     int input = 0;
 
     Widget confirmButton = ElevatedButton(
       child: const Text("OK"),
       onPressed: () {
         setState(() {
-          limits[pos1][pos2] = input;
+          if (upper) {
+            upperLimits[e] = input;
+          } else {
+            lowerLimits[e] = input;
+          }
         });
         //https://stackoverflow.com/a/50683571 for nav.pop
         Navigator.of(context, rootNavigator: true).pop();
@@ -251,7 +282,11 @@ class _MyHomePageState extends State<MyHomePage> {
         },
         onSubmitted: (value) {
           setState(() {
-            limits[pos1][pos2] = int.parse(value);
+            if (upper) {
+            upperLimits[e] = int.parse(value);
+          } else {
+            lowerLimits[e] = int.parse(value);
+          }
           });
           Navigator.of(context, rootNavigator: true).pop();
         },

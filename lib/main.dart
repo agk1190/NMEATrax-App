@@ -4,6 +4,36 @@ import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:settings_ui/settings_ui.dart';
 
+ColorScheme myLightColors = const ColorScheme(
+  brightness: Brightness.light, 
+  primary: Color(0xFF0050C7), 
+  primaryContainer: Color.fromARGB(255, 118, 176, 241),
+  onPrimary: Color.fromARGB(255, 219, 217, 217), 
+  secondary: Color.fromARGB(255, 87, 144, 236),
+  onSecondary: Color.fromARGB(255, 194, 194, 194),
+  error: Color(0xFFFF50C7), 
+  onError: Colors.black,
+  background: Color.fromARGB(255, 240, 240, 240),
+  onBackground: Color.fromARGB(255, 22, 22, 22), 
+  surface: Color.fromARGB(255, 231, 231, 231),
+  onSurface: Color.fromARGB(255, 219, 219, 219),
+);
+
+ColorScheme myDarkColors = const ColorScheme(
+  brightness: Brightness.dark, 
+  primary: Color(0xFF0050C7), 
+  primaryContainer: Color.fromARGB(255, 6, 38, 80),
+  onPrimary: Color.fromARGB(255, 219, 217, 217), 
+  secondary: Color.fromARGB(255, 87, 144, 236),
+  onSecondary: Color.fromARGB(255, 194, 194, 194),
+  error: Color(0xFFFF50C7), 
+  onError: Colors.black,
+  background: Color.fromARGB(255, 36, 36, 36),
+  onBackground: Color.fromARGB(255, 219, 219, 219), 
+  surface: Color.fromARGB(255, 80, 76, 76),
+  onSurface: Color.fromARGB(255, 219, 219, 219),
+);
+
 Future<List<List<dynamic>>> _loadCSV(File filePath) async {
     String csvData = await filePath.readAsString();
     List<List<dynamic>> rowsAsListOfValues = const CsvToListConverter().convert(csvData);
@@ -31,9 +61,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'NMEATrax Replay',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: ThemeData(colorScheme: myLightColors),
+      darkTheme: ThemeData(colorScheme: myDarkColors),
+      themeMode: ThemeMode.dark,
       home: const MyHomePage(title: 'NMEATrax Replay App'),
     );
   }
@@ -156,16 +186,21 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext mainContext) {
     return MaterialApp(
       title: 'NMEATrax Replay App',
       home: DefaultTabController(
         length: 3,
         child: Scaffold(
+          // backgroundColor: Theme.of(context).canvasColor,
+          backgroundColor: Theme.of(context).colorScheme.background,
           appBar: AppBar(
-            title: const Text('NMEATrax Replay App'),
-            bottom: const TabBar(
-              tabs: [
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            iconTheme: Theme.of(context).primaryIconTheme,
+            title: Text('NMEATrax Replay App', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            bottom: TabBar(
+              indicatorColor: Theme.of(context).colorScheme.secondary,
+              tabs: const [
                 Tab(icon: Icon(Icons.directions_boat_sharp)),
                 Tab(icon: Icon(Icons.analytics)),
                 Tab(icon: Icon(Icons.settings)),
@@ -176,7 +211,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               Column(children: <Widget>[
                 const SizedBox(height: 10,),
-                ListData(csvHeaderData: csvHeaderData, csvListData: csvListData, curLineNum: curLineNum),
+                ListData(csvHeaderData: csvHeaderData, csvListData: csvListData, curLineNum: curLineNum, mainContext: context),
                 const SizedBox(height: 20),
                 Slider(
                       value: curLineNum.toDouble(),
@@ -184,67 +219,148 @@ class _MyHomePageState extends State<MyHomePage> {
                       label: curLineNum.toString(),
                       max: maxLines.toDouble(),
                       min: 1,
+                      activeColor: Theme.of(context).colorScheme.primary,
+                      inactiveColor: Theme.of(context).colorScheme.primaryContainer,
                 ),
-                Text(curLineNum.toString()),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(3.0, 0, 3.0, 0),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Theme.of(context).colorScheme.onBackground, width: 2,),
+                  ),
+                  child: Text(
+                    curLineNum.toString(), 
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onBackground,
+                    ),
+                  ),
+                ),
                 ButtonBar(
                   alignment: MainAxisAlignment.center,
                   children: [
-                    TextButton(onPressed: _decrCurLineNum, child: const Text("Decrease")),
-                    TextButton(onPressed: _incrCurLineNum, child: const Text("Increase")),
+                    TextButton(
+                      onPressed: _decrCurLineNum, 
+                      child: Text(
+                        "Decrease", 
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary, 
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16
+                        ),
+                      )
+                    ),
+                    TextButton(
+                      onPressed: _incrCurLineNum, 
+                      child: Text(
+                        "Increase", 
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16
+                        ),
+                      )
+                    ),
                   ],
                 ),
-                ElevatedButton(onPressed: _getCSV, child: const Icon(Icons.file_upload)),
+                ElevatedButton(
+                  onPressed: _getCSV,
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
+                  ),
+                  child: const Icon(Icons.file_upload), 
+                ),
               ],),
               SingleChildScrollView(
                 child: Column(
                   children: <Widget>[
                     const SizedBox(height: 30,),
-                    ElevatedButton(onPressed: _analyzeData, child: const Text("Analyze All")),
+                    ElevatedButton(
+                      onPressed: _analyzeData, 
+                      style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary)), 
+                      child: const Text("Analyze All")
+                    ),
                     const SizedBox(height: 10,),
-                    Text("Results:\n$errCount Violations Found", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center),
+                    Text(
+                      "Results:\n$errCount Violations Found", 
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 16, 
+                        color: Theme.of(context).colorScheme.onBackground,
+                      ),
+                      textAlign: TextAlign.center
+                    ),
                     const SizedBox(height: 10,),
-                    Text(analyzedResults),
+                    Text(
+                      analyzedResults,
+                      style: TextStyle(color: Theme.of(context).colorScheme.onBackground),  
+                    ),
                   ],
                 ),
               ),
-              SettingsList(
-                platform: DevicePlatform.android,
-                sections: [
-                  SettingsSection(
-                    title: const Text("Analyze - Lower Limits", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),),
-                    // tiles: <SettingsTile>[
-                    //   // SettingsTile.switchTile(
-                    //   //   onToggle: (value) {sta = !sta; setState(() {});},
-                    //   //   initialValue: sta,
-                    //   //   leading: Icon(Icons.format_paint),
-                    //   //   title: Text('Enable custom theme'),
-                    //   // ),
-                    // ],
-                    
-                    //https://stackoverflow.com/a/61674640 .map()
-                    tiles: csvHeaderData.map((e) => SettingsTile.navigation(
-                        leading: const Icon(Icons.settings_applications),
-                        title: Text("Lower $e Limit"),
-                        value: Text(lowerLimits[e].toString()),
-                        onPressed: (context) {
-                          showInputDialog(context, "Lower $e Limit", e, false);
-                        },
-                      )
-                    ).toList(),
+              SingleChildScrollView(
+                child: SettingsList(
+                  shrinkWrap: true,
+                  darkTheme: SettingsThemeData(
+                    settingsSectionBackground: Theme.of(context).colorScheme.background,
+                    settingsListBackground: Theme.of(context).colorScheme.background,
+                    titleTextColor: Theme.of(context).colorScheme.onBackground,
                   ),
-                  SettingsSection(
-                    title: const Text("Analyze - Upper Limits", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),),
-                    tiles: csvHeaderData.map((e) => SettingsTile.navigation(
-                        leading: const Icon(Icons.settings_applications),
-                        title: Text("Upper $e Limit"),
-                        value: Text(upperLimits[e].toString()),
-                        onPressed: (context) {
-                          showInputDialog(context, "Upper $e Limit", e, true);
-                        },
-                      )
-                    ).toList(),
+                  lightTheme: SettingsThemeData(
+                    settingsSectionBackground: Theme.of(context).colorScheme.background,
+                    settingsListBackground: Theme.of(context).colorScheme.background,
+                    titleTextColor: Theme.of(context).colorScheme.onBackground,
                   ),
-                ],
+                  platform: DevicePlatform.android,
+                  sections: [
+                    SettingsSection(
+                      title: const Text(
+                        "Analyze - Lower Limits", 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 22,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      // tiles: <SettingsTile>[
+                      //   // SettingsTile.switchTile(
+                      //   //   onToggle: (value) {sta = !sta; setState(() {});},
+                      //   //   initialValue: sta,
+                      //   //   leading: Icon(Icons.format_paint),
+                      //   //   title: Text('Enable custom theme'),
+                      //   // ),
+                      // ],
+                      
+                      //https://stackoverflow.com/a/61674640 .map()
+                      tiles: csvHeaderData.map((e) => SettingsTile.navigation(
+                          leading: Icon(Icons.settings_applications, color: Theme.of(context).colorScheme.onBackground),
+                          title: Text("Lower $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                          value: Text(lowerLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                          onPressed: (context) {
+                            showInputDialog(mainContext, "Lower $e Limit", e, false);
+                          },
+                        )
+                      ).toList(),
+                    ),
+                    SettingsSection(
+                      title: const Text(
+                        "Analyze - Upper Limits", 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 22,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      tiles: csvHeaderData.map((e) => SettingsTile.navigation(
+                          leading: Icon(Icons.settings_applications, color: Theme.of(context).colorScheme.onBackground),
+                          title: Text("Upper $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                          value: Text(upperLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                          onPressed: (context) {
+                            showInputDialog(mainContext, "Upper $e Limit", e, true);
+                          },
+                        )
+                      ).toList(),
+                    ),
+                  ],
+                ),
               ),
             ]
           ),
@@ -272,21 +388,30 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
     AlertDialog alert = AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       title: Text(title),
       content: TextField(
         autofocus: true,
         onChanged: (value) {
           setState(() {
-            input = int.parse(value);
+            try {
+              input = int.parse(value);
+            } on Exception catch (e) {
+              // TODO
+            }
           });
         },
         onSubmitted: (value) {
           setState(() {
-            if (upper) {
-            upperLimits[e] = int.parse(value);
-          } else {
-            lowerLimits[e] = int.parse(value);
-          }
+            try {
+              if (upper) {
+                upperLimits[e] = int.parse(value);
+              } else {
+                lowerLimits[e] = int.parse(value);
+              }
+            } on Exception catch (e) {
+              // TODO
+            }
           });
           Navigator.of(context, rootNavigator: true).pop();
         },
@@ -316,11 +441,13 @@ class ListData extends StatelessWidget {
     required this.csvHeaderData,
     required this.csvListData,
     required this.curLineNum,
+    required this.mainContext,
   });
 
   final List csvHeaderData;
   final List<List> csvListData;
   final int curLineNum;
+  final dynamic mainContext;
 
   @override
   Widget build(BuildContext context) {
@@ -341,8 +468,8 @@ class ListData extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text("${csvListData[0][index]}:", textAlign: TextAlign.right, ),
-                Text(" ${csvListData[curLineNum][index]}", textAlign: TextAlign.left, style: const TextStyle(fontWeight: FontWeight.bold),)
+                Text("${csvListData[0][index]}:", textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground)),
+                Text(" ${csvListData[curLineNum][index]}", textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onBackground),)
               ],
             )
         );

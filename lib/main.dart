@@ -56,16 +56,24 @@ void main() => runApp(const MyApp());
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  // https://www.kindacode.com/article/flutter-ways-to-make-a-dark-light-mode-toggle/ - dark mode toggle
+  static final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
+
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'NMEATrax Replay',
-      theme: ThemeData(colorScheme: myLightColors),
-      darkTheme: ThemeData(colorScheme: myDarkColors),
-      themeMode: ThemeMode.dark,
-      home: const MyHomePage(title: 'NMEATrax Replay App'),
-    );
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier, 
+      builder: (_, ThemeMode currentMode, __) {
+        return MaterialApp(
+          title: 'NMEATrax Replay',
+          theme: ThemeData(colorScheme: myLightColors),
+          darkTheme: ThemeData(colorScheme: myDarkColors),
+          // themeMode: ThemeMode.dark,
+          themeMode: currentMode,
+          home: const MyHomePage(title: 'NMEATrax Replay App'),
+        );
+      });
   }
 }
 
@@ -89,7 +97,6 @@ class _MyHomePageState extends State<MyHomePage> {
   // List<List<dynamic>> limits = [[0,0,0,300,0,10,0,0,0,5,2,12,0,0,47,-125,16,0],[3800,80,115,700,50,100,100,25,359,1000,20,15,1000,0,49,-122,17,0]];
   String analyzedResults = "";
   int errCount = 0;
-  bool sta = false;
   var lowerLimits = <String, int>{
     'RPM':0,
     'Engine Temp (C)':0,
@@ -320,15 +327,6 @@ class _MyHomePageState extends State<MyHomePage> {
                           decoration: TextDecoration.underline,
                         ),
                       ),
-                      // tiles: <SettingsTile>[
-                      //   // SettingsTile.switchTile(
-                      //   //   onToggle: (value) {sta = !sta; setState(() {});},
-                      //   //   initialValue: sta,
-                      //   //   leading: Icon(Icons.format_paint),
-                      //   //   title: Text('Enable custom theme'),
-                      //   // ),
-                      // ],
-                      
                       //https://stackoverflow.com/a/61674640 .map()
                       tiles: csvHeaderData.map((e) => SettingsTile.navigation(
                           leading: Icon(Icons.settings_applications, color: Theme.of(context).colorScheme.onBackground),
@@ -359,6 +357,26 @@ class _MyHomePageState extends State<MyHomePage> {
                         )
                       ).toList(),
                     ),
+                    SettingsSection(
+                      title: const Text(
+                        "App Theme", 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 22,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      tiles: <SettingsTile>[
+                        SettingsTile.switchTile(
+                          onToggle: (value) {
+                              MyApp.themeNotifier.value =
+                                MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+                          },
+                          initialValue: MyApp.themeNotifier.value == ThemeMode.light ? false : true,
+                          leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onBackground),
+                          title: Text('Dark Mode', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                        ),
+                      ],)
                   ],
                 ),
               ),

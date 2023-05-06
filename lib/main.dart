@@ -1,8 +1,12 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+// import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:settings_ui/settings_ui.dart';
+import 'package:flutter_map/flutter_map.dart'; // Suitable for most situations
+// import 'package:flutter_map/plugin_api.dart'; // Only import if required functionality is not exposed by default
+import 'package:latlong2/latlong.dart';
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -93,10 +97,10 @@ class _MyHomePageState extends State<MyHomePage> {
   int curLineNum = 1;
   File csvFilePath = File("c");
   num maxLines = 1;
-  // List<dynamic> dataParameters = ['RPM','Engine Temp (C)','Oil Temp (C)','Oil Pressure (kpa)','Fuel Rate (L/h)','Fuel Level (%)','Leg Tilt (%)','Speed (kn)','Heading (*)','Depth (ft)','Water Temp (C)','Battery Voltage (V)','Latitude','Longitude','Magnetic Variation (*)'];
-  // List<List<dynamic>> limits = [[0,0,0,300,0,10,0,0,0,5,2,12,0,0,47,-125,16,0],[3800,80,115,700,50,100,100,25,359,1000,20,15,1000,0,49,-122,17,0]];
   String analyzedResults = "";
   int errCount = 0;
+  final mapController = MapController();
+
   var lowerLimits = <String, int>{
     'RPM':0,
     'Engine Temp (C)':0,
@@ -197,7 +201,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return MaterialApp(
       title: 'NMEATrax Replay App',
       home: DefaultTabController(
-        length: 3,
+        length: 4,
         child: Scaffold(
           // backgroundColor: Theme.of(context).canvasColor,
           backgroundColor: Theme.of(context).colorScheme.background,
@@ -210,6 +214,7 @@ class _MyHomePageState extends State<MyHomePage> {
               tabs: const [
                 Tab(icon: Icon(Icons.directions_boat_sharp)),
                 Tab(icon: Icon(Icons.analytics)),
+                Tab(icon: Icon(Icons.map)),
                 Tab(icon: Icon(Icons.settings)),
               ],
             ),
@@ -303,8 +308,60 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
+              Stack(
+                children: [
+                  FlutterMap(
+                    mapController: mapController,
+                    options: MapOptions(
+                      center: LatLng(48.668069, -123.40451),
+                      zoom: 16.0,
+                      maxZoom: 18.0,
+                      maxBounds: LatLngBounds(
+                        LatLng(-90.0, -180.0),
+                        LatLng(90.0, 180.0),
+                      ),
+                      keepAlive: true,
+                      interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                    ),
+                    nonRotatedChildren: [
+                      AttributionWidget.defaultWidget(
+                        source: '© OpenStreetMap contributors',
+                        onSourceTapped: () {},
+                      ),
+                    ],
+                    children: [
+                      TileLayer(
+                        urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                        // userAgentPackageName: 'dev.fleaflet.flutter_map.example',
+                        userAgentPackageName: 'com.nmeatrax.app',
+                      ),
+                      // MarkerLayer(
+                      //   markers: [
+                      //     Marker(
+                      //       point: LatLng(48.66807, -123.405),
+                      //       width: 80,
+                      //       height: 80,
+                      //       builder: (context) => FlutterLogo(),
+                      //     ),
+                      //   ],
+                      // ),
+                      PolylineLayer(
+                        polylineCulling: false,
+                        polylines: [
+                          Polyline(
+                            points: [LatLng(48.668069, -123.40451), LatLng(48.642347, -123.333999)],
+                            color: Colors.blue,
+                            strokeWidth: 3,
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
+                ],
+              ),
               SingleChildScrollView(
                 child: SettingsList(
+                  physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
                   darkTheme: SettingsThemeData(
                     settingsSectionBackground: Theme.of(context).colorScheme.background,
@@ -376,7 +433,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onBackground),
                           title: Text('Dark Mode', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                         ),
-                      ],)
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -414,8 +472,8 @@ class _MyHomePageState extends State<MyHomePage> {
           setState(() {
             try {
               input = int.parse(value);
-            } on Exception catch (e) {
-              // TODO
+            } on Exception {
+              // do nothing
             }
           });
         },
@@ -427,8 +485,8 @@ class _MyHomePageState extends State<MyHomePage> {
               } else {
                 lowerLimits[e] = int.parse(value);
               }
-            } on Exception catch (e) {
-              // TODO
+            } on Exception {
+              // do nothing
             }
           });
           Navigator.of(context, rootNavigator: true).pop();

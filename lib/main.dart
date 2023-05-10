@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-// import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:settings_ui/settings_ui.dart';
 import 'package:flutter_map/flutter_map.dart'; // Suitable for most situations
 // import 'package:flutter_map/plugin_api.dart'; // Only import if required functionality is not exposed by default
 import 'package:latlong2/latlong.dart';
+import 'package:gpx/gpx.dart';
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -39,13 +39,19 @@ ColorScheme myDarkColors = const ColorScheme(
 );
 
 Future<List<List<dynamic>>> _loadCSV(File filePath) async {
-    String csvData = await filePath.readAsString();
-    List<List<dynamic>> rowsAsListOfValues = const CsvToListConverter().convert(csvData);
-    return rowsAsListOfValues;
+  String csvData = await filePath.readAsString();
+  List<List<dynamic>> rowsAsListOfValues = const CsvToListConverter().convert(csvData);
+  return rowsAsListOfValues;
 }
 
-Future<File> _getFilePath() async {
-  FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['csv']);
+Future<List<dynamic>> _loadGPX(File filePath) async {
+  String gpxData = await filePath.readAsString();
+  var gpxWPTs = GpxReader().fromString(gpxData);
+  return gpxWPTs.wpts;
+}
+
+Future<File> _getFilePath(String ext) async {
+  FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: [ext]);
     if (result != null) {
       File file = File(result.files.single.path!);
       return file;
@@ -94,12 +100,15 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   List<List<dynamic>> csvListData = [];
   List<dynamic> csvHeaderData = [];
+  List<LatLng> gpxLL = [];
   int curLineNum = 1;
   File csvFilePath = File("c");
+  File gpxFilePath = File("c");
   num maxLines = 1;
   String analyzedResults = "";
   int errCount = 0;
   final mapController = MapController();
+  bool _isVisible = true;
 
   var lowerLimits = <String, int>{
     'RPM':0,
@@ -145,7 +154,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _getCSV() async {
-    csvFilePath = await _getFilePath();
+    csvFilePath = await _getFilePath('csv');
     if (csvFilePath.path != "null") {
       maxLines = csvFilePath.readAsLinesSync().length - 1;
       _loadCSV(csvFilePath).then((rows) {
@@ -153,6 +162,23 @@ class _MyHomePageState extends State<MyHomePage> {
           csvListData = rows;
           csvHeaderData = rows[0];
           setState(() {});
+        }
+      });
+    }
+  }
+
+  void _getGPX() async {
+    gpxFilePath = await _getFilePath('gpx');
+    if (gpxFilePath.path != "null") {
+      _loadGPX(gpxFilePath).then((rows) {
+        if (rows.isNotEmpty) {
+          gpxLL.clear();
+          for (Wpt wpt in rows) {
+            gpxLL.add(LatLng(wpt.lat!, wpt.lon!));
+          }
+          setState(() {
+            _isVisible = false;
+          });
         }
       });
     }
@@ -203,7 +229,7 @@ class _MyHomePageState extends State<MyHomePage> {
       home: DefaultTabController(
         length: 4,
         child: Scaffold(
-          // backgroundColor: Theme.of(context).canvasColor,
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           backgroundColor: Theme.of(context).colorScheme.background,
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.primary,
@@ -310,52 +336,67 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               Stack(
                 children: [
-                  FlutterMap(
-                    mapController: mapController,
-                    options: MapOptions(
-                      center: LatLng(48.668069, -123.40451),
-                      zoom: 16.0,
-                      maxZoom: 18.0,
-                      maxBounds: LatLngBounds(
-                        LatLng(-90.0, -180.0),
-                        LatLng(90.0, 180.0),
+                  Scaffold(
+                    body: FlutterMap(
+                      mapController: mapController,
+                      options: MapOptions(
+                        center: LatLng(48.668069, -123.40451),
+                        zoom: 16.0,
+                        maxZoom: 18.0,
+                        maxBounds: LatLngBounds(
+                          LatLng(-90.0, -180.0),
+                          LatLng(90.0, 180.0),
+                        ),
+                        keepAlive: true,
+                        interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                        onTap: (tapPosition, point) {
+                          setState(() {
+                            _isVisible = !_isVisible;
+                          });
+                        },
                       ),
-                      keepAlive: true,
-                      interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                      nonRotatedChildren: [
+                        AttributionWidget.defaultWidget(
+                          source: 'OpenStreetMap contributors',
+                          onSourceTapped: () {},
+                        ),
+                      ],
+                      children: [
+                        TileLayer(
+                          urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                          // userAgentPackageName: 'dev.fleaflet.flutter_map.example',
+                          userAgentPackageName: 'com.nmeatrax.app',
+                        ),
+                        // MarkerLayer(
+                        //   markers: [
+                        //     Marker(
+                        //       point: LatLng(48.66807, -123.405),
+                        //       width: 80,
+                        //       height: 80,
+                        //       builder: (context) => FlutterLogo(),
+                        //     ),
+                        //   ],
+                        // ),
+                        PolylineLayer(
+                          polylineCulling: false,
+                          polylines: [
+                            Polyline(
+                              points: gpxLL,
+                              color: Theme.of(context).colorScheme.primary,
+                              strokeWidth: 3,
+                            ),
+                          ],
+                        )
+                      ],
                     ),
-                    nonRotatedChildren: [
-                      AttributionWidget.defaultWidget(
-                        source: '© OpenStreetMap contributors',
-                        onSourceTapped: () {},
+                    floatingActionButton: Visibility(
+                      visible: _isVisible,
+                      child: FloatingActionButton(
+                        onPressed: _getGPX,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        child: const Icon(Icons.file_upload),
                       ),
-                    ],
-                    children: [
-                      TileLayer(
-                        urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                        // userAgentPackageName: 'dev.fleaflet.flutter_map.example',
-                        userAgentPackageName: 'com.nmeatrax.app',
-                      ),
-                      // MarkerLayer(
-                      //   markers: [
-                      //     Marker(
-                      //       point: LatLng(48.66807, -123.405),
-                      //       width: 80,
-                      //       height: 80,
-                      //       builder: (context) => FlutterLogo(),
-                      //     ),
-                      //   ],
-                      // ),
-                      PolylineLayer(
-                        polylineCulling: false,
-                        polylines: [
-                          Polyline(
-                            points: [LatLng(48.668069, -123.40451), LatLng(48.642347, -123.333999)],
-                            color: Colors.blue,
-                            strokeWidth: 3,
-                          ),
-                        ],
-                      )
-                    ],
+                    ),
                   ),
                 ],
               ),

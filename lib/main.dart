@@ -585,8 +585,8 @@ class ListData extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text("${csvListData[0][index]}:", textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground)),
-                Text(" ${csvListData[curLineNum][index]}", textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onBackground),)
+                Expanded(child: Text("${csvListData[0][index]}:", textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
+                Expanded(child: Text(" ${csvListData[curLineNum][index]}", textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onBackground),))
               ],
             )
         );

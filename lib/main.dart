@@ -362,10 +362,15 @@ class _MyHomePageState extends State<MyHomePage> {
                           });
                         },
                       ),
-                      nonRotatedChildren: [
-                        AttributionWidget.defaultWidget(
-                          source: 'OpenStreetMap contributors',
-                          onSourceTapped: () {},
+                      nonRotatedChildren: const [
+                        RichAttributionWidget(
+                          alignment: AttributionAlignment.bottomLeft,
+                          showFlutterMapAttribution: false,
+                          attributions: [
+                            TextSourceAttribution(
+                              'OpenStreetMap contributors',
+                            ),
+                          ],
                         ),
                       ],
                       children: [

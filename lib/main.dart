@@ -101,11 +101,11 @@ class _MyHomePageState extends State<MyHomePage> {
   List<List<dynamic>> csvListData = [];
   List<dynamic> csvHeaderData = [];
   List<LatLng> gpxLL = [];
+  List<List<String>> analyzedData = [];
   int curLineNum = 1;
   File csvFilePath = File("c");
   File gpxFilePath = File("c");
   num maxLines = 1;
-  String analyzedResults = "";
   int errCount = 0;
   final mapController = MapController();
   bool _isVisible = true;
@@ -161,7 +161,9 @@ class _MyHomePageState extends State<MyHomePage> {
         if (rows.isNotEmpty) {
           csvListData = rows;
           csvHeaderData = rows[0];
-          setState(() {});
+          setState(() {
+            curLineNum = 1;
+          });
         }
       });
     }
@@ -203,14 +205,14 @@ class _MyHomePageState extends State<MyHomePage> {
   void _analyzeData() {
     int i = 0;
     errCount = 0;
-    analyzedResults = "";
+    analyzedData.clear();
     for (var row in csvListData) {
       if (i > 0) {
         int j = 0;
         for (var col in row) {
           if (col is! String && j!=12 && j!=13 && j!=17) {
             if (col < lowerLimits[csvHeaderData[j]] || col > upperLimits[csvHeaderData[j]]) {
-              analyzedResults += csvHeaderData[j] + ": " + col.toString() + " @ line " + i.toString() + "\n";
+              analyzedData.add([csvHeaderData[j] + ':', ' $col @ line $i']);
               errCount++;
             }
           }
@@ -247,66 +249,73 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           body: TabBarView(
             children: [
-              Column(children: <Widget>[
-                const SizedBox(height: 10,),
-                ListData(csvHeaderData: csvHeaderData, csvListData: csvListData, curLineNum: curLineNum, mainContext: context),
-                const SizedBox(height: 20),
-                Slider(
-                      value: curLineNum.toDouble(),
-                      onChanged: _onSliderChanged,
-                      label: curLineNum.toString(),
-                      max: maxLines.toDouble(),
-                      min: 1,
-                      activeColor: Theme.of(context).colorScheme.primary,
-                      inactiveColor: Theme.of(context).colorScheme.primaryContainer,
-                ),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(3.0, 0, 3.0, 0),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Theme.of(context).colorScheme.onBackground, width: 2,),
-                  ),
-                  child: Text(
-                    curLineNum.toString(), 
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onBackground,
+              SingleChildScrollView(
+                child: Column(
+                  children: <Widget>[
+                    const SizedBox(height: 10,),
+                    Text("Data", style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 24, fontWeight: FontWeight.w400),),
+                    const SizedBox(height: 10,),
+                    ListData(csvHeaderData: csvHeaderData, csvListData: csvListData, curLineNum: curLineNum, mainContext: context),
+                    const SizedBox(height: 20),
+                    Slider(
+                          value: curLineNum.toDouble(),
+                          onChanged: _onSliderChanged,
+                          label: curLineNum.toString(),
+                          max: maxLines.toDouble(),
+                          min: 1,
+                          activeColor: Theme.of(context).colorScheme.primary,
+                          inactiveColor: Theme.of(context).colorScheme.primaryContainer,
                     ),
-                  ),
-                ),
-                ButtonBar(
-                  alignment: MainAxisAlignment.center,
-                  children: [
-                    TextButton(
-                      onPressed: _decrCurLineNum, 
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(3.0, 0, 3.0, 0),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(context).colorScheme.onBackground, width: 2,),
+                      ),
                       child: Text(
-                        "Decrease", 
+                        curLineNum.toString(), 
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary, 
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16
+                          color: Theme.of(context).colorScheme.onBackground,
                         ),
-                      )
+                      ),
                     ),
-                    TextButton(
-                      onPressed: _incrCurLineNum, 
-                      child: Text(
-                        "Increase", 
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16
+                    ButtonBar(
+                      alignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: _decrCurLineNum, 
+                          child: Text(
+                            "Decrease", 
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary, 
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16
+                            ),
+                          )
                         ),
-                      )
+                        TextButton(
+                          onPressed: _incrCurLineNum, 
+                          child: Text(
+                            "Increase", 
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16
+                            ),
+                          )
+                        ),
+                      ],
                     ),
+                    ElevatedButton(
+                      onPressed: _getCSV,
+                      style: ButtonStyle(
+                        backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
+                      ),
+                      child: const Icon(Icons.file_upload), 
+                    ),
+                    const SizedBox(height: 50,),
                   ],
                 ),
-                ElevatedButton(
-                  onPressed: _getCSV,
-                  style: ButtonStyle(
-                    backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
-                  ),
-                  child: const Icon(Icons.file_upload), 
-                ),
-              ],),
+              ),
               SingleChildScrollView(
                 child: Column(
                   children: <Widget>[
@@ -327,10 +336,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       textAlign: TextAlign.center
                     ),
                     const SizedBox(height: 10,),
-                    Text(
-                      analyzedResults,
-                      style: TextStyle(color: Theme.of(context).colorScheme.onBackground),  
-                    ),
+                    ListAnalyzedData(analyzedData: analyzedData, mainContext: context),
+                    const SizedBox(height: 50,),
                   ],
                 ),
               ),
@@ -576,19 +583,47 @@ class ListData extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
           ),
-          // child: Text(
-          //   '${csvListData[0][index]}: ${csvListData[curLineNum][index]}',
-          //   textAlign: TextAlign.center,
-          //   style: const TextStyle(fontSize: 16),
-          // ),
           child: 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(child: Text("${csvListData[0][index]}:", textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
-                Expanded(child: Text(" ${csvListData[curLineNum][index]}", textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onBackground),))
+                Expanded(child: Text(csvHeaderData.elementAt(index) + ':', textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
+                Expanded(child: Text(' ${csvListData.elementAt(curLineNum)[index]}', textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onBackground),))
               ],
             )
+        );
+      },
+    );
+  }
+}
+
+class ListAnalyzedData extends StatelessWidget {
+  const ListAnalyzedData({
+    super.key,
+    required this.analyzedData,
+    required this.mainContext,
+  });
+
+  final List<List> analyzedData;
+  final dynamic mainContext;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: analyzedData.length,
+      itemBuilder: (BuildContext context, int index) {
+        return Container(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+          ),
+          child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(child: Text(analyzedData.elementAt(index)[0], textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
+                Expanded(child: Text(analyzedData.elementAt(index)[1], textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onBackground),))
+              ],
+            ),
         );
       },
     );

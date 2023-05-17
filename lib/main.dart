@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_map/flutter_map.dart'; // Suitable for most situations
 // import 'package:flutter_map/plugin_api.dart'; // Only import if required functionality is not exposed by default
 import 'package:latlong2/latlong.dart';
 import 'package:gpx/gpx.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -47,11 +49,13 @@ Future<List<List<dynamic>>> _loadCSV(File filePath) async {
 Future<List<dynamic>> _loadGPX(File filePath) async {
   String gpxData = await filePath.readAsString();
   var gpxWPTs = GpxReader().fromString(gpxData);
-  return gpxWPTs.wpts;
+  var trackpts = gpxWPTs.trks[0].trksegs[0].trkpts;
+  trackpts.removeWhere((element) => element.lat == 0);
+  return trackpts;
 }
 
-Future<File> _getFilePath(String ext) async {
-  FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: [ext]);
+Future<File> _getFilePath(List<String> ext) async {
+  FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ext);
     if (result != null) {
       File file = File(result.files.single.path!);
       return file;
@@ -79,7 +83,6 @@ class MyApp extends StatelessWidget {
           title: 'NMEATrax Replay',
           theme: ThemeData(colorScheme: myLightColors),
           darkTheme: ThemeData(colorScheme: myDarkColors),
-          // themeMode: ThemeMode.dark,
           themeMode: currentMode,
           home: const MyHomePage(title: 'NMEATrax Replay App'),
         );
@@ -110,7 +113,9 @@ class _MyHomePageState extends State<MyHomePage> {
   final mapController = MapController();
   bool _isVisible = true;
 
-  var lowerLimits = <String, int>{
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+
+  var lowerLimits = <String, dynamic>{
     'RPM':0,
     'Engine Temp (C)':0,
     'Oil Temp (C)':0,
@@ -126,17 +131,17 @@ class _MyHomePageState extends State<MyHomePage> {
     'Engine Hours (h)':0,
     'Latitude':47,
     'Longitude':-125,
-    'Magnetic Variation (*)':16,
+    'Magnetic Variation (*)':0,
   };
-  var upperLimits = <String, int>{
-    'RPM':3800,
+  var upperLimits = <String, dynamic>{
+    'RPM':5200,
     'Engine Temp (C)':80,
     'Oil Temp (C)':115,
     'Oil Pressure (kpa)':700,
     'Fuel Rate (L/h)':50,
     'Fuel Level (%)':100,
     'Leg Tilt (%)':100,
-    'Speed (kn)':25,
+    'Speed (kn)':30,
     'Heading (*)':360,
     'Depth (ft)':1000,
     'Water Temp (C)':20,
@@ -154,7 +159,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _getCSV() async {
-    csvFilePath = await _getFilePath('csv');
+    csvFilePath = await _getFilePath(['csv']);
     if (csvFilePath.path != "null") {
       maxLines = csvFilePath.readAsLinesSync().length - 1;
       _loadCSV(csvFilePath).then((rows) {
@@ -170,7 +175,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _getGPX() async {
-    gpxFilePath = await _getFilePath('gpx');
+    gpxFilePath = await _getFilePath(['gpx', 'xml']);
     if (gpxFilePath.path != "null") {
       _loadGPX(gpxFilePath).then((rows) {
         if (rows.isNotEmpty) {
@@ -222,6 +227,47 @@ class _MyHomePageState extends State<MyHomePage> {
       i++;
     }
     setState(() {});
+  }
+
+  Future<void> _saveTheme(ThemeMode darkMode) async {
+    final SharedPreferences prefs = await _prefs;
+
+    setState(() {
+      prefs.setBool('darkMode', darkMode==ThemeMode.dark? true : false);
+    });
+  }
+
+  Future<void> _saveLimits(String label, var limits) async {
+    final SharedPreferences prefs = await _prefs;
+
+    setState(() {
+      prefs.setString(label, jsonEncode(limits));
+    });
+  }
+
+  Future<void> _getTheme() async {
+    final SharedPreferences prefs = await _prefs;
+    if (prefs.getBool('darkMode') == null) {return;}
+    if (prefs.getBool('darkMode')!) {
+      MyApp.themeNotifier.value = ThemeMode.dark;
+    } else {
+      MyApp.themeNotifier.value = ThemeMode.light;
+    }
+  }
+
+  Future<void> _getLimits() async {
+    final SharedPreferences prefs = await _prefs;
+    if (prefs.getString("lower") == null) {return;}
+    if (prefs.getString("upper") == null) {return;}
+    lowerLimits = jsonDecode(prefs.getString("lower")!);
+    upperLimits = jsonDecode(prefs.getString("upper")!);
+  }
+  
+  @override
+  void initState() {
+    super.initState();
+    _getTheme();
+    _getLimits();
   }
 
   @override
@@ -481,6 +527,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           onToggle: (value) {
                               MyApp.themeNotifier.value =
                                 MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+                              _saveTheme(MyApp.themeNotifier.value);
                           },
                           initialValue: MyApp.themeNotifier.value == ThemeMode.light ? false : true,
                           leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onBackground),
@@ -508,8 +555,10 @@ class _MyHomePageState extends State<MyHomePage> {
         setState(() {
           if (upper) {
             upperLimits[e] = input;
+            _saveLimits("upper", upperLimits);
           } else {
             lowerLimits[e] = input;
+            _saveLimits("lower", lowerLimits);
           }
         });
         //https://stackoverflow.com/a/50683571 for nav.pop
@@ -535,8 +584,10 @@ class _MyHomePageState extends State<MyHomePage> {
             try {
               if (upper) {
                 upperLimits[e] = int.parse(value);
+                _saveLimits("upper", upperLimits);
               } else {
                 lowerLimits[e] = int.parse(value);
+                _saveLimits("lower", lowerLimits);
               }
             } on Exception {
               // do nothing
@@ -615,6 +666,7 @@ class ListAnalyzedData extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       itemCount: analyzedData.length,
       itemBuilder: (BuildContext context, int index) {

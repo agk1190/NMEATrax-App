@@ -395,7 +395,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       mapController: mapController,
                       options: MapOptions(
                         center: homeCoords,
-                        zoom: 16.0,
+                        zoom: 13.0,
                         maxZoom: 18.0,
                         maxBounds: LatLngBounds(
                           LatLng(-90.0, -180.0),
@@ -409,7 +409,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           });
                         },
                         onLongPress: (tapPosition, point) {
-                          if (gpxLL.isNotEmpty) {
+                          if (gpxLL.first != LatLng(0,0)) {
                             mapController.move(gpxLL.first, 13);
                           } else {
                             mapController.move(homeCoords, 13);

@@ -103,7 +103,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   List<List<dynamic>> csvListData = [];
   List<dynamic> csvHeaderData = [];
-  List<LatLng> gpxLL = [];
+  List<LatLng> gpxLL = [LatLng(0, 0)];
   List<List<String>> analyzedData = [];
   int curLineNum = 1;
   File csvFilePath = File("c");
@@ -112,6 +112,7 @@ class _MyHomePageState extends State<MyHomePage> {
   int errCount = 0;
   final mapController = MapController();
   bool _isVisible = true;
+  final homeCoords = LatLng(48.668070, -123.404493);
 
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
@@ -393,7 +394,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     body: FlutterMap(
                       mapController: mapController,
                       options: MapOptions(
-                        center: LatLng(48.668069, -123.40451),
+                        center: homeCoords,
                         zoom: 16.0,
                         maxZoom: 18.0,
                         maxBounds: LatLngBounds(
@@ -406,6 +407,14 @@ class _MyHomePageState extends State<MyHomePage> {
                           setState(() {
                             _isVisible = !_isVisible;
                           });
+                        },
+                        onLongPress: (tapPosition, point) {
+                          if (gpxLL.isNotEmpty) {
+                            mapController.move(gpxLL.first, 13);
+                          } else {
+                            mapController.move(homeCoords, 13);
+                          }
+                          
                         },
                       ),
                       nonRotatedChildren: const [
@@ -424,6 +433,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                           // userAgentPackageName: 'dev.fleaflet.flutter_map.example',
                           userAgentPackageName: 'com.nmeatrax.app',
+                          errorTileCallback: (tile, error, stackTrace) {},
                         ),
                         // MarkerLayer(
                         //   markers: [

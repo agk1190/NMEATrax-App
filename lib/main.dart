@@ -105,7 +105,7 @@ class _MyHomePageState extends State<MyHomePage> {
   List<dynamic> csvHeaderData = [];
   List<LatLng> gpxLL = [LatLng(0, 0)];
   List<List<String>> analyzedData = [];
-  int curLineNum = 1;
+  int curLineNum = 0;
   File csvFilePath = File("c");
   File gpxFilePath = File("c");
   num maxLines = 1;
@@ -162,13 +162,14 @@ class _MyHomePageState extends State<MyHomePage> {
   void _getCSV() async {
     csvFilePath = await _getFilePath(['csv']);
     if (csvFilePath.path != "null") {
-      maxLines = csvFilePath.readAsLinesSync().length - 1;
       _loadCSV(csvFilePath).then((rows) {
         if (rows.isNotEmpty) {
           csvListData = rows;
           csvHeaderData = rows[0];
+          csvListData.removeAt(0);
           setState(() {
-            curLineNum = 1;
+            curLineNum = 0;
+            maxLines = csvListData.length - 1;
           });
         }
       });
@@ -194,7 +195,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _decrCurLineNum() {
     setState(() {
-      if (curLineNum > 1) {
+      if (curLineNum > 0) {
         curLineNum--;
       }
     });
@@ -213,17 +214,15 @@ class _MyHomePageState extends State<MyHomePage> {
     errCount = 0;
     analyzedData.clear();
     for (var row in csvListData) {
-      if (i > 0) {
-        int j = 0;
-        for (var col in row) {
-          if (col is! String && j!=12 && j!=13 && j!=17) {
-            if (col < lowerLimits[csvHeaderData[j]] || col > upperLimits[csvHeaderData[j]]) {
-              analyzedData.add([csvHeaderData[j] + ':', ' $col @ line $i']);
-              errCount++;
-            }
+      int j = 0;
+      for (var col in row) {
+        if (col is! String && j!=12 && j!=13 && j!=17) {
+          if (col < lowerLimits[csvHeaderData[j]] || col > upperLimits[csvHeaderData[j]]) {
+            analyzedData.add([csvHeaderData[j] + ':', ' $col @ line $i']);
+            errCount++;
           }
-          j++;
         }
+        j++;
       }
       i++;
     }
@@ -309,7 +308,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           onChanged: _onSliderChanged,
                           label: curLineNum.toString(),
                           max: maxLines.toDouble(),
-                          min: 1,
+                          min: 0,
                           activeColor: Theme.of(context).colorScheme.primary,
                           inactiveColor: Theme.of(context).colorScheme.primaryContainer,
                     ),

@@ -117,40 +117,42 @@ class _MyHomePageState extends State<MyHomePage> {
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
   var lowerLimits = <String, dynamic>{
-    'RPM':0,
-    'Engine Temp (C)':0,
-    'Oil Temp (C)':0,
-    'Oil Pressure (kpa)':300,
-    'Fuel Rate (L/h)':0,
-    'Fuel Level (%)':10,
-    'Leg Tilt (%)':0,
-    'Speed (kn)':0,
-    'Heading (*)':0,
-    'Depth (ft)':5,
-    'Water Temp (C)':2,
-    'Battery Voltage (V)':12,
-    'Engine Hours (h)':0,
-    'Latitude':47,
-    'Longitude':-125,
-    'Magnetic Variation (*)':0,
+    'RPM':0.0,
+    'Engine Temp (C)':0.0,
+    'Oil Temp (C)':0.0,
+    'Oil Pressure (kpa)':300.0,
+    'Fuel Rate (L/h)':0.0,
+    'Fuel Level (%)':10.0,
+    'Fuel Efficiency (L/km)':0.0,
+    'Leg Tilt (%)':0.0,
+    'Speed (kn)':0.0,
+    'Heading (*)':0.0,
+    'Depth (ft)':5.0,
+    'Water Temp (C)':2.0,
+    'Battery Voltage (V)':12.0,
+    'Engine Hours (h)':0.0,
+    'Latitude':47.0,
+    'Longitude':-125.0,
+    'Magnetic Variation (*)':0.0,
   };
   var upperLimits = <String, dynamic>{
-    'RPM':5200,
-    'Engine Temp (C)':80,
-    'Oil Temp (C)':115,
-    'Oil Pressure (kpa)':700,
-    'Fuel Rate (L/h)':50,
-    'Fuel Level (%)':100,
-    'Leg Tilt (%)':100,
-    'Speed (kn)':30,
-    'Heading (*)':360,
-    'Depth (ft)':1000,
-    'Water Temp (C)':20,
-    'Battery Voltage (V)':15,
-    'Engine Hours (h)':10000,
-    'Latitude':49,
-    'Longitude':-122,
-    'Magnetic Variation (*)':17,
+    'RPM':5200.0,
+    'Engine Temp (C)':80.0,
+    'Oil Temp (C)':115.0,
+    'Oil Pressure (kpa)':700.0,
+    'Fuel Rate (L/h)':50.0,
+    'Fuel Level (%)':100.0,
+    'Fuel Efficiency (L/km)':4.0,
+    'Leg Tilt (%)':100.0,
+    'Speed (kn)':30.0,
+    'Heading (*)':360.0,
+    'Depth (ft)':1000.0,
+    'Water Temp (C)':20.0,
+    'Battery Voltage (V)':15.0,
+    'Engine Hours (h)':10000.0,
+    'Latitude':49.0,
+    'Longitude':-122.0,
+    'Magnetic Variation (*)':17.0,
   };
 
   void _onSliderChanged(double value) {
@@ -216,7 +218,7 @@ class _MyHomePageState extends State<MyHomePage> {
     for (var row in csvListData) {
       int j = 0;
       for (var col in row) {
-        if (col is! String && j!=12 && j!=13 && j!=17) {
+        if (col is! String) {
           if (col < lowerLimits[csvHeaderData[j]] || col > upperLimits[csvHeaderData[j]]) {
             analyzedData.add([csvHeaderData[j] + ':', ' $col @ line $i']);
             errCount++;
@@ -542,6 +544,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onBackground),
                           title: Text('Dark Mode', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                         ),
+                        SettingsTile.navigation(title: Text('App Version 1.1', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),)),
                       ],
                     ),
                   ],
@@ -556,7 +559,7 @@ class _MyHomePageState extends State<MyHomePage> {
   
   //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
   showInputDialog(BuildContext context, String title, dynamic e, bool upper) {
-    int input = 0;
+    double input = 0;
 
     Widget confirmButton = ElevatedButton(
       child: const Text("OK"),
@@ -582,7 +585,7 @@ class _MyHomePageState extends State<MyHomePage> {
         onChanged: (value) {
           setState(() {
             try {
-              input = int.parse(value);
+              input = double.parse(value);
             } on Exception {
               // do nothing
             }
@@ -592,10 +595,10 @@ class _MyHomePageState extends State<MyHomePage> {
           setState(() {
             try {
               if (upper) {
-                upperLimits[e] = int.parse(value);
+                upperLimits[e] = double.parse(value);
                 _saveLimits("upper", upperLimits);
               } else {
-                lowerLimits[e] = int.parse(value);
+                lowerLimits[e] = double.parse(value);
                 _saveLimits("lower", lowerLimits);
               }
             } on Exception {

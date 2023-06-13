@@ -185,6 +185,11 @@ class _LivePageState extends State<LivePage> {
     super.initState();
     _getTheme();
     // Timer.periodic(const Duration(seconds: 1), (Timer t) => setState((){}));
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   @override

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
@@ -9,6 +10,12 @@ import 'package:flutter_map/flutter_map.dart'; // Suitable for most situations
 import 'package:latlong2/latlong.dart';
 import 'package:gpx/gpx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sse_channel/sse_channel.dart';
+
+Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-"};
+bool nmeaFlag = false;
+String connectURL = "192.168.1.232";
+SseChannel? channel;
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -65,7 +72,14 @@ Future<File> _getFilePath(List<String> ext) async {
     }
 }
 
-void main() => runApp(const MyApp());
+void main() {
+  runApp(const MyApp());
+  // SseChannel channel = SseChannel.connect(Uri.parse('http://$connectURL/events'));
+  // channel.stream.listen((message) {
+  //   nmeaData = jsonDecode(message);
+  //   nmeaFlag = true;
+  // });
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -169,6 +183,20 @@ class _MyHomePageState extends State<MyHomePage> {
           csvListData = rows;
           csvHeaderData = rows[0];
           csvListData.removeAt(0);
+          int i = 0;
+          int j = 0;
+          for (var row in csvListData) {
+            for (var value in row) {
+              if (value is! String) {
+                if ((-273.0).compareTo(value) == 0) {
+                  csvListData[i][j] = "-";
+                }
+              }
+              j++;
+            }
+            j = 0;
+            i++;
+          }
           setState(() {
             curLineNum = 0;
             maxLines = csvListData.length - 1;
@@ -219,7 +247,7 @@ class _MyHomePageState extends State<MyHomePage> {
       int j = 0;
       for (var col in row) {
         if (col is! String) {
-          if (col < lowerLimits[csvHeaderData[j]] || col > upperLimits[csvHeaderData[j]]) {
+          if ((col < lowerLimits[csvHeaderData[j]] || col > upperLimits[csvHeaderData[j]]) && col != -273.0) {
             analyzedData.add([csvHeaderData[j] + ':', ' $col @ line $i']);
             errCount++;
           }
@@ -270,6 +298,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _getTheme();
     _getLimits();
+    Timer.periodic(const Duration(seconds: 1), (Timer t) => setState((){}));
   }
 
   @override
@@ -277,7 +306,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return MaterialApp(
       title: 'NMEATrax Replay App',
       home: DefaultTabController(
-        length: 4,
+        length: 5,
         child: Scaffold(
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           backgroundColor: Theme.of(context).colorScheme.background,
@@ -291,6 +320,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 Tab(icon: Icon(Icons.directions_boat_sharp)),
                 Tab(icon: Icon(Icons.analytics)),
                 Tab(icon: Icon(Icons.map)),
+                Tab(icon: Icon(Icons.wifi_tethering_sharp)),
                 Tab(icon: Icon(Icons.settings)),
               ],
             ),
@@ -468,6 +498,82 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                 ],
+              ),
+              SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedNMEABox(value: nmeaData["speed"], title: "Knots", unit: " kn", width: 120, mainContext: context,),
+                        Expanded(child: SizedNMEABox(value: nmeaData["rpm"], title: "RPM", unit: "", mainContext: context,),),
+                        SizedNMEABox(value: nmeaData["depth"], title: "Depth", unit: " ft", width: 120, mainContext: context,),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: SizedNMEABox(value: nmeaData["etemp"], title: "Engine", unit: "*C", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["otemp"], title: "Oil", unit: "*C", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["opres"], title: "Oil", unit: " kpa", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["flevel"], title: "Fuel", unit: "%", mainContext: context,),),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: SizedNMEABox(value: nmeaData["fuel_rate"], title: "Fuel Rate", unit: " L/h", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["efficiency"], title: "Efficiency", unit: " L/km", mainContext: context,),),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: SizedNMEABox(value: nmeaData["leg_tilt"], title: "Leg Tilt", unit: "%", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["heading"], title: "Heading", unit: "*", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["wtemp"], title: "Water Temp", unit: "*C", mainContext: context,),),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: SizedNMEABox(value: nmeaData["time"], title: "Time Stamp", unit: "", mainContext: context,),),
+                      ],
+                    ),
+                    // ListView.builder(
+                    //   physics: const NeverScrollableScrollPhysics(),
+                    //   shrinkWrap: true,
+                    //   itemCount: nmeaData.keys.length,
+                    //   itemBuilder: (BuildContext context, int index) {
+                    //     return Container(
+                    //       decoration: BoxDecoration(
+                    //         border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+                    //       ),
+                    //       child: Row(
+                    //           mainAxisAlignment: MainAxisAlignment.center,
+                    //           children: [
+                    //             // Expanded(child: Text(dataModel.jsonData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
+                    //             Expanded(child: Text(nmeaData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
+                    //             Expanded(child: Text(nmeaData.values.elementAt(index), textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onBackground),))
+                    //           ],
+                    //         ),
+                    //     );
+                    //   },
+                    // ),
+                    // TextButton(
+                    //   onPressed: _decrCurLineNum,
+                    //   child: const Text("update"),
+                    // ),
+                    TextField(
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
+                      onChanged: (value) {
+                        connectURL = value;
+                      },
+                    ),
+                    const ElevatedButton(onPressed: sseSubscribe, child: Text("start"))
+                  ],
+                ),
               ),
               SingleChildScrollView(
                 child: SettingsList(
@@ -697,4 +803,80 @@ class ListAnalyzedData extends StatelessWidget {
       },
     );
   }
+}
+
+class SizedNMEABox extends StatelessWidget {
+  final String value;
+  final String title;
+  final String unit;
+  final double width;
+  final dynamic mainContext;
+
+  const SizedNMEABox({
+    Key? key,
+    required this.value,
+    required this.title,
+    required this.unit,
+    this.width = 100,
+    required this.mainContext,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Container(
+        padding: const EdgeInsets.all(4.0),
+        margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey),
+        ),
+        child: Column(
+          children: [
+            Text(
+              title,
+              style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground, fontSize: 14),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: Theme.of(mainContext).colorScheme.onBackground,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  unit,
+                  style: TextStyle(
+                    color: Theme.of(mainContext).colorScheme.onBackground,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+sseSubscribe() async {
+  try {
+    channel = SseChannel.connect(Uri.parse('http://$connectURL/events'));
+  } catch (e) {
+    // print("Caught $e");
+  }
+  channel!.stream.listen((message) {
+    nmeaData = jsonDecode(message);
+    nmeaFlag = true;
+    for (var element in nmeaData.values) {
+      if (element == "-273") {
+        element = '-';
+      }
+    }});
 }

@@ -13,7 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sse_channel/sse_channel.dart';
 
 Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-"};
-bool nmeaFlag = false;
+// bool nmeaFlag = false;
 String connectURL = "192.168.1.232";
 SseChannel? channel;
 
@@ -74,11 +74,6 @@ Future<File> _getFilePath(List<String> ext) async {
 
 void main() {
   runApp(const MyApp());
-  // SseChannel channel = SseChannel.connect(Uri.parse('http://$connectURL/events'));
-  // channel.stream.listen((message) {
-  //   nmeaData = jsonDecode(message);
-  //   nmeaFlag = true;
-  // });
 }
 
 class MyApp extends StatelessWidget {
@@ -94,27 +89,84 @@ class MyApp extends StatelessWidget {
       valueListenable: themeNotifier, 
       builder: (_, ThemeMode currentMode, __) {
         return MaterialApp(
-          title: 'NMEATrax Replay',
+          title: 'NMEATrax App',
           theme: ThemeData(colorScheme: myLightColors),
           darkTheme: ThemeData(colorScheme: myDarkColors),
           themeMode: currentMode,
-          home: const MyHomePage(title: 'NMEATrax Replay App'),
+          home: const HomePage(),
+          // initialRoute: '/live',
+          routes: {
+            '/live':(context) => const LivePage(),
+            '/replay':(context) => const ReplayPage(),
+          },
         );
       });
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title, this.showValueIndicator});
-
-  final String title;
-  final ShowValueIndicator? showValueIndicator;
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('NMEATrax App'),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          children: <Widget>[
+            const DrawerHeader(
+              decoration: BoxDecoration(
+                color: Color(0xFF0050C7),
+              ),
+              child: Text('NMEATrax App'),
+            ),
+            ListTile(
+              title: const Text('Live'),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/live');
+              },
+            ),
+            ListTile(
+              title: const Text('Replay'),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/replay');
+              },
+            ),
+            const AboutListTile(
+              icon: Icon(
+                Icons.info,
+              ),
+              applicationIcon: Icon(
+                Icons.directions_boat,
+              ),
+              applicationName: 'NMEATrax',
+              applicationVersion: '1.0.0',
+              aboutBoxChildren: [
+                Text("For use with NMEATrax Vessel Monitoring System")
+              ],
+              child: Text('About app'),
+            ),
+          ],
+        ),
+      ),
+      body: const Center(
+        child: Text('Home Page'),
+      ),
+    );
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class LivePage extends StatefulWidget {
+  const LivePage({super.key});
+
+  @override
+  State<LivePage> createState() => _LivePageState();
+}
+
+class _LivePageState extends State<LivePage> {
+
   List<List<dynamic>> csvListData = [];
   List<dynamic> csvHeaderData = [];
   List<LatLng> gpxLL = [LatLng(0, 0)];
@@ -298,29 +350,75 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _getTheme();
     _getLimits();
-    Timer.periodic(const Duration(seconds: 1), (Timer t) => setState((){}));
+    // Timer.periodic(const Duration(seconds: 1), (Timer t) => setState((){}));
   }
 
   @override
   Widget build(BuildContext mainContext) {
     return MaterialApp(
-      title: 'NMEATrax Replay App',
+      title: 'NMEATrax Replay',
       home: DefaultTabController(
-        length: 5,
+        length: 4,
         child: Scaffold(
+          drawer: Drawer(
+            backgroundColor: Theme.of(context).colorScheme.background,
+            child: ListView(
+              children: <Widget>[
+                DrawerHeader(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0050C7),
+                  ),
+                  child: Text('NMEATrax App', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onBackground,
+                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  title: const Text('Live'),
+                  leading: const Icon(Icons.bolt),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/live');
+                  },
+                ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onBackground,
+                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  leading: const Icon(Icons.timeline),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/replay');
+                  },
+                ),
+                AboutListTile(
+                  icon: Icon(
+                    color: Theme.of(context).colorScheme.onBackground,
+                    Icons.info,
+                  ),
+                  applicationIcon: const Icon(
+                    Icons.directions_boat,
+                  ),
+                  applicationName: 'NMEATrax',
+                  applicationVersion: '1.0.0',
+                  aboutBoxChildren: const [
+                    Text("For use with NMEATrax Vessel Monitoring System")
+                  ],
+                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+              ],
+            ),
+          ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           backgroundColor: Theme.of(context).colorScheme.background,
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.primary,
             iconTheme: Theme.of(context).primaryIconTheme,
-            title: Text('NMEATrax Replay App', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            title: Text('NMEATrax Replay', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            // leading: Icon(Icons.bolt),
             bottom: TabBar(
               indicatorColor: Theme.of(context).colorScheme.secondary,
               tabs: const [
                 Tab(icon: Icon(Icons.directions_boat_sharp)),
                 Tab(icon: Icon(Icons.analytics)),
                 Tab(icon: Icon(Icons.map)),
-                Tab(icon: Icon(Icons.wifi_tethering_sharp)),
                 Tab(icon: Icon(Icons.settings)),
               ],
             ),
@@ -433,7 +531,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           LatLng(90.0, 180.0),
                         ),
                         keepAlive: true,
-                        interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                        interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate & ~InteractiveFlag.flingAnimation,
                         onTap: (tapPosition, point) {
                           setState(() {
                             _isVisible = !_isVisible;
@@ -499,6 +597,243 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ],
               ),
+              SingleChildScrollView(
+                child: SettingsList(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  darkTheme: SettingsThemeData(
+                    settingsSectionBackground: Theme.of(context).colorScheme.background,
+                    settingsListBackground: Theme.of(context).colorScheme.background,
+                    titleTextColor: Theme.of(context).colorScheme.onBackground,
+                  ),
+                  lightTheme: SettingsThemeData(
+                    settingsSectionBackground: Theme.of(context).colorScheme.background,
+                    settingsListBackground: Theme.of(context).colorScheme.background,
+                    titleTextColor: Theme.of(context).colorScheme.onBackground,
+                  ),
+                  platform: DevicePlatform.android,
+                  sections: [
+                    SettingsSection(
+                      title: const Text(
+                        "Analyze - Lower Limits", 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 22,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      //https://stackoverflow.com/a/61674640 .map()
+                      tiles: csvHeaderData.map((e) => SettingsTile.navigation(
+                          leading: Icon(Icons.settings_applications, color: Theme.of(context).colorScheme.onBackground),
+                          title: Text("Lower $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                          value: Text(lowerLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                          onPressed: (context) {
+                            showInputDialog(context, "Lower $e Limit", e, false);
+                          },
+                        )
+                      ).toList(),
+                    ),
+                    SettingsSection(
+                      title: const Text(
+                        "Analyze - Upper Limits", 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 22,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      tiles: csvHeaderData.map((e) => SettingsTile.navigation(
+                          leading: Icon(Icons.settings_applications, color: Theme.of(context).colorScheme.onBackground),
+                          title: Text("Upper $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                          value: Text(upperLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                          onPressed: (context) {
+                            showInputDialog(context, "Upper $e Limit", e, true);
+                          },
+                        )
+                      ).toList(),
+                    ),
+                    SettingsSection(
+                      title: const Text(
+                        "App Theme", 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 22,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      tiles: <SettingsTile>[
+                        SettingsTile.switchTile(
+                          onToggle: (value) {
+                              MyApp.themeNotifier.value =
+                                MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+                              _saveTheme(MyApp.themeNotifier.value);
+                          },
+                          initialValue: MyApp.themeNotifier.value == ThemeMode.light ? false : true,
+                          leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onBackground),
+                          title: Text('Dark Mode', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                        ),
+                        // SettingsTile.navigation(title: Text('App Version 1.1', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ]
+          ),
+        ),
+      ),
+    );
+  }
+
+  //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
+  showInputDialog(BuildContext context, String title, dynamic e, bool upper) {
+    double input = 0;
+
+    Widget confirmButton = ElevatedButton(
+      child: const Text("OK"),
+      onPressed: () {
+        setState(() {
+          if (upper) {
+            upperLimits[e] = input;
+            _saveLimits("upper", upperLimits);
+          } else {
+            lowerLimits[e] = input;
+            _saveLimits("lower", lowerLimits);
+          }
+        });
+        //https://stackoverflow.com/a/50683571 for nav.pop
+        Navigator.of(context, rootNavigator: true).pop();
+      },
+    );
+    AlertDialog alert = AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      title: Text(title),
+      content: TextField(
+        autofocus: true,
+        onChanged: (value) {
+          setState(() {
+            try {
+              input = double.parse(value);
+            } on Exception {
+              // do nothing
+            }
+          });
+        },
+        onSubmitted: (value) {
+          setState(() {
+            try {
+              if (upper) {
+                upperLimits[e] = double.parse(value);
+                _saveLimits("upper", upperLimits);
+              } else {
+                lowerLimits[e] = double.parse(value);
+                _saveLimits("lower", lowerLimits);
+              }
+            } on Exception {
+              // do nothing
+            }
+          });
+          Navigator.of(context, rootNavigator: true).pop();
+        },
+        // decoration: const InputDecoration(
+        //   prefixIcon: Icon(
+        //     Icons.playlist_add,
+        //     size: 18.0,
+        //   ),
+        // ),
+      ),
+      actions: [
+        confirmButton,
+      ],
+    );
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
+  }
+}
+
+class ReplayPage extends StatefulWidget {
+  const ReplayPage({super.key});
+
+  @override
+  State<ReplayPage> createState() => _ReplayPageState();
+}
+
+class _ReplayPageState extends State<ReplayPage> {
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          drawer: Drawer(
+            backgroundColor: Theme.of(context).colorScheme.background,
+            child: ListView(
+              children: <Widget>[
+                DrawerHeader(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0050C7),
+                  ),
+                  child: Text('NMEATrax App', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onBackground,
+                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  title: const Text('Live'),
+                  leading: const Icon(Icons.bolt),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/live');
+                  },
+                ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onBackground,
+                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  leading: const Icon(Icons.timeline),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/replay');
+                  },
+                ),
+                AboutListTile(
+                  icon: Icon(
+                    color: Theme.of(context).colorScheme.onBackground,
+                    Icons.info,
+                  ),
+                  applicationIcon: const Icon(
+                    Icons.directions_boat,
+                  ),
+                  applicationName: 'NMEATrax',
+                  applicationVersion: '1.0.0',
+                  aboutBoxChildren: const [
+                    Text("For use with NMEATrax Vessel Monitoring System")
+                  ],
+                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+              ],
+            ),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          backgroundColor: Theme.of(context).colorScheme.background,
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            iconTheme: Theme.of(context).primaryIconTheme,
+            title: Text('NMEATrax Replay', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            // leading: Icon(Icons.bolt),
+            bottom: TabBar(
+              indicatorColor: Theme.of(context).colorScheme.secondary,
+              tabs: const [
+                Tab(icon: Icon(Icons.dashboard)),
+                Tab(icon: Icon(Icons.list)),
+                Tab(icon: Icon(Icons.settings)),
+              ],
+            ),
+          ),
+          body: TabBarView(
+            children: [
               SingleChildScrollView(
                 child: Column(
                   children: [
@@ -575,160 +910,12 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-              SingleChildScrollView(
-                child: SettingsList(
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  darkTheme: SettingsThemeData(
-                    settingsSectionBackground: Theme.of(context).colorScheme.background,
-                    settingsListBackground: Theme.of(context).colorScheme.background,
-                    titleTextColor: Theme.of(context).colorScheme.onBackground,
-                  ),
-                  lightTheme: SettingsThemeData(
-                    settingsSectionBackground: Theme.of(context).colorScheme.background,
-                    settingsListBackground: Theme.of(context).colorScheme.background,
-                    titleTextColor: Theme.of(context).colorScheme.onBackground,
-                  ),
-                  platform: DevicePlatform.android,
-                  sections: [
-                    SettingsSection(
-                      title: const Text(
-                        "Analyze - Lower Limits", 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold, 
-                          fontSize: 22,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                      //https://stackoverflow.com/a/61674640 .map()
-                      tiles: csvHeaderData.map((e) => SettingsTile.navigation(
-                          leading: Icon(Icons.settings_applications, color: Theme.of(context).colorScheme.onBackground),
-                          title: Text("Lower $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                          value: Text(lowerLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                          onPressed: (context) {
-                            showInputDialog(mainContext, "Lower $e Limit", e, false);
-                          },
-                        )
-                      ).toList(),
-                    ),
-                    SettingsSection(
-                      title: const Text(
-                        "Analyze - Upper Limits", 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold, 
-                          fontSize: 22,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                      tiles: csvHeaderData.map((e) => SettingsTile.navigation(
-                          leading: Icon(Icons.settings_applications, color: Theme.of(context).colorScheme.onBackground),
-                          title: Text("Upper $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                          value: Text(upperLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                          onPressed: (context) {
-                            showInputDialog(mainContext, "Upper $e Limit", e, true);
-                          },
-                        )
-                      ).toList(),
-                    ),
-                    SettingsSection(
-                      title: const Text(
-                        "App Theme", 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold, 
-                          fontSize: 22,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                      tiles: <SettingsTile>[
-                        SettingsTile.switchTile(
-                          onToggle: (value) {
-                              MyApp.themeNotifier.value =
-                                MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-                              _saveTheme(MyApp.themeNotifier.value);
-                          },
-                          initialValue: MyApp.themeNotifier.value == ThemeMode.light ? false : true,
-                          leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onBackground),
-                          title: Text('Dark Mode', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                        ),
-                        SettingsTile.navigation(title: Text('App Version 1.1', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              Placeholder(),
+              Placeholder(),
             ]
           ),
         ),
-      )
-    );
-  }
-  
-  //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
-  showInputDialog(BuildContext context, String title, dynamic e, bool upper) {
-    double input = 0;
-
-    Widget confirmButton = ElevatedButton(
-      child: const Text("OK"),
-      onPressed: () {
-        setState(() {
-          if (upper) {
-            upperLimits[e] = input;
-            _saveLimits("upper", upperLimits);
-          } else {
-            lowerLimits[e] = input;
-            _saveLimits("lower", lowerLimits);
-          }
-        });
-        //https://stackoverflow.com/a/50683571 for nav.pop
-        Navigator.of(context, rootNavigator: true).pop();
-      },
-    );
-    AlertDialog alert = AlertDialog(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      title: Text(title),
-      content: TextField(
-        autofocus: true,
-        onChanged: (value) {
-          setState(() {
-            try {
-              input = double.parse(value);
-            } on Exception {
-              // do nothing
-            }
-          });
-        },
-        onSubmitted: (value) {
-          setState(() {
-            try {
-              if (upper) {
-                upperLimits[e] = double.parse(value);
-                _saveLimits("upper", upperLimits);
-              } else {
-                lowerLimits[e] = double.parse(value);
-                _saveLimits("lower", lowerLimits);
-              }
-            } on Exception {
-              // do nothing
-            }
-          });
-          Navigator.of(context, rootNavigator: true).pop();
-        },
-        // decoration: const InputDecoration(
-        //   prefixIcon: Icon(
-        //     Icons.playlist_add,
-        //     size: 18.0,
-        //   ),
-        // ),
       ),
-      actions: [
-        confirmButton,
-      ],
-    );
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return alert;
-      },
     );
   }
 }
@@ -873,7 +1060,7 @@ sseSubscribe() async {
   }
   channel!.stream.listen((message) {
     nmeaData = jsonDecode(message);
-    nmeaFlag = true;
+    // nmeaFlag = true;
     for (var element in nmeaData.values) {
       if (element == "-273") {
         element = '-';

@@ -16,6 +16,7 @@ Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273"
 // bool nmeaFlag = false;
 String connectURL = "192.168.1.232";
 SseChannel? channel;
+String buttonText = "Start";
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -94,7 +95,7 @@ class MyApp extends StatelessWidget {
           darkTheme: ThemeData(colorScheme: myDarkColors),
           themeMode: currentMode,
           home: const HomePage(),
-          // initialRoute: '/live',
+          initialRoute: '/live',
           routes: {
             '/live':(context) => const LivePage(),
             '/replay':(context) => const ReplayPage(),
@@ -166,6 +167,193 @@ class LivePage extends StatefulWidget {
 }
 
 class _LivePageState extends State<LivePage> {
+
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+
+  Future<void> _getTheme() async {
+    final SharedPreferences prefs = await _prefs;
+    if (prefs.getBool('darkMode') == null) {return;}
+    if (prefs.getBool('darkMode')!) {
+      MyApp.themeNotifier.value = ThemeMode.dark;
+    } else {
+      MyApp.themeNotifier.value = ThemeMode.light;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _getTheme();
+    // Timer.periodic(const Duration(seconds: 1), (Timer t) => setState((){}));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          drawer: Drawer(
+            backgroundColor: Theme.of(context).colorScheme.background,
+            child: ListView(
+              children: <Widget>[
+                DrawerHeader(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0050C7),
+                  ),
+                  child: Text('NMEATrax App', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onBackground,
+                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  title: const Text('Live'),
+                  leading: const Icon(Icons.bolt),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/live');
+                  },
+                ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onBackground,
+                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  leading: const Icon(Icons.timeline),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/replay');
+                  },
+                ),
+                AboutListTile(
+                  icon: Icon(
+                    color: Theme.of(context).colorScheme.onBackground,
+                    Icons.info,
+                  ),
+                  applicationIcon: const Icon(
+                    Icons.directions_boat,
+                  ),
+                  applicationName: 'NMEATrax',
+                  applicationVersion: '1.0.0',
+                  aboutBoxChildren: const [
+                    Text("For use with NMEATrax Vessel Monitoring System")
+                  ],
+                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+              ],
+            ),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          backgroundColor: Theme.of(context).colorScheme.background,
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            iconTheme: Theme.of(context).primaryIconTheme,
+            title: Text('NMEATrax Live', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            // leading: Icon(Icons.bolt),
+            bottom: TabBar(
+              indicatorColor: Theme.of(context).colorScheme.secondary,
+              tabs: const [
+                Tab(icon: Icon(Icons.dashboard)),
+                Tab(icon: Icon(Icons.list)),
+                Tab(icon: Icon(Icons.settings)),
+              ],
+            ),
+          ),
+          body: TabBarView(
+            children: [
+              SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedNMEABox(value: nmeaData["speed"], title: "Knots", unit: " kn", width: 120, mainContext: context,),
+                        Expanded(child: SizedNMEABox(value: nmeaData["rpm"], title: "RPM", unit: "", mainContext: context,),),
+                        SizedNMEABox(value: nmeaData["depth"], title: "Depth", unit: " ft", width: 120, mainContext: context,),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: SizedNMEABox(value: nmeaData["etemp"], title: "Engine", unit: "\u2103", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["otemp"], title: "Oil", unit: "\u2103", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["opres"], title: "Oil", unit: " kpa", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["flevel"], title: "Fuel", unit: "%", mainContext: context,),),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: SizedNMEABox(value: nmeaData["fuel_rate"], title: "Fuel Rate", unit: " L/h", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["efficiency"], title: "Efficiency", unit: " L/km", mainContext: context,),),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: SizedNMEABox(value: nmeaData["leg_tilt"], title: "Leg Tilt", unit: "%", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["heading"], title: "Heading", unit: "\u00B0", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["wtemp"], title: "Water Temp", unit: "\u2103", mainContext: context,),),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: SizedNMEABox(value: nmeaData["time"], title: "Time Stamp", unit: "", mainContext: context,),),
+                      ],
+                    ),
+                    TextField(
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
+                      onChanged: (value) {
+                        connectURL = value;
+                      },
+                      onSubmitted: (value) {
+                        connectURL = value;
+                      },
+                    ),
+                    ElevatedButton(
+                      onPressed: sseSubscribe,
+                      child: Text(buttonText),
+                    ),
+                  ],
+                ),
+              ),
+              SingleChildScrollView(
+                child: ListView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  itemCount: nmeaData.keys.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+                      ),
+                      child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Expanded(child: Text(dataModel.jsonData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
+                            Expanded(child: Text(nmeaData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(context).colorScheme.onBackground))),
+                            Expanded(child: Text(nmeaData.values.elementAt(index), textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground),))
+                          ],
+                        ),
+                    );
+                  },
+                ),
+              ),
+              const Placeholder(),
+            ]
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ReplayPage extends StatefulWidget {
+  const ReplayPage({super.key});
+
+  @override
+  State<ReplayPage> createState() => _ReplayPageState();
+}
+
+class _ReplayPageState extends State<ReplayPage> {
 
   List<List<dynamic>> csvListData = [];
   List<dynamic> csvHeaderData = [];
@@ -709,6 +897,7 @@ class _LivePageState extends State<LivePage> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       title: Text(title),
       content: TextField(
+        keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
         autofocus: true,
         onChanged: (value) {
           setState(() {
@@ -753,171 +942,7 @@ class _LivePageState extends State<LivePage> {
       },
     );
   }
-}
 
-class ReplayPage extends StatefulWidget {
-  const ReplayPage({super.key});
-
-  @override
-  State<ReplayPage> createState() => _ReplayPageState();
-}
-
-class _ReplayPageState extends State<ReplayPage> {
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: DefaultTabController(
-        length: 3,
-        child: Scaffold(
-          drawer: Drawer(
-            backgroundColor: Theme.of(context).colorScheme.background,
-            child: ListView(
-              children: <Widget>[
-                DrawerHeader(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF0050C7),
-                  ),
-                  child: Text('NMEATrax App', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                ),
-                ListTile(
-                  textColor: Theme.of(context).colorScheme.onBackground,
-                  iconColor: Theme.of(context).colorScheme.onBackground,
-                  title: const Text('Live'),
-                  leading: const Icon(Icons.bolt),
-                  onTap: () {
-                    Navigator.pushReplacementNamed(context, '/live');
-                  },
-                ),
-                ListTile(
-                  textColor: Theme.of(context).colorScheme.onBackground,
-                  iconColor: Theme.of(context).colorScheme.onBackground,
-                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                  leading: const Icon(Icons.timeline),
-                  onTap: () {
-                    Navigator.pushReplacementNamed(context, '/replay');
-                  },
-                ),
-                AboutListTile(
-                  icon: Icon(
-                    color: Theme.of(context).colorScheme.onBackground,
-                    Icons.info,
-                  ),
-                  applicationIcon: const Icon(
-                    Icons.directions_boat,
-                  ),
-                  applicationName: 'NMEATrax',
-                  applicationVersion: '1.0.0',
-                  aboutBoxChildren: const [
-                    Text("For use with NMEATrax Vessel Monitoring System")
-                  ],
-                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                ),
-              ],
-            ),
-          ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-          backgroundColor: Theme.of(context).colorScheme.background,
-          appBar: AppBar(
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            iconTheme: Theme.of(context).primaryIconTheme,
-            title: Text('NMEATrax Replay', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-            // leading: Icon(Icons.bolt),
-            bottom: TabBar(
-              indicatorColor: Theme.of(context).colorScheme.secondary,
-              tabs: const [
-                Tab(icon: Icon(Icons.dashboard)),
-                Tab(icon: Icon(Icons.list)),
-                Tab(icon: Icon(Icons.settings)),
-              ],
-            ),
-          ),
-          body: TabBarView(
-            children: [
-              SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedNMEABox(value: nmeaData["speed"], title: "Knots", unit: " kn", width: 120, mainContext: context,),
-                        Expanded(child: SizedNMEABox(value: nmeaData["rpm"], title: "RPM", unit: "", mainContext: context,),),
-                        SizedNMEABox(value: nmeaData["depth"], title: "Depth", unit: " ft", width: 120, mainContext: context,),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["etemp"], title: "Engine", unit: "*C", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["otemp"], title: "Oil", unit: "*C", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["opres"], title: "Oil", unit: " kpa", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["flevel"], title: "Fuel", unit: "%", mainContext: context,),),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["fuel_rate"], title: "Fuel Rate", unit: " L/h", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["efficiency"], title: "Efficiency", unit: " L/km", mainContext: context,),),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["leg_tilt"], title: "Leg Tilt", unit: "%", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["heading"], title: "Heading", unit: "*", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["wtemp"], title: "Water Temp", unit: "*C", mainContext: context,),),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["time"], title: "Time Stamp", unit: "", mainContext: context,),),
-                      ],
-                    ),
-                    // ListView.builder(
-                    //   physics: const NeverScrollableScrollPhysics(),
-                    //   shrinkWrap: true,
-                    //   itemCount: nmeaData.keys.length,
-                    //   itemBuilder: (BuildContext context, int index) {
-                    //     return Container(
-                    //       decoration: BoxDecoration(
-                    //         border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
-                    //       ),
-                    //       child: Row(
-                    //           mainAxisAlignment: MainAxisAlignment.center,
-                    //           children: [
-                    //             // Expanded(child: Text(dataModel.jsonData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
-                    //             Expanded(child: Text(nmeaData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
-                    //             Expanded(child: Text(nmeaData.values.elementAt(index), textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onBackground),))
-                    //           ],
-                    //         ),
-                    //     );
-                    //   },
-                    // ),
-                    // TextButton(
-                    //   onPressed: _decrCurLineNum,
-                    //   child: const Text("update"),
-                    // ),
-                    TextField(
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
-                      onChanged: (value) {
-                        connectURL = value;
-                      },
-                    ),
-                    const ElevatedButton(onPressed: sseSubscribe, child: Text("start"))
-                  ],
-                ),
-              ),
-              Placeholder(),
-              Placeholder(),
-            ]
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class ListData extends StatelessWidget {
@@ -1058,6 +1083,7 @@ sseSubscribe() async {
   } catch (e) {
     // print("Caught $e");
   }
+  // buttonText = "Stop";
   channel!.stream.listen((message) {
     nmeaData = jsonDecode(message);
     // nmeaFlag = true;

@@ -16,7 +16,6 @@ Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273"
 // bool nmeaFlag = false;
 String connectURL = "192.168.1.232";
 SseChannel? channel;
-String buttonText = "Start";
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -169,6 +168,7 @@ class LivePage extends StatefulWidget {
 class _LivePageState extends State<LivePage> {
 
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+  bool _isVisible = true;
 
   Future<void> _getTheme() async {
     final SharedPreferences prefs = await _prefs;
@@ -180,16 +180,34 @@ class _LivePageState extends State<LivePage> {
     }
   }
 
+  Future<void> _saveIP(String ip) async {
+      final SharedPreferences prefs = await _prefs;
+
+      setState(() {
+        prefs.setString("ip", jsonEncode(ip));
+      });
+    }
+
+    Future<void> _getIP() async {
+    final SharedPreferences prefs = await _prefs;
+    if (prefs.getString("ip") == null) {return;}
+    connectURL = jsonDecode(prefs.getString("ip")!);
+  }
+
   @override
   void initState() {
     super.initState();
     _getTheme();
-    // Timer.periodic(const Duration(seconds: 1), (Timer t) => setState((){}));
-    Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {});
+    _getIP();
+    int i = 0;
+    for (var element in nmeaData.values) {
+      if (element == "-273" || element == "-273.0" || element == "-273.00") {
+        var key = nmeaData.keys.elementAt(i);
+        nmeaData[key] = '-';
       }
-    });
+      i++;
+    }
+    setState(() {});
   }
 
   @override
@@ -266,6 +284,12 @@ class _LivePageState extends State<LivePage> {
                 child: Column(
                   children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(nmeaData["time"], style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+                      ],
+                    ),
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         SizedNMEABox(value: nmeaData["speed"], title: "Knots", unit: " kn", width: 120, mainContext: context,),
@@ -297,26 +321,12 @@ class _LivePageState extends State<LivePage> {
                         Expanded(child: SizedNMEABox(value: nmeaData["wtemp"], title: "Water Temp", unit: "\u2103", mainContext: context,),),
                       ],
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["time"], title: "Time Stamp", unit: "", mainContext: context,),),
-                      ],
-                    ),
-                    TextField(
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
-                      onChanged: (value) {
-                        connectURL = value;
-                      },
-                      onSubmitted: (value) {
-                        connectURL = value;
-                      },
-                    ),
-                    ElevatedButton(
-                      onPressed: sseSubscribe,
-                      child: Text(buttonText),
-                    ),
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.center,
+                    //   children: [
+                    //     Expanded(child: SizedNMEABox(value: nmeaData["time"], title: "Time Stamp", unit: "", mainContext: context,),),
+                    //   ],
+                    // ),
                   ],
                 ),
               ),
@@ -345,9 +355,99 @@ class _LivePageState extends State<LivePage> {
               const Placeholder(),
             ]
           ),
+          floatingActionButton: Visibility(
+            visible: _isVisible,
+            child: FloatingActionButton.extended(
+              onPressed: () {
+                showInputDialog(context, "IP Address");
+              },
+              label: const Text("Connect"),
+            ),
+          ),
         ),
       ),
     );
+  }
+
+    //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
+  showInputDialog(BuildContext context, String title) {
+    String input = connectURL;
+
+    Widget confirmButton = ElevatedButton(
+      child: const Text("Connect"),
+      onPressed: () {
+        setState(() {
+          connectURL = input;
+          sseSubscribe();
+        });
+        //https://stackoverflow.com/a/50683571 for nav.pop
+        Navigator.of(context, rootNavigator: true).pop();
+      },
+    );
+    AlertDialog alert = AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      title: Text(title),
+      content: TextFormField(
+        keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+        autofocus: true,
+        initialValue: connectURL,
+        onChanged: (value) {
+          setState(() {
+            try {
+              input = value;
+            } on Exception {
+              // do nothing
+            }
+          });
+        },
+        onFieldSubmitted: (value) {
+          setState(() {
+            connectURL = value;
+            sseSubscribe();
+          });
+          Navigator.of(context, rootNavigator: true).pop();
+        },
+        // decoration: const InputDecoration(
+        //   prefixIcon: Icon(
+        //     Icons.language,
+        //     size: 18.0,
+        //   ),
+        // ),
+      ),
+      actions: [
+        confirmButton,
+      ],
+    );
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
+  }
+
+  sseSubscribe() async {
+    try {
+      channel = SseChannel.connect(Uri.parse('http://$connectURL/events'));
+    } catch (e) {
+      // print("Caught $e");
+    }
+    _isVisible = false;
+    _saveIP(connectURL);
+    channel!.stream.listen((message) {
+      int i = 0;
+      nmeaData = jsonDecode(message);
+      for (var element in nmeaData.values) {
+        if (element == "-273" || element == "-273.0" || element == "-273.00") {
+          var key = nmeaData.keys.elementAt(i);
+          nmeaData[key] = '-';
+        }
+        i++;
+      }
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 }
 
@@ -947,7 +1047,6 @@ class _ReplayPageState extends State<ReplayPage> {
       },
     );
   }
-
 }
 
 class ListData extends StatelessWidget {
@@ -1080,21 +1179,4 @@ class SizedNMEABox extends StatelessWidget {
       ),
     );
   }
-}
-
-sseSubscribe() async {
-  try {
-    channel = SseChannel.connect(Uri.parse('http://$connectURL/events'));
-  } catch (e) {
-    // print("Caught $e");
-  }
-  // buttonText = "Stop";
-  channel!.stream.listen((message) {
-    nmeaData = jsonDecode(message);
-    // nmeaFlag = true;
-    for (var element in nmeaData.values) {
-      if (element == "-273") {
-        element = '-';
-      }
-    }});
 }

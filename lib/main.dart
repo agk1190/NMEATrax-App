@@ -13,7 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sse_channel/sse_channel.dart';
 
 Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-"};
-bool nmeaFlag = false;
+// bool nmeaFlag = false;
 String connectURL = "192.168.1.232";
 SseChannel? channel;
 
@@ -74,11 +74,6 @@ Future<File> _getFilePath(List<String> ext) async {
 
 void main() {
   runApp(const MyApp());
-  // SseChannel channel = SseChannel.connect(Uri.parse('http://$connectURL/events'));
-  // channel.stream.listen((message) {
-  //   nmeaData = jsonDecode(message);
-  //   nmeaFlag = true;
-  // });
 }
 
 class MyApp extends StatelessWidget {
@@ -94,27 +89,377 @@ class MyApp extends StatelessWidget {
       valueListenable: themeNotifier, 
       builder: (_, ThemeMode currentMode, __) {
         return MaterialApp(
-          title: 'NMEATrax Replay',
+          title: 'NMEATrax App',
           theme: ThemeData(colorScheme: myLightColors),
           darkTheme: ThemeData(colorScheme: myDarkColors),
           themeMode: currentMode,
-          home: const MyHomePage(title: 'NMEATrax Replay App'),
+          home: const HomePage(),
+          initialRoute: '/live',
+          routes: {
+            '/live':(context) => const LivePage(),
+            '/replay':(context) => const ReplayPage(),
+          },
         );
       });
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title, this.showValueIndicator});
-
-  final String title;
-  final ShowValueIndicator? showValueIndicator;
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('NMEATrax App'),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          children: <Widget>[
+            const DrawerHeader(
+              decoration: BoxDecoration(
+                color: Color(0xFF0050C7),
+              ),
+              child: Text('NMEATrax App'),
+            ),
+            ListTile(
+              title: const Text('Live'),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/live');
+              },
+            ),
+            ListTile(
+              title: const Text('Replay'),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/replay');
+              },
+            ),
+            const AboutListTile(
+              icon: Icon(
+                Icons.info,
+              ),
+              applicationIcon: Icon(
+                Icons.directions_boat,
+              ),
+              applicationName: 'NMEATrax',
+              applicationVersion: '1.0.0',
+              aboutBoxChildren: [
+                Text("For use with NMEATrax Vessel Monitoring System")
+              ],
+              child: Text('About app'),
+            ),
+          ],
+        ),
+      ),
+      body: const Center(
+        child: Text('Home Page'),
+      ),
+    );
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class LivePage extends StatefulWidget {
+  const LivePage({super.key});
+
+  @override
+  State<LivePage> createState() => _LivePageState();
+}
+
+class _LivePageState extends State<LivePage> {
+
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+  bool _isVisible = true;
+
+  Future<void> _getTheme() async {
+    final SharedPreferences prefs = await _prefs;
+    if (prefs.getBool('darkMode') == null) {return;}
+    if (prefs.getBool('darkMode')!) {
+      MyApp.themeNotifier.value = ThemeMode.dark;
+    } else {
+      MyApp.themeNotifier.value = ThemeMode.light;
+    }
+  }
+
+  Future<void> _saveIP(String ip) async {
+      final SharedPreferences prefs = await _prefs;
+
+      setState(() {
+        prefs.setString("ip", jsonEncode(ip));
+      });
+    }
+
+    Future<void> _getIP() async {
+    final SharedPreferences prefs = await _prefs;
+    if (prefs.getString("ip") == null) {return;}
+    connectURL = jsonDecode(prefs.getString("ip")!);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _getTheme();
+    _getIP();
+    int i = 0;
+    for (var element in nmeaData.values) {
+      if (element == "-273" || element == "-273.0" || element == "-273.00") {
+        var key = nmeaData.keys.elementAt(i);
+        nmeaData[key] = '-';
+      }
+      i++;
+    }
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          drawer: Drawer(
+            backgroundColor: Theme.of(context).colorScheme.background,
+            child: ListView(
+              children: <Widget>[
+                DrawerHeader(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0050C7),
+                  ),
+                  child: Text('NMEATrax App', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onBackground,
+                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  title: const Text('Live'),
+                  leading: const Icon(Icons.bolt),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/live');
+                  },
+                ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onBackground,
+                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  leading: const Icon(Icons.timeline),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/replay');
+                  },
+                ),
+                AboutListTile(
+                  icon: Icon(
+                    color: Theme.of(context).colorScheme.onBackground,
+                    Icons.info,
+                  ),
+                  applicationIcon: const Icon(
+                    Icons.directions_boat,
+                  ),
+                  applicationName: 'NMEATrax',
+                  applicationVersion: '1.0.0',
+                  aboutBoxChildren: const [
+                    Text("For use with NMEATrax Vessel Monitoring System")
+                  ],
+                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+              ],
+            ),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          backgroundColor: Theme.of(context).colorScheme.background,
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            iconTheme: Theme.of(context).primaryIconTheme,
+            title: Text('NMEATrax Live', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            // leading: Icon(Icons.bolt),
+            bottom: TabBar(
+              indicatorColor: Theme.of(context).colorScheme.secondary,
+              tabs: const [
+                Tab(icon: Icon(Icons.dashboard)),
+                Tab(icon: Icon(Icons.list)),
+                Tab(icon: Icon(Icons.settings)),
+              ],
+            ),
+          ),
+          body: TabBarView(
+            children: [
+              SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(nmeaData["time"], style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedNMEABox(value: nmeaData["speed"], title: "Knots", unit: " kn", width: 120, mainContext: context,),
+                        Expanded(child: SizedNMEABox(value: nmeaData["rpm"], title: "RPM", unit: "", mainContext: context,),),
+                        SizedNMEABox(value: nmeaData["depth"], title: "Depth", unit: " ft", width: 120, mainContext: context,),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: SizedNMEABox(value: nmeaData["etemp"], title: "Engine", unit: "\u2103", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["otemp"], title: "Oil", unit: "\u2103", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["opres"], title: "Oil", unit: " kpa", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["flevel"], title: "Fuel", unit: "%", mainContext: context,),),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: SizedNMEABox(value: nmeaData["fuel_rate"], title: "Fuel Rate", unit: " L/h", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["efficiency"], title: "Efficiency", unit: " L/km", mainContext: context,),),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: SizedNMEABox(value: nmeaData["leg_tilt"], title: "Leg Tilt", unit: "%", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["heading"], title: "Heading", unit: "\u00B0", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["wtemp"], title: "Water Temp", unit: "\u2103", mainContext: context,),),
+                      ],
+                    ),
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.center,
+                    //   children: [
+                    //     Expanded(child: SizedNMEABox(value: nmeaData["time"], title: "Time Stamp", unit: "", mainContext: context,),),
+                    //   ],
+                    // ),
+                  ],
+                ),
+              ),
+              SingleChildScrollView(
+                child: ListView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  itemCount: nmeaData.keys.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+                      ),
+                      child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Expanded(child: Text(dataModel.jsonData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
+                            Expanded(child: Text(nmeaData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(context).colorScheme.onBackground))),
+                            Expanded(child: Text(nmeaData.values.elementAt(index), textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground),))
+                          ],
+                        ),
+                    );
+                  },
+                ),
+              ),
+              const Placeholder(),
+            ]
+          ),
+          floatingActionButton: Visibility(
+            visible: _isVisible,
+            child: FloatingActionButton.extended(
+              onPressed: () {
+                showInputDialog(context, "IP Address");
+              },
+              label: const Text("Connect"),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+    //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
+  showInputDialog(BuildContext context, String title) {
+    String input = connectURL;
+
+    Widget confirmButton = ElevatedButton(
+      child: const Text("Connect"),
+      onPressed: () {
+        setState(() {
+          connectURL = input;
+          sseSubscribe();
+        });
+        //https://stackoverflow.com/a/50683571 for nav.pop
+        Navigator.of(context, rootNavigator: true).pop();
+      },
+    );
+    AlertDialog alert = AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      title: Text(title),
+      content: TextFormField(
+        keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+        autofocus: true,
+        initialValue: connectURL,
+        onChanged: (value) {
+          setState(() {
+            try {
+              input = value;
+            } on Exception {
+              // do nothing
+            }
+          });
+        },
+        onFieldSubmitted: (value) {
+          setState(() {
+            connectURL = value;
+            sseSubscribe();
+          });
+          Navigator.of(context, rootNavigator: true).pop();
+        },
+        // decoration: const InputDecoration(
+        //   prefixIcon: Icon(
+        //     Icons.language,
+        //     size: 18.0,
+        //   ),
+        // ),
+      ),
+      actions: [
+        confirmButton,
+      ],
+    );
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
+  }
+
+  sseSubscribe() async {
+    try {
+      channel = SseChannel.connect(Uri.parse('http://$connectURL/events'));
+    } catch (e) {
+      // print("Caught $e");
+    }
+    _isVisible = false;
+    _saveIP(connectURL);
+    channel!.stream.listen((message) {
+      int i = 0;
+      nmeaData = jsonDecode(message);
+      for (var element in nmeaData.values) {
+        if (element == "-273" || element == "-273.0" || element == "-273.00") {
+          var key = nmeaData.keys.elementAt(i);
+          nmeaData[key] = '-';
+        }
+        i++;
+      }
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+}
+
+class ReplayPage extends StatefulWidget {
+  const ReplayPage({super.key});
+
+  @override
+  State<ReplayPage> createState() => _ReplayPageState();
+}
+
+class _ReplayPageState extends State<ReplayPage> {
+
   List<List<dynamic>> csvListData = [];
   List<dynamic> csvHeaderData = [];
   List<LatLng> gpxLL = [LatLng(0, 0)];
@@ -298,29 +643,75 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _getTheme();
     _getLimits();
-    Timer.periodic(const Duration(seconds: 1), (Timer t) => setState((){}));
+    // Timer.periodic(const Duration(seconds: 1), (Timer t) => setState((){}));
   }
 
   @override
   Widget build(BuildContext mainContext) {
     return MaterialApp(
-      title: 'NMEATrax Replay App',
+      title: 'NMEATrax Replay',
       home: DefaultTabController(
-        length: 5,
+        length: 4,
         child: Scaffold(
+          drawer: Drawer(
+            backgroundColor: Theme.of(context).colorScheme.background,
+            child: ListView(
+              children: <Widget>[
+                DrawerHeader(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0050C7),
+                  ),
+                  child: Text('NMEATrax App', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onBackground,
+                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  title: const Text('Live'),
+                  leading: const Icon(Icons.bolt),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/live');
+                  },
+                ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onBackground,
+                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  leading: const Icon(Icons.timeline),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/replay');
+                  },
+                ),
+                AboutListTile(
+                  icon: Icon(
+                    color: Theme.of(context).colorScheme.onBackground,
+                    Icons.info,
+                  ),
+                  applicationIcon: const Icon(
+                    Icons.directions_boat,
+                  ),
+                  applicationName: 'NMEATrax',
+                  applicationVersion: '1.0.0',
+                  aboutBoxChildren: const [
+                    Text("For use with NMEATrax Vessel Monitoring System")
+                  ],
+                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+              ],
+            ),
+          ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           backgroundColor: Theme.of(context).colorScheme.background,
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.primary,
             iconTheme: Theme.of(context).primaryIconTheme,
-            title: Text('NMEATrax Replay App', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            title: Text('NMEATrax Replay', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            // leading: Icon(Icons.bolt),
             bottom: TabBar(
               indicatorColor: Theme.of(context).colorScheme.secondary,
               tabs: const [
                 Tab(icon: Icon(Icons.directions_boat_sharp)),
                 Tab(icon: Icon(Icons.analytics)),
                 Tab(icon: Icon(Icons.map)),
-                Tab(icon: Icon(Icons.wifi_tethering_sharp)),
                 Tab(icon: Icon(Icons.settings)),
               ],
             ),
@@ -433,7 +824,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           LatLng(90.0, 180.0),
                         ),
                         keepAlive: true,
-                        interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                        interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate & ~InteractiveFlag.flingAnimation,
                         onTap: (tapPosition, point) {
                           setState(() {
                             _isVisible = !_isVisible;
@@ -500,82 +891,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
               ),
               SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedNMEABox(value: nmeaData["speed"], title: "Knots", unit: " kn", width: 120, mainContext: context,),
-                        Expanded(child: SizedNMEABox(value: nmeaData["rpm"], title: "RPM", unit: "", mainContext: context,),),
-                        SizedNMEABox(value: nmeaData["depth"], title: "Depth", unit: " ft", width: 120, mainContext: context,),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["etemp"], title: "Engine", unit: "*C", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["otemp"], title: "Oil", unit: "*C", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["opres"], title: "Oil", unit: " kpa", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["flevel"], title: "Fuel", unit: "%", mainContext: context,),),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["fuel_rate"], title: "Fuel Rate", unit: " L/h", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["efficiency"], title: "Efficiency", unit: " L/km", mainContext: context,),),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["leg_tilt"], title: "Leg Tilt", unit: "%", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["heading"], title: "Heading", unit: "*", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["wtemp"], title: "Water Temp", unit: "*C", mainContext: context,),),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["time"], title: "Time Stamp", unit: "", mainContext: context,),),
-                      ],
-                    ),
-                    // ListView.builder(
-                    //   physics: const NeverScrollableScrollPhysics(),
-                    //   shrinkWrap: true,
-                    //   itemCount: nmeaData.keys.length,
-                    //   itemBuilder: (BuildContext context, int index) {
-                    //     return Container(
-                    //       decoration: BoxDecoration(
-                    //         border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
-                    //       ),
-                    //       child: Row(
-                    //           mainAxisAlignment: MainAxisAlignment.center,
-                    //           children: [
-                    //             // Expanded(child: Text(dataModel.jsonData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
-                    //             Expanded(child: Text(nmeaData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
-                    //             Expanded(child: Text(nmeaData.values.elementAt(index), textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onBackground),))
-                    //           ],
-                    //         ),
-                    //     );
-                    //   },
-                    // ),
-                    // TextButton(
-                    //   onPressed: _decrCurLineNum,
-                    //   child: const Text("update"),
-                    // ),
-                    TextField(
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
-                      onChanged: (value) {
-                        connectURL = value;
-                      },
-                    ),
-                    const ElevatedButton(onPressed: sseSubscribe, child: Text("start"))
-                  ],
-                ),
-              ),
-              SingleChildScrollView(
                 child: SettingsList(
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
@@ -606,7 +921,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           title: Text("Lower $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                           value: Text(lowerLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                           onPressed: (context) {
-                            showInputDialog(mainContext, "Lower $e Limit", e, false);
+                            showInputDialog(context, "Lower $e Limit", e, false);
                           },
                         )
                       ).toList(),
@@ -625,7 +940,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           title: Text("Upper $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                           value: Text(upperLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                           onPressed: (context) {
-                            showInputDialog(mainContext, "Upper $e Limit", e, true);
+                            showInputDialog(context, "Upper $e Limit", e, true);
                           },
                         )
                       ).toList(),
@@ -650,7 +965,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onBackground),
                           title: Text('Dark Mode', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                         ),
-                        SettingsTile.navigation(title: Text('App Version 1.1', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),)),
+                        // SettingsTile.navigation(title: Text('App Version 1.1', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),)),
                       ],
                     ),
                   ],
@@ -659,10 +974,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ]
           ),
         ),
-      )
+      ),
     );
   }
-  
+
   //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
   showInputDialog(BuildContext context, String title, dynamic e, bool upper) {
     double input = 0;
@@ -687,6 +1002,7 @@ class _MyHomePageState extends State<MyHomePage> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       title: Text(title),
       content: TextField(
+        keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
         autofocus: true,
         onChanged: (value) {
           setState(() {
@@ -863,20 +1179,4 @@ class SizedNMEABox extends StatelessWidget {
       ),
     );
   }
-}
-
-sseSubscribe() async {
-  try {
-    channel = SseChannel.connect(Uri.parse('http://$connectURL/events'));
-  } catch (e) {
-    // print("Caught $e");
-  }
-  channel!.stream.listen((message) {
-    nmeaData = jsonDecode(message);
-    nmeaFlag = true;
-    for (var element in nmeaData.values) {
-      if (element == "-273") {
-        element = '-';
-      }
-    }});
 }

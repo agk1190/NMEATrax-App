@@ -333,18 +333,28 @@ class _LivePageState extends State<LivePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SizedNMEABox(value: nmeaData["speed"], title: "Knots", unit: " kn", width: 120, mainContext: context,),
+                        Expanded(child: SizedNMEABox(value: nmeaData["speed"], title: "Knots", unit: " kn", mainContext: context,)),
+                        Expanded(child: SizedNMEABox(value: nmeaData["depth"], title: "Depth", unit: " ft", mainContext: context,)),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                         Expanded(child: SizedNMEABox(value: nmeaData["rpm"], title: "RPM", unit: "", mainContext: context,),),
-                        SizedNMEABox(value: nmeaData["depth"], title: "Depth", unit: " ft", width: 120, mainContext: context,),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Expanded(child: SizedNMEABox(value: nmeaData["etemp"], title: "Engine", unit: "\u2103", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["flevel"], title: "Fuel", unit: "%", mainContext: context,),),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                         Expanded(child: SizedNMEABox(value: nmeaData["otemp"], title: "Oil", unit: "\u2103", mainContext: context,),),
                         Expanded(child: SizedNMEABox(value: nmeaData["opres"], title: "Oil", unit: " kpa", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["flevel"], title: "Fuel", unit: "%", mainContext: context,),),
                       ],
                     ),
                     Row(
@@ -358,16 +368,9 @@ class _LivePageState extends State<LivePage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Expanded(child: SizedNMEABox(value: nmeaData["leg_tilt"], title: "Leg Tilt", unit: "%", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["heading"], title: "Heading", unit: "\u00B0", mainContext: context,),),
                         Expanded(child: SizedNMEABox(value: nmeaData["wtemp"], title: "Water Temp", unit: "\u2103", mainContext: context,),),
                       ],
                     ),
-                    // Row(
-                    //   mainAxisAlignment: MainAxisAlignment.center,
-                    //   children: [
-                    //     Expanded(child: SizedNMEABox(value: nmeaData["time"], title: "Time Stamp", unit: "", mainContext: context,),),
-                    //   ],
-                    // ),
                   ],
                 ),
               ),
@@ -646,10 +649,15 @@ class _LivePageState extends State<LivePage> {
       channel.stream.listen((message) {
         int i = 0;
         nmeaData = jsonDecode(message);
-        for (var element in nmeaData.values) {
-          if (element == "-273" || element == "-273.0" || element == "-273.00") {
-            var key = nmeaData.keys.elementAt(i);
-            nmeaData[key] = '-';
+        for (String element in nmeaData.values) {
+          try {
+            if (element.substring(0, 4) == "-273") {
+              var key = nmeaData.keys.elementAt(i);
+              nmeaData[key] = '-';
+            }
+            
+          } on RangeError {
+            // do nothing
           }
           i++;
         }
@@ -1382,7 +1390,7 @@ class SizedNMEABox extends StatelessWidget {
                   value,
                   style: TextStyle(
                     color: Theme.of(mainContext).colorScheme.onBackground,
-                    fontSize: 18,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1390,7 +1398,7 @@ class SizedNMEABox extends StatelessWidget {
                   unit,
                   style: TextStyle(
                     color: Theme.of(mainContext).colorScheme.onBackground,
-                    fontSize: 18,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

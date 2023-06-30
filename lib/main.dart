@@ -1424,6 +1424,41 @@ class _DownloadsPageState extends State<DownloadsPage> {
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           const Text("Tap on the file you wish to download"),
+          ButtonBar(
+            alignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  http.post(Uri.parse("http://$connectURL/set?email=true"));
+                  Future.delayed(const Duration(seconds: 2));
+                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text("Email sent", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                    duration: const Duration(seconds: 5),
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                  ));}
+                },
+                child: const Text("Email Files"),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text("Downloading all files...", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                    duration: const Duration(seconds: 3),
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                  ));}
+                  for (var file in downloadList) {
+                    await downloadData(file);
+                  }
+                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                    duration: const Duration(seconds: 3),
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                  ));}
+                },
+                child: const Text("Download All"),
+              ),
+            ],
+          ),
           ListView.builder(
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,

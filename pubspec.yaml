@@ -1,5 +1,5 @@
 name: nmeatrax_replay
-description: NMEATrax Replay App.
+description: NMEATrax App.
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -39,6 +39,9 @@ dependencies:
   shared_preferences: ^2.1.1
   sse_channel: ^0.0.3
   provider: ^6.0.1
+  keep_screen_on: ^2.1.0
+  http: ^0.13.6
+  path_provider: ^2.0.15
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

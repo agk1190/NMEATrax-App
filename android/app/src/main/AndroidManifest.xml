@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.nmeatrax_replay">
    <application
-        android:label="NMEATrax Replay"
+        android:label="NMEATrax"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

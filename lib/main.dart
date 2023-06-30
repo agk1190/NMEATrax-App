@@ -11,11 +11,16 @@ import 'package:latlong2/latlong.dart';
 import 'package:gpx/gpx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sse_channel/sse_channel.dart';
+import 'package:keep_screen_on/keep_screen_on.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-"};
-// bool nmeaFlag = false;
-String connectURL = "192.168.1.232";
-SseChannel? channel;
+Map<String, dynamic> ntOptions = {"isMeters":false, "isDegF":false, "recInt":0, "timeZone":0, "recMode":0};
+const Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
+String connectURL = "192.168.1.231";
+late SseChannel channel;
+List<String> downloadList = [];
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -36,7 +41,7 @@ ColorScheme myDarkColors = const ColorScheme(
   brightness: Brightness.dark, 
   primary: Color(0xFF0050C7), 
   primaryContainer: Color.fromARGB(255, 6, 38, 80),
-  onPrimary: Color.fromARGB(255, 219, 217, 217), 
+  onPrimary: Color.fromARGB(255, 219, 219, 219), 
   secondary: Color.fromARGB(255, 87, 144, 236),
   onSecondary: Color.fromARGB(255, 194, 194, 194),
   error: Color(0xFFFF50C7), 
@@ -169,6 +174,7 @@ class _LivePageState extends State<LivePage> {
 
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   bool _isVisible = true;
+  final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
 
   Future<void> _getTheme() async {
     final SharedPreferences prefs = await _prefs;
@@ -188,12 +194,47 @@ class _LivePageState extends State<LivePage> {
       });
     }
 
-    Future<void> _getIP() async {
+  Future<void> _getIP() async {
     final SharedPreferences prefs = await _prefs;
     if (prefs.getString("ip") == null) {return;}
     connectURL = jsonDecode(prefs.getString("ip")!);
   }
 
+  Future<void> getOptions() async {
+    if (_isVisible) {
+      // SnackBar(content: Text("Not Connected"));
+      return;
+    }
+
+    final response = await http.get(Uri.parse('http://$connectURL/get'));
+
+    if (response.statusCode == 200) {
+      ntOptions = jsonDecode(response.body);
+      setState(() {});
+    } else {
+      throw Exception('Failed to get options');
+    }
+
+    final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
+
+    if (dlList.statusCode == 200) {
+      List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
+      downloadList = converted.elementAt(0);
+      downloadList.removeAt(downloadList.length - 1);
+    } else {
+      throw Exception('Failed to get download list');
+    }
+  }
+
+  Future<void> setOptions(String kvPair) async {
+    final response = await http.post(Uri.parse('http://$connectURL/set?$kvPair'));
+    // print(response.statusCode);
+    if (response.statusCode == 200) {
+      getOptions();
+      setState(() {});
+    }
+  }
+  
   @override
   void initState() {
     super.initState();
@@ -352,16 +393,141 @@ class _LivePageState extends State<LivePage> {
                   },
                 ),
               ),
-              const Placeholder(),
+              SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(0,8,0,24),
+                      child: Text(
+                        "NMEATrax Settings",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 22,
+                          decoration: TextDecoration.underline,
+                          color: Theme.of(context).colorScheme.onBackground,
+                          letterSpacing: 0.75,
+                        ),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Text(
+                          "Recording Mode",
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onBackground,
+                            fontSize: 18,
+                          ),
+                        ),
+                        DropdownButton(
+                          autofocus: false,
+                          // value: recModeOptions.first,
+                          value: recModeEnum[ntOptions["recMode"]],
+                          // icon: const Icon(Icons.abc),
+                          elevation: 8,
+                          style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
+                          dropdownColor: Theme.of(context).colorScheme.background,
+                          underline: Container(
+                            height: 2,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          items: recModeOptions.map<DropdownMenuItem<String>>((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setOptions("recMode=${recModeEnum.keys.firstWhere((element) => recModeEnum[element] == value)}");
+                          },
+                        ),
+                      ],
+                    ),
+                    SettingsList(
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      darkTheme: SettingsThemeData(
+                        settingsSectionBackground: Theme.of(context).colorScheme.background,
+                        settingsListBackground: Theme.of(context).colorScheme.surface,
+                        titleTextColor: Theme.of(context).colorScheme.onBackground,
+                      ),
+                      lightTheme: SettingsThemeData(
+                        settingsSectionBackground: Theme.of(context).colorScheme.background,
+                        settingsListBackground: Theme.of(context).colorScheme.background,
+                        titleTextColor: Theme.of(context).colorScheme.onBackground,
+                      ),
+                      platform: DevicePlatform.android,
+                      sections: [
+                        SettingsSection(
+                          // title: const Text(
+                          //   "NMEATrax Settings", 
+                          //   style: TextStyle(
+                          //     fontWeight: FontWeight.bold, 
+                          //     fontSize: 22,
+                          //     decoration: TextDecoration.underline,
+                          //   ),
+                          // ),
+                          tiles: [
+                            // SettingsTile.navigation(
+                            //   title: Text("Update", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                            //   onPressed: (context) {
+                            //     getOptions();
+                            //   },
+                            // ),
+                            SettingsTile.switchTile(
+                              title: Text("Depth in Meters?", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              initialValue: ntOptions["isMeters"],
+                              onToggle: (value) {
+                                setOptions("isMeters=$value");
+                              },
+                            ),
+                            SettingsTile.switchTile(
+                              title: Text("Temperature in Fahrenheit?", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              initialValue: ntOptions["isDegF"],
+                              onToggle: (value) {
+                                setOptions("isDegF=$value");
+                              },
+                            ),
+                            SettingsTile(
+                              title: Text("Time Zone", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              value: Text(ntOptions["timeZone"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              onPressed: (lContext) {
+                                showInputDialog(context, "Timezone", ntOptions["timeZone"], "timeZone");
+                              },
+                            ),
+                            SettingsTile(
+                              title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              value: Text(ntOptions["recInt"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              onPressed: (lContext) {
+                                showInputDialog(context, "Recording Interval", ntOptions["recInt"], "recInt");
+                              },
+                            ),
+                          ],
+                        )
+                      ],
+                    ),
+                    ElevatedButton(
+                      style: ButtonStyle(
+                        backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+                      ),
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const DownloadsPage()));
+                      },
+                      child: const Text('Voyage Recordings', style: TextStyle(fontSize: 18),),
+                    ),
+                  ]
+                ),
+              ),
             ]
           ),
           floatingActionButton: Visibility(
             visible: _isVisible,
             child: FloatingActionButton.extended(
               onPressed: () {
-                showInputDialog(context, "IP Address");
+                showConnectDialog(context, "IP Address");
               },
               label: const Text("Connect"),
+              backgroundColor: Theme.of(context).colorScheme.primary,
             ),
           ),
         ),
@@ -370,7 +536,7 @@ class _LivePageState extends State<LivePage> {
   }
 
     //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
-  showInputDialog(BuildContext context, String title) {
+  showConnectDialog(BuildContext context, String title) {
     String input = connectURL;
 
     Widget confirmButton = ElevatedButton(
@@ -426,28 +592,84 @@ class _LivePageState extends State<LivePage> {
     );
   }
 
+  showInputDialog(BuildContext context, String title, var setting, String parameter) {
+    int input = 0;
+
+    Widget confirmButton = ElevatedButton(
+      child: const Text("Set"),
+      onPressed: () {
+        setState(() {
+          setOptions("$parameter=$input");
+        });
+        //https://stackoverflow.com/a/50683571 for nav.pop
+        Navigator.of(context, rootNavigator: true).pop();
+      },
+    );
+    AlertDialog alert = AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      title: Text(title),
+      content: TextFormField(
+        keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+        autofocus: true,
+        initialValue: setting.toString(),
+        onChanged: (value) {
+          setState(() {
+            try {
+              input = int.parse(value);
+            } on Exception {
+              // do nothing
+            }
+          });
+        },
+        onFieldSubmitted: (value) {
+          setState(() {
+            setOptions("$parameter=$input");
+          });
+          Navigator.of(context, rootNavigator: true).pop();
+        },
+      ),
+      actions: [
+        confirmButton,
+      ],
+    );
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
+  }
+
   sseSubscribe() async {
+    channel = SseChannel.connect(Uri.parse('http://$connectURL/events'));
     try {
-      channel = SseChannel.connect(Uri.parse('http://$connectURL/events'));
-    } catch (e) {
-      // print("Caught $e");
+      channel.stream.listen((message) {
+        int i = 0;
+        nmeaData = jsonDecode(message);
+        for (var element in nmeaData.values) {
+          if (element == "-273" || element == "-273.0" || element == "-273.00") {
+            var key = nmeaData.keys.elementAt(i);
+            nmeaData[key] = '-';
+          }
+          i++;
+        }
+        if (mounted) {
+          setState(() {});
+        } else {
+          if (Platform.isAndroid) {
+            KeepScreenOn.turnOff();
+          }
+        }
+      });
+    } on SocketException {
+      // do nothing
     }
     _isVisible = false;
     _saveIP(connectURL);
-    channel!.stream.listen((message) {
-      int i = 0;
-      nmeaData = jsonDecode(message);
-      for (var element in nmeaData.values) {
-        if (element == "-273" || element == "-273.0" || element == "-273.00") {
-          var key = nmeaData.keys.elementAt(i);
-          nmeaData[key] = '-';
-        }
-        i++;
-      }
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    getOptions();
+    if (Platform.isAndroid) {
+      KeepScreenOn.turnOn();
+    }
   }
 }
 
@@ -921,7 +1143,7 @@ class _ReplayPageState extends State<ReplayPage> {
                           title: Text("Lower $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                           value: Text(lowerLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                           onPressed: (context) {
-                            showInputDialog(context, "Lower $e Limit", e, false);
+                            showInputDialog(mainContext, "Lower $e Limit", e, false);
                           },
                         )
                       ).toList(),
@@ -940,7 +1162,7 @@ class _ReplayPageState extends State<ReplayPage> {
                           title: Text("Upper $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                           value: Text(upperLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                           onPressed: (context) {
-                            showInputDialog(context, "Upper $e Limit", e, true);
+                            showInputDialog(mainContext, "Upper $e Limit", e, true);
                           },
                         )
                       ).toList(),
@@ -1178,5 +1400,107 @@ class SizedNMEABox extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class DownloadsPage extends StatefulWidget {
+  const DownloadsPage({super.key});
+
+  @override
+  State<DownloadsPage> createState() => _DownloadsPageState();
+}
+
+class _DownloadsPageState extends State<DownloadsPage> {
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
+      appBar: AppBar(
+        title: const Text('Voyage Recordings'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+      ),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          const Text("Tap on the file you wish to download"),
+          ListView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            itemCount: downloadList.length,
+            itemBuilder: (BuildContext context, int index) {
+              return ListTile(
+                mouseCursor: MaterialStateMouseCursor.clickable,
+                hoverColor: Theme.of(context).colorScheme.surface,
+                leading: downloadList.elementAt(index).substring(downloadList.elementAt(index).length - 3) == 'gpx' ? const Icon(Icons.location_on) : const Icon(Icons.insert_drive_file),
+                title: Text(downloadList.elementAt(index)),
+                onTap: () async {
+                  String s = await downloadData(downloadList.elementAt(index));
+                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                    duration: const Duration(seconds: 5),
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                  ));}
+                },
+              );
+            },
+          ),
+          // ElevatedButton(
+          //   onPressed: () {
+          //     Navigator.pop(context);
+          //   },
+          //   child: const Text('Back'),
+          // ),
+        ],
+      ),
+    );
+  }
+
+  Future<String> downloadData(String fileName) async {
+    // final url = Uri.parse('http://$connectURL/downloadData?fileName=$fileName');
+    final url = Uri.parse('http://$connectURL/sdCard/$fileName');
+    String fileExt = fileName.substring(fileName.length - 4);
+
+    try {
+      final request = http.Request('GET', url);
+      // request.headers['Transfer-Encoding'] = 'chunked';
+      final streamedResponse = await request.send();
+
+      if (streamedResponse.statusCode == 200) {
+        final directory = await getDownloadsDirectory();
+        
+        fileName = fileName.substring(0, fileName.length - 4);
+        
+        String filePath = "${directory?.path}\\$fileName$fileExt";
+        
+        // Create the file
+        File file = File(filePath);
+        
+        // Write the response content to the file
+        int i = 1;
+        while (file.existsSync()) {
+          if (i == 1) {
+            fileName += " ($i)";
+          } else {
+            fileName = fileName.substring(0, fileName.length - 4);
+            fileName += " ($i)";
+          }
+          i++;
+          filePath = "${directory?.path}\\$fileName$fileExt";
+          file = File(filePath);
+        }
+        
+        await streamedResponse.stream.pipe(file.openWrite());
+        
+        // debugPrint('File $fileName saved at: $filePath');
+        return "$fileName$fileExt saved to $filePath";
+      } else {
+        // debugPrint('Error saving data: ${streamedResponse.statusCode}');
+        return "Error. Could not save $fileName$fileExt";
+      }
+    } catch (e) {
+      // debugPrint('Error downloading data: $e');
+      return "Error. Could not get $fileName$fileExt";
+    }
   }
 }

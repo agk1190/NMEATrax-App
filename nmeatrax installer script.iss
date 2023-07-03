@@ -2,10 +2,10 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "NMEATrax"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "NMEATrax"
 #define MyAppURL "https://elexprep.wixsite.com/nmeatrax"
-#define MyAppExeName "nmeatrax_replay.exe"
+#define MyAppExeName "nmeatrax.exe"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.

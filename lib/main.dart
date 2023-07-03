@@ -23,6 +23,7 @@ String connectURL = "192.168.1.231";
 late SseChannel channel;
 List<String> downloadList = [];
 String emailData = "";
+StreamSubscription? stream;
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -175,7 +176,7 @@ class LivePage extends StatefulWidget {
 class _LivePageState extends State<LivePage> {
 
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
-  bool _isVisible = true;
+  bool connected = false;
   final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
 
   Future<void> _getTheme() async {
@@ -254,7 +255,7 @@ class _LivePageState extends State<LivePage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext lcontext) {
     return MaterialApp(
       home: DefaultTabController(
         length: 3,
@@ -381,7 +382,7 @@ class _LivePageState extends State<LivePage> {
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
                   itemCount: nmeaData.keys.length,
-                  itemBuilder: (BuildContext context, int index) {
+                  itemBuilder: (BuildContext lcontext, int index) {
                     return Container(
                       decoration: BoxDecoration(
                         border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
@@ -464,14 +465,6 @@ class _LivePageState extends State<LivePage> {
                       platform: DevicePlatform.android,
                       sections: [
                         SettingsSection(
-                          // title: const Text(
-                          //   "NMEATrax Settings", 
-                          //   style: TextStyle(
-                          //     fontWeight: FontWeight.bold, 
-                          //     fontSize: 22,
-                          //     decoration: TextDecoration.underline,
-                          //   ),
-                          // ),
                           tiles: [
                             // SettingsTile.navigation(
                             //   title: Text("Update", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
@@ -480,29 +473,29 @@ class _LivePageState extends State<LivePage> {
                             //   },
                             // ),
                             SettingsTile.switchTile(
-                              title: Text("Depth in Meters?", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              title: Text("Depth in Meters?", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                               initialValue: ntOptions["isMeters"],
                               onToggle: (value) {
                                 setOptions("isMeters=$value");
                               },
                             ),
                             SettingsTile.switchTile(
-                              title: Text("Temperature in Fahrenheit?", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              title: Text("Temperature in Fahrenheit?", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                               initialValue: ntOptions["isDegF"],
                               onToggle: (value) {
                                 setOptions("isDegF=$value");
                               },
                             ),
                             SettingsTile(
-                              title: Text("Time Zone", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                              value: Text(ntOptions["timeZone"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              title: Text("Time Zone", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                              value: Text(ntOptions["timeZone"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                               onPressed: (lContext) {
                                 showInputDialog(context, "Timezone", ntOptions["timeZone"], "timeZone");
                               },
                             ),
                             SettingsTile(
-                              title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                              value: Text(ntOptions["recInt"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                              value: Text(ntOptions["recInt"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                               onPressed: (lContext) {
                                 showInputDialog(context, "Recording Interval", ntOptions["recInt"], "recInt");
                               },
@@ -525,15 +518,18 @@ class _LivePageState extends State<LivePage> {
               ),
             ]
           ),
-          floatingActionButton: Visibility(
-            visible: _isVisible,
-            child: FloatingActionButton.extended(
-              onPressed: () {
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () {
+              if (connected) {
+                setState(() {connected = false;});                
+                sseUnsubscribe();
+                // Navigator.pushReplacementNamed(context, '/live');
+              } else {
                 showConnectDialog(context, "IP Address");
-              },
-              label: const Text("Connect"),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-            ),
+              }
+            },
+            label: connected ? const Text("Disconnect") : const Text("Connect"),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         ),
       ),
@@ -648,41 +644,50 @@ class _LivePageState extends State<LivePage> {
   sseSubscribe() async {
     channel = SseChannel.connect(Uri.parse('http://$connectURL/NMEATrax'));
     try {
-      channel.stream.listen((message) {
-        int i = 0;
-        if (message.toString().substring(2, 5) != "rpm") {
-        } else {
-          nmeaData = jsonDecode(message);
-          for (String element in nmeaData.values) {
-            try {
-              if (element.substring(0, 4) == "-273") {
-                var key = nmeaData.keys.elementAt(i);
-                nmeaData[key] = '-';
+      connected = true;
+      if (connected) {
+        stream = channel.stream.listen((message) {
+          int i = 0;
+          if (message.toString().substring(2, 5) != "rpm") {
+          } else {
+            nmeaData = jsonDecode(message);
+            for (String element in nmeaData.values) {
+              try {
+                if (element.substring(0, 4) == "-273") {
+                  var key = nmeaData.keys.elementAt(i);
+                  nmeaData[key] = '-';
+                }
+                
+              } on RangeError {
+                // do nothing
               }
-              
-            } on RangeError {
-              // do nothing
+              i++;
             }
-            i++;
           }
-        }
-        if (mounted) {
-          setState(() {});
-        } else {
-          if (Platform.isAndroid) {
-            KeepScreenOn.turnOff();
+          if (mounted) {
+            setState(() {});
+          } else {
+            if (Platform.isAndroid) {
+              KeepScreenOn.turnOff();
+            }
           }
-        }
-      });
+        });
+      }
     } on SocketException {
       // do nothing
     }
-    // _isVisible = false;
+    connected = true;
     _saveIP(connectURL);
     getOptions();
     if (Platform.isAndroid) {
       KeepScreenOn.turnOn();
     }
+  }
+
+  sseUnsubscribe() async {
+    connected = false;
+    stream?.pause();
+    // stream?.cancel();
   }
 }
 
@@ -1545,19 +1550,21 @@ class _DownloadsPageState extends State<DownloadsPage> {
             shrinkWrap: true,
             itemCount: downloadList.length,
             itemBuilder: (BuildContext context, int index) {
-              return ListTile(
-                mouseCursor: MaterialStateMouseCursor.clickable,
-                hoverColor: Theme.of(context).colorScheme.surface,
-                leading: downloadList.elementAt(index).substring(downloadList.elementAt(index).length - 3) == 'gpx' ? const Icon(Icons.location_on) : const Icon(Icons.insert_drive_file),
-                title: Text(downloadList.elementAt(index)),
-                onTap: () async {
-                  String s = await downloadData(downloadList.elementAt(index));
-                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                    duration: const Duration(seconds: 5),
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                  ));}
-                },
+              return SingleChildScrollView(
+                child: ListTile(
+                  mouseCursor: MaterialStateMouseCursor.clickable,
+                  hoverColor: Theme.of(context).colorScheme.surface,
+                  leading: downloadList.elementAt(index).substring(downloadList.elementAt(index).length - 3) == 'gpx' ? const Icon(Icons.location_on) : const Icon(Icons.insert_drive_file),
+                  title: Text(downloadList.elementAt(index)),
+                  onTap: () async {
+                    String s = await downloadData(downloadList.elementAt(index));
+                    if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                      duration: const Duration(seconds: 5),
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                    ));}
+                  },
+                ),
               );
             },
           ),

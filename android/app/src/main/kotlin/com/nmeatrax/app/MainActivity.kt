@@ -1,4 +1,4 @@
-package com.example.nmeatrax_replay
+package com.nmeatrax.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -14,6 +14,7 @@ import 'package:sse_channel/sse_channel.dart';
 import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-"};
 Map<String, dynamic> ntOptions = {"isMeters":false, "isDegF":false, "recInt":0, "timeZone":0, "recMode":0};
@@ -21,6 +22,7 @@ const Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Aut
 String connectURL = "192.168.1.231";
 late SseChannel channel;
 List<String> downloadList = [];
+String emailData = "";
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -201,10 +203,10 @@ class _LivePageState extends State<LivePage> {
   }
 
   Future<void> getOptions() async {
-    if (_isVisible) {
-      // SnackBar(content: Text("Not Connected"));
-      return;
-    }
+    // if (_isVisible) {
+    //   // SnackBar(content: Text("Not Connected"));
+    //   return;
+    // }
 
     final response = await http.get(Uri.parse('http://$connectURL/get'));
 
@@ -644,22 +646,25 @@ class _LivePageState extends State<LivePage> {
   }
 
   sseSubscribe() async {
-    channel = SseChannel.connect(Uri.parse('http://$connectURL/events'));
+    channel = SseChannel.connect(Uri.parse('http://$connectURL/NMEATrax'));
     try {
       channel.stream.listen((message) {
         int i = 0;
-        nmeaData = jsonDecode(message);
-        for (String element in nmeaData.values) {
-          try {
-            if (element.substring(0, 4) == "-273") {
-              var key = nmeaData.keys.elementAt(i);
-              nmeaData[key] = '-';
+        if (message.toString().substring(2, 5) != "rpm") {
+        } else {
+          nmeaData = jsonDecode(message);
+          for (String element in nmeaData.values) {
+            try {
+              if (element.substring(0, 4) == "-273") {
+                var key = nmeaData.keys.elementAt(i);
+                nmeaData[key] = '-';
+              }
+              
+            } on RangeError {
+              // do nothing
             }
-            
-          } on RangeError {
-            // do nothing
+            i++;
           }
-          i++;
         }
         if (mounted) {
           setState(() {});
@@ -672,7 +677,7 @@ class _LivePageState extends State<LivePage> {
     } on SocketException {
       // do nothing
     }
-    _isVisible = false;
+    // _isVisible = false;
     _saveIP(connectURL);
     getOptions();
     if (Platform.isAndroid) {
@@ -1437,13 +1442,52 @@ class _DownloadsPageState extends State<DownloadsPage> {
             children: [
               ElevatedButton(
                 onPressed: () {
-                  http.post(Uri.parse("http://$connectURL/set?email=true"));
-                  Future.delayed(const Duration(seconds: 2));
-                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Email sent", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                    duration: const Duration(seconds: 5),
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                  ));}
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return StatefulBuilder(
+                        builder: (aContext, setState) {
+                          return AlertDialog(
+                            title: const Text("Email Progress"),
+                            content: Text(emailData),
+                            actions: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {emailData = "";});
+                                  SseChannel email = SseChannel.connect(Uri.parse('http://$connectURL/NMEATrax'));
+                                  try {
+                                    email.stream.listen((message) {
+                                      if (message.toString().substring(2, 5) != "rpm") {
+                                        if (aContext.mounted) {
+                                          setState(() {
+                                            emailData += message;
+                                            emailData += "\r\n";
+                                          });
+                                        }
+                                      }
+                                    });
+                                  } on SocketException {
+                                    // do nothing
+                                  }
+                                  Future.delayed(const Duration(seconds: 2), () {
+                                    http.post(Uri.parse("http://$connectURL/set?email=true"));
+                                  },);
+                                },
+                                child: const Text("Send Email"),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  
+                                  Navigator.of(context, rootNavigator: true).pop();
+                                },
+                                child: const Text("Close"),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  );
                 },
                 child: const Text("Email Files"),
               ),
@@ -1464,6 +1508,35 @@ class _DownloadsPageState extends State<DownloadsPage> {
                   ));}
                 },
                 child: const Text("Download All"),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: const Text("Are you sure?"),
+                        actions: [
+                            ElevatedButton(
+                              onPressed: () {
+                                // http.post(Uri.parse("http://$connectURL/set?eraseData=true"));
+                                downloadList.clear();
+                                if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                  content: Text("Erased all recordings", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                                  duration: const Duration(seconds: 5),
+                                  backgroundColor: Theme.of(context).colorScheme.surface,
+                                ));}
+                                Navigator.of(context, rootNavigator: true).pop();
+                                setState(() {});
+                              },
+                            child: const Text("Yes"),
+                          )
+                        ],
+                      );
+                    },
+                  );
+                },
+                child: const Text("Erase All"),
               ),
             ],
           ),
@@ -1488,61 +1561,59 @@ class _DownloadsPageState extends State<DownloadsPage> {
               );
             },
           ),
-          // ElevatedButton(
-          //   onPressed: () {
-          //     Navigator.pop(context);
-          //   },
-          //   child: const Text('Back'),
-          // ),
         ],
       ),
     );
   }
 
   Future<String> downloadData(String fileName) async {
-    // final url = Uri.parse('http://$connectURL/downloadData?fileName=$fileName');
-    final url = Uri.parse('http://$connectURL/sdCard/$fileName');
     String fileExt = fileName.substring(fileName.length - 4);
+    final dynamic directory;
+    final http.StreamedResponse streamedResponse;
+
+    if (Platform.isAndroid) {
+      var status = await Permission.storage.status;
+      if (!status.isGranted) {
+        await Permission.storage.request();
+      }
+    }
 
     try {
-      final request = http.Request('GET', url);
-      // request.headers['Transfer-Encoding'] = 'chunked';
-      final streamedResponse = await request.send();
-
-      if (streamedResponse.statusCode == 200) {
-        final directory = await getDownloadsDirectory();
-        
-        fileName = fileName.substring(0, fileName.length - 4);
-        
-        String filePath = "${directory?.path}\\$fileName$fileExt";
-        
-        // Create the file
-        File file = File(filePath);
-        
-        // Write the response content to the file
-        int i = 1;
-        while (file.existsSync()) {
-          if (i == 1) {
-            fileName += " ($i)";
-          } else {
-            fileName = fileName.substring(0, fileName.length - 4);
-            fileName += " ($i)";
-          }
-          i++;
-          filePath = "${directory?.path}\\$fileName$fileExt";
-          file = File(filePath);
-        }
-        
-        await streamedResponse.stream.pipe(file.openWrite());
-        
-        // debugPrint('File $fileName saved at: $filePath');
-        return "$fileName$fileExt saved to $filePath";
-      } else {
-        // debugPrint('Error saving data: ${streamedResponse.statusCode}');
-        return "Error. Could not save $fileName$fileExt";
-      }
+      final request = http.Request('GET', Uri.parse('http://$connectURL/sdCard/$fileName'));
+      streamedResponse = await request.send();
     } catch (e) {
-      // debugPrint('Error downloading data: $e');
+      return "Error. Could not connect to NMEATrax.";
+    }
+    if (streamedResponse.statusCode == 200) {
+      if (Platform.isAndroid) {
+        directory = "/storage/emulated/0/Download";
+      } else {
+        directory = await getDownloadsDirectory();
+      }
+      
+      fileName = fileName.substring(0, fileName.length - 4);
+
+      String filePath = Platform.isAndroid ? "$directory/$fileName$fileExt" : "${directory?.path}\\$fileName$fileExt";
+
+      File file = File(filePath);
+      
+      int i = 1;
+      while (file.existsSync()) {
+        if (i == 1) {
+          fileName += " ($i)";
+        } else {
+          fileName = fileName.substring(0, fileName.length - 4);
+          fileName += " ($i)";
+        }
+        i++;
+        filePath = Platform.isAndroid ? "$directory/$fileName$fileExt" : "${directory?.path}\\$fileName$fileExt";
+        file = File(filePath);
+      }
+      
+      await streamedResponse.stream.pipe(file.openWrite());
+      
+      return "$fileName$fileExt saved to $filePath";
+    } else {
       return "Error. Could not get $fileName$fileExt";
     }
   }

@@ -204,10 +204,6 @@ class _LivePageState extends State<LivePage> {
   }
 
   Future<void> getOptions() async {
-    // if (_isVisible) {
-    //   // SnackBar(content: Text("Not Connected"));
-    //   return;
-    // }
 
     final response = await http.get(Uri.parse('http://$connectURL/get'));
 
@@ -261,14 +257,17 @@ class _LivePageState extends State<LivePage> {
         length: 3,
         child: Scaffold(
           drawer: Drawer(
+            width: 200,
             backgroundColor: Theme.of(context).colorScheme.background,
             child: ListView(
               children: <Widget>[
                 DrawerHeader(
                   decoration: const BoxDecoration(
+                    // image: DecorationImage(image: FileImage(File(".\\assets\\images\\ic_launcher.png")), opacity: 10),
+                    image: DecorationImage(image: AssetImage('assets/images/ic_launcher.png')),
                     color: Color(0xFF0050C7),
                   ),
-                  child: Text('NMEATrax App', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  child: Text('NMEATrax', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                 ),
                 ListTile(
                   textColor: Theme.of(context).colorScheme.onBackground,
@@ -343,7 +342,7 @@ class _LivePageState extends State<LivePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["rpm"], title: "RPM", unit: "", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["rpm"], title: "RPM", unit: "", fontSize: 48, mainContext: context,),),
                       ],
                     ),
                     Row(
@@ -509,6 +508,7 @@ class _LivePageState extends State<LivePage> {
                         backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
                       ),
                       onPressed: () {
+                        getOptions();
                         Navigator.push(context, MaterialPageRoute(builder: (context) => const DownloadsPage()));
                       },
                       child: const Text('Voyage Recordings', style: TextStyle(fontSize: 18),),
@@ -523,7 +523,6 @@ class _LivePageState extends State<LivePage> {
               if (connected) {
                 setState(() {connected = false;});                
                 sseUnsubscribe();
-                // Navigator.pushReplacementNamed(context, '/live');
               } else {
                 showConnectDialog(context, "IP Address");
               }
@@ -667,9 +666,7 @@ class _LivePageState extends State<LivePage> {
           if (mounted) {
             setState(() {});
           } else {
-            if (Platform.isAndroid) {
-              KeepScreenOn.turnOff();
-            }
+            if (Platform.isAndroid) {KeepScreenOn.turnOff();}
           }
         });
       }
@@ -679,13 +676,12 @@ class _LivePageState extends State<LivePage> {
     connected = true;
     _saveIP(connectURL);
     getOptions();
-    if (Platform.isAndroid) {
-      KeepScreenOn.turnOn();
-    }
+    if (Platform.isAndroid) {KeepScreenOn.turnOn();}
   }
 
   sseUnsubscribe() async {
     connected = false;
+    if (Platform.isAndroid) {KeepScreenOn.turnOff();}
     stream?.pause();
     // stream?.cancel();
   }
@@ -883,7 +879,6 @@ class _ReplayPageState extends State<ReplayPage> {
     super.initState();
     _getTheme();
     _getLimits();
-    // Timer.periodic(const Duration(seconds: 1), (Timer t) => setState((){}));
   }
 
   @override
@@ -894,14 +889,17 @@ class _ReplayPageState extends State<ReplayPage> {
         length: 4,
         child: Scaffold(
           drawer: Drawer(
+            width: 200,
             backgroundColor: Theme.of(context).colorScheme.background,
             child: ListView(
               children: <Widget>[
                 DrawerHeader(
                   decoration: const BoxDecoration(
+                    // image: DecorationImage(image: FileImage(File(".\\assets\\images\\ic_launcher.png")), opacity: 10),
+                    image: DecorationImage(image: AssetImage('assets/images/ic_launcher.png')),
                     color: Color(0xFF0050C7),
                   ),
-                  child: Text('NMEATrax App', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  child: Text('NMEATrax', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                 ),
                 ListTile(
                   textColor: Theme.of(context).colorScheme.onBackground,
@@ -1365,7 +1363,7 @@ class SizedNMEABox extends StatelessWidget {
   final String value;
   final String title;
   final String unit;
-  final double width;
+  final double fontSize;
   final dynamic mainContext;
 
   const SizedNMEABox({
@@ -1373,14 +1371,14 @@ class SizedNMEABox extends StatelessWidget {
     required this.value,
     required this.title,
     required this.unit,
-    this.width = 100,
+    this.fontSize = 24,
     required this.mainContext,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: width,
+      width: 100,
       child: Container(
         padding: const EdgeInsets.all(4.0),
         margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
@@ -1400,7 +1398,7 @@ class SizedNMEABox extends StatelessWidget {
                   value,
                   style: TextStyle(
                     color: Theme.of(mainContext).colorScheme.onBackground,
-                    fontSize: 24,
+                    fontSize: fontSize,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1408,7 +1406,7 @@ class SizedNMEABox extends StatelessWidget {
                   unit,
                   style: TextStyle(
                     color: Theme.of(mainContext).colorScheme.onBackground,
-                    fontSize: 24,
+                    fontSize: fontSize,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1429,6 +1427,19 @@ class DownloadsPage extends StatefulWidget {
 }
 
 class _DownloadsPageState extends State<DownloadsPage> {
+  
+  Future<void> getFilesList() async {
+    final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
+
+    if (dlList.statusCode == 200) {
+      List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
+      downloadList = converted.elementAt(0);
+      downloadList.removeAt(downloadList.length - 1);
+      setState(() {});
+    } else {
+      throw Exception('Failed to get download list');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1543,30 +1554,37 @@ class _DownloadsPageState extends State<DownloadsPage> {
                 },
                 child: const Text("Erase All"),
               ),
+              // ElevatedButton(
+              //   onPressed: getFilesList,
+              //   child: const Text("Refresh")
+              // ),
             ],
           ),
-          ListView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            itemCount: downloadList.length,
-            itemBuilder: (BuildContext context, int index) {
-              return SingleChildScrollView(
-                child: ListTile(
-                  mouseCursor: MaterialStateMouseCursor.clickable,
-                  hoverColor: Theme.of(context).colorScheme.surface,
-                  leading: downloadList.elementAt(index).substring(downloadList.elementAt(index).length - 3) == 'gpx' ? const Icon(Icons.location_on) : const Icon(Icons.insert_drive_file),
-                  title: Text(downloadList.elementAt(index)),
-                  onTap: () async {
-                    String s = await downloadData(downloadList.elementAt(index));
-                    if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                      duration: const Duration(seconds: 5),
-                      backgroundColor: Theme.of(context).colorScheme.surface,
-                    ));}
-                  },
-                ),
-              );
-            },
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => getFilesList(),
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemCount: downloadList.length,
+                itemBuilder: (BuildContext context, int index) {
+                  return ListTile(
+                    mouseCursor: MaterialStateMouseCursor.clickable,
+                    hoverColor: Theme.of(context).colorScheme.surface,
+                    leading: downloadList.elementAt(index).substring(downloadList.elementAt(index).length - 3) == 'gpx' ? const Icon(Icons.location_on) : const Icon(Icons.insert_drive_file),
+                    title: Text(downloadList.elementAt(index)),
+                    onTap: () async {
+                      String s = await downloadData(downloadList.elementAt(index));
+                      if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                        duration: const Duration(seconds: 5),
+                        backgroundColor: Theme.of(context).colorScheme.surface,
+                      ));}
+                    },
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),

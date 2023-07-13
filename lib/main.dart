@@ -24,6 +24,7 @@ late SseChannel channel;
 List<String> downloadList = [];
 String emailData = "";
 StreamSubscription? stream;
+const _appVersion = '2.0.0';
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -150,7 +151,7 @@ class HomePage extends StatelessWidget {
                 Icons.directions_boat,
               ),
               applicationName: 'NMEATrax',
-              applicationVersion: '1.0.0',
+              applicationVersion: _appVersion,
               aboutBoxChildren: [
                 Text("For use with NMEATrax Vessel Monitoring System")
               ],
@@ -187,6 +188,14 @@ class _LivePageState extends State<LivePage> {
     } else {
       MyApp.themeNotifier.value = ThemeMode.light;
     }
+  }
+
+  Future<void> _saveTheme(ThemeMode darkMode) async {
+    final SharedPreferences prefs = await _prefs;
+
+    setState(() {
+      prefs.setBool('darkMode', darkMode==ThemeMode.dark? true : false);
+    });
   }
 
   Future<void> _saveIP(String ip) async {
@@ -296,11 +305,22 @@ class _LivePageState extends State<LivePage> {
                     Icons.directions_boat,
                   ),
                   applicationName: 'NMEATrax',
-                  applicationVersion: '1.0.0',
+                  applicationVersion: _appVersion,
                   aboutBoxChildren: const [
                     Text("For use with NMEATrax Vessel Monitoring System")
                   ],
                   child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+                Center(
+                  child: ElevatedButton(
+                    style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
+                    child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode_outlined, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onError,),
+                    onPressed: () {
+                      MyApp.themeNotifier.value =
+                        MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+                      _saveTheme(MyApp.themeNotifier.value);
+                    },
+                  ),
                 ),
               ],
             ),
@@ -928,11 +948,22 @@ class _ReplayPageState extends State<ReplayPage> {
                     Icons.directions_boat,
                   ),
                   applicationName: 'NMEATrax',
-                  applicationVersion: '1.0.0',
+                  applicationVersion: _appVersion,
                   aboutBoxChildren: const [
                     Text("For use with NMEATrax Vessel Monitoring System")
                   ],
                   child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+                Center(
+                  child: ElevatedButton(
+                    style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
+                    child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode_outlined, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onError,),
+                    onPressed: () {
+                      MyApp.themeNotifier.value =
+                        MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+                      _saveTheme(MyApp.themeNotifier.value);
+                    },
+                  ),
                 ),
               ],
             ),
@@ -1203,7 +1234,6 @@ class _ReplayPageState extends State<ReplayPage> {
                           leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onBackground),
                           title: Text('Dark Mode', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                         ),
-                        // SettingsTile.navigation(title: Text('App Version 1.1', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),)),
                       ],
                     ),
                   ],
@@ -1449,120 +1479,120 @@ class _DownloadsPageState extends State<DownloadsPage> {
         title: const Text('Voyage Recordings'),
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          const Text("Tap on the file you wish to download"),
-          ButtonBar(
-            alignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return StatefulBuilder(
-                        builder: (aContext, setState) {
-                          return AlertDialog(
-                            title: const Text("Email Progress"),
-                            content: Text(emailData),
-                            actions: [
-                              ElevatedButton(
-                                onPressed: () {
-                                  setState(() {emailData = "";});
-                                  SseChannel email = SseChannel.connect(Uri.parse('http://$connectURL/NMEATrax'));
-                                  try {
-                                    email.stream.listen((message) {
-                                      if (message.toString().substring(2, 5) != "rpm") {
-                                        if (aContext.mounted) {
-                                          setState(() {
-                                            emailData += message;
-                                            emailData += "\r\n";
-                                          });
+      body: RefreshIndicator(
+        onRefresh: getFilesList,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            const Text("Tap on the file you wish to download"),
+            ButtonBar(
+              alignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return StatefulBuilder(
+                          builder: (aContext, setState) {
+                            return AlertDialog(
+                              title: const Text("Email Progress"),
+                              content: Text(emailData),
+                              actions: [
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {emailData = "";});
+                                    SseChannel email = SseChannel.connect(Uri.parse('http://$connectURL/NMEATrax'));
+                                    try {
+                                      email.stream.listen((message) {
+                                        if (message.toString().substring(2, 5) != "rpm") {
+                                          if (aContext.mounted) {
+                                            setState(() {
+                                              emailData += message;
+                                              emailData += "\r\n";
+                                            });
+                                          }
                                         }
-                                      }
-                                    });
-                                  } on SocketException {
-                                    // do nothing
-                                  }
-                                  Future.delayed(const Duration(seconds: 2), () {
-                                    http.post(Uri.parse("http://$connectURL/set?email=true"));
-                                  },);
-                                },
-                                child: const Text("Send Email"),
-                              ),
+                                      });
+                                    } on SocketException {
+                                      // do nothing
+                                    }
+                                    Future.delayed(const Duration(seconds: 2), () {
+                                      http.post(Uri.parse("http://$connectURL/set?email=true"));
+                                    },);
+                                  },
+                                  child: const Text("Send Email"),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    
+                                    Navigator.of(context, rootNavigator: true).pop();
+                                  },
+                                  child: const Text("Close"),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                  child: const Text("Email Files"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text("Downloading all files...", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                      duration: const Duration(seconds: 3),
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                    ));}
+                    for (var file in downloadList) {
+                      await downloadData(file);
+                    }
+                    if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                      duration: const Duration(seconds: 3),
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                    ));}
+                  },
+                  child: const Text("Download All"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          title: const Text("Are you sure?"),
+                          actions: [
                               ElevatedButton(
                                 onPressed: () {
-                                  
+                                  http.post(Uri.parse("http://$connectURL/set?eraseData=true"));
+                                  downloadList.clear();
+                                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                    content: Text("Erased all recordings", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                                    duration: const Duration(seconds: 5),
+                                    backgroundColor: Theme.of(context).colorScheme.surface,
+                                  ));}
                                   Navigator.of(context, rootNavigator: true).pop();
+                                  setState(() {});
                                 },
-                                child: const Text("Close"),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
-                child: const Text("Email Files"),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Downloading all files...", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                    duration: const Duration(seconds: 3),
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                  ));}
-                  for (var file in downloadList) {
-                    await downloadData(file);
-                  }
-                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                    duration: const Duration(seconds: 3),
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                  ));}
-                },
-                child: const Text("Download All"),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: const Text("Are you sure?"),
-                        actions: [
-                            ElevatedButton(
-                              onPressed: () {
-                                // http.post(Uri.parse("http://$connectURL/set?eraseData=true"));
-                                downloadList.clear();
-                                if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                  content: Text("Erased all recordings", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                                  duration: const Duration(seconds: 5),
-                                  backgroundColor: Theme.of(context).colorScheme.surface,
-                                ));}
-                                Navigator.of(context, rootNavigator: true).pop();
-                                setState(() {});
-                              },
-                            child: const Text("Yes"),
-                          )
-                        ],
-                      );
-                    },
-                  );
-                },
-                child: const Text("Erase All"),
-              ),
-              // ElevatedButton(
-              //   onPressed: getFilesList,
-              //   child: const Text("Refresh")
-              // ),
-            ],
-          ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => getFilesList(),
+                              child: const Text("Yes"),
+                            )
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  child: const Text("Erase All"),
+                ),
+                // ElevatedButton(
+                //   onPressed: getFilesList,
+                //   child: const Text("Refresh")
+                // ),
+              ],
+            ),
+            Expanded(
               child: ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
                 shrinkWrap: true,
@@ -1585,8 +1615,8 @@ class _DownloadsPageState extends State<DownloadsPage> {
                 },
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

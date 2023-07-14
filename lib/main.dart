@@ -272,8 +272,7 @@ class _LivePageState extends State<LivePage> {
               children: <Widget>[
                 DrawerHeader(
                   decoration: const BoxDecoration(
-                    // image: DecorationImage(image: FileImage(File(".\\assets\\images\\ic_launcher.png")), opacity: 10),
-                    image: DecorationImage(image: AssetImage('assets/images/ic_launcher.png')),
+                    image: DecorationImage(image: AssetImage('assets/images/nmeatraxLogo.png')),
                     color: Color(0xFF0050C7),
                   ),
                   child: Text('NMEATrax', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
@@ -765,9 +764,9 @@ class _ReplayPageState extends State<ReplayPage> {
     'Water Temp (C)':20.0,
     'Battery Voltage (V)':15.0,
     'Engine Hours (h)':10000.0,
-    'Latitude':49.0,
+    'Latitude':50.0,
     'Longitude':-122.0,
-    'Magnetic Variation (*)':17.0,
+    'Magnetic Variation (*)':20.0,
   };
 
   void _onSliderChanged(double value) {
@@ -915,8 +914,7 @@ class _ReplayPageState extends State<ReplayPage> {
               children: <Widget>[
                 DrawerHeader(
                   decoration: const BoxDecoration(
-                    // image: DecorationImage(image: FileImage(File(".\\assets\\images\\ic_launcher.png")), opacity: 10),
-                    image: DecorationImage(image: AssetImage('assets/images/ic_launcher.png')),
+                    image: DecorationImage(image: AssetImage('assets/images/nmeatraxLogo.png')),
                     color: Color(0xFF0050C7),
                   ),
                   child: Text('NMEATrax', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),

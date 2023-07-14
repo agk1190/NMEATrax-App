@@ -13,7 +13,7 @@
 AppId={{B5711AB8-BA89-48D2-AF31-882B873BE5A2}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-;AppVerName={#MyAppName} {#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
@@ -22,7 +22,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
-OutputBaseFilename=mysetup
+OutputBaseFilename=NMEATrax-v{#MyAppVersion}-setup
 SetupIconFile=C:\Users\alex.LAN\Documents\NMEATrax Replay\nmeatrax_replay\windows\runner\resources\app_icon.ico
 Compression=lzma
 SolidCompression=yes

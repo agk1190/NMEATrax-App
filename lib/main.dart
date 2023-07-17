@@ -23,6 +23,8 @@ String connectURL = "192.168.1.231";
 late SseChannel channel;
 List<String> downloadList = [];
 String emailData = "";
+StreamSubscription? stream;
+const _appVersion = '2.0.0';
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -149,7 +151,7 @@ class HomePage extends StatelessWidget {
                 Icons.directions_boat,
               ),
               applicationName: 'NMEATrax',
-              applicationVersion: '1.0.0',
+              applicationVersion: _appVersion,
               aboutBoxChildren: [
                 Text("For use with NMEATrax Vessel Monitoring System")
               ],
@@ -175,7 +177,7 @@ class LivePage extends StatefulWidget {
 class _LivePageState extends State<LivePage> {
 
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
-  bool _isVisible = true;
+  bool connected = false;
   final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
 
   Future<void> _getTheme() async {
@@ -186,6 +188,14 @@ class _LivePageState extends State<LivePage> {
     } else {
       MyApp.themeNotifier.value = ThemeMode.light;
     }
+  }
+
+  Future<void> _saveTheme(ThemeMode darkMode) async {
+    final SharedPreferences prefs = await _prefs;
+
+    setState(() {
+      prefs.setBool('darkMode', darkMode==ThemeMode.dark? true : false);
+    });
   }
 
   Future<void> _saveIP(String ip) async {
@@ -203,10 +213,6 @@ class _LivePageState extends State<LivePage> {
   }
 
   Future<void> getOptions() async {
-    // if (_isVisible) {
-    //   // SnackBar(content: Text("Not Connected"));
-    //   return;
-    // }
 
     final response = await http.get(Uri.parse('http://$connectURL/get'));
 
@@ -254,20 +260,22 @@ class _LivePageState extends State<LivePage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext lcontext) {
     return MaterialApp(
       home: DefaultTabController(
         length: 3,
         child: Scaffold(
           drawer: Drawer(
+            width: 200,
             backgroundColor: Theme.of(context).colorScheme.background,
             child: ListView(
               children: <Widget>[
                 DrawerHeader(
                   decoration: const BoxDecoration(
+                    image: DecorationImage(image: AssetImage('assets/images/nmeatraxLogo.png')),
                     color: Color(0xFF0050C7),
                   ),
-                  child: Text('NMEATrax App', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  child: Text('NMEATrax', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                 ),
                 ListTile(
                   textColor: Theme.of(context).colorScheme.onBackground,
@@ -296,11 +304,22 @@ class _LivePageState extends State<LivePage> {
                     Icons.directions_boat,
                   ),
                   applicationName: 'NMEATrax',
-                  applicationVersion: '1.0.0',
+                  applicationVersion: _appVersion,
                   aboutBoxChildren: const [
                     Text("For use with NMEATrax Vessel Monitoring System")
                   ],
                   child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+                Center(
+                  child: ElevatedButton(
+                    style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
+                    child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode_outlined, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onError,),
+                    onPressed: () {
+                      MyApp.themeNotifier.value =
+                        MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+                      _saveTheme(MyApp.themeNotifier.value);
+                    },
+                  ),
                 ),
               ],
             ),
@@ -342,7 +361,7 @@ class _LivePageState extends State<LivePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["rpm"], title: "RPM", unit: "", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: nmeaData["rpm"], title: "RPM", unit: "", fontSize: 48, mainContext: context,),),
                       ],
                     ),
                     Row(
@@ -381,7 +400,7 @@ class _LivePageState extends State<LivePage> {
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
                   itemCount: nmeaData.keys.length,
-                  itemBuilder: (BuildContext context, int index) {
+                  itemBuilder: (BuildContext lcontext, int index) {
                     return Container(
                       decoration: BoxDecoration(
                         border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
@@ -464,14 +483,6 @@ class _LivePageState extends State<LivePage> {
                       platform: DevicePlatform.android,
                       sections: [
                         SettingsSection(
-                          // title: const Text(
-                          //   "NMEATrax Settings", 
-                          //   style: TextStyle(
-                          //     fontWeight: FontWeight.bold, 
-                          //     fontSize: 22,
-                          //     decoration: TextDecoration.underline,
-                          //   ),
-                          // ),
                           tiles: [
                             // SettingsTile.navigation(
                             //   title: Text("Update", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
@@ -480,29 +491,29 @@ class _LivePageState extends State<LivePage> {
                             //   },
                             // ),
                             SettingsTile.switchTile(
-                              title: Text("Depth in Meters?", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              title: Text("Depth in Meters?", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                               initialValue: ntOptions["isMeters"],
                               onToggle: (value) {
                                 setOptions("isMeters=$value");
                               },
                             ),
                             SettingsTile.switchTile(
-                              title: Text("Temperature in Fahrenheit?", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              title: Text("Temperature in Fahrenheit?", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                               initialValue: ntOptions["isDegF"],
                               onToggle: (value) {
                                 setOptions("isDegF=$value");
                               },
                             ),
                             SettingsTile(
-                              title: Text("Time Zone", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                              value: Text(ntOptions["timeZone"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              title: Text("Time Zone", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                              value: Text(ntOptions["timeZone"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                               onPressed: (lContext) {
                                 showInputDialog(context, "Timezone", ntOptions["timeZone"], "timeZone");
                               },
                             ),
                             SettingsTile(
-                              title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                              value: Text(ntOptions["recInt"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                              value: Text(ntOptions["recInt"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                               onPressed: (lContext) {
                                 showInputDialog(context, "Recording Interval", ntOptions["recInt"], "recInt");
                               },
@@ -516,6 +527,7 @@ class _LivePageState extends State<LivePage> {
                         backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
                       ),
                       onPressed: () {
+                        getOptions();
                         Navigator.push(context, MaterialPageRoute(builder: (context) => const DownloadsPage()));
                       },
                       child: const Text('Voyage Recordings', style: TextStyle(fontSize: 18),),
@@ -525,15 +537,17 @@ class _LivePageState extends State<LivePage> {
               ),
             ]
           ),
-          floatingActionButton: Visibility(
-            visible: _isVisible,
-            child: FloatingActionButton.extended(
-              onPressed: () {
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () {
+              if (connected) {
+                setState(() {connected = false;});                
+                sseUnsubscribe();
+              } else {
                 showConnectDialog(context, "IP Address");
-              },
-              label: const Text("Connect"),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-            ),
+              }
+            },
+            label: connected ? const Text("Disconnect") : const Text("Connect"),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         ),
       ),
@@ -648,41 +662,47 @@ class _LivePageState extends State<LivePage> {
   sseSubscribe() async {
     channel = SseChannel.connect(Uri.parse('http://$connectURL/NMEATrax'));
     try {
-      channel.stream.listen((message) {
-        int i = 0;
-        if (message.toString().substring(2, 5) != "rpm") {
-        } else {
-          nmeaData = jsonDecode(message);
-          for (String element in nmeaData.values) {
-            try {
-              if (element.substring(0, 4) == "-273") {
-                var key = nmeaData.keys.elementAt(i);
-                nmeaData[key] = '-';
+      connected = true;
+      if (connected) {
+        stream = channel.stream.listen((message) {
+          int i = 0;
+          if (message.toString().substring(2, 5) != "rpm") {
+          } else {
+            nmeaData = jsonDecode(message);
+            for (String element in nmeaData.values) {
+              try {
+                if (element.substring(0, 4) == "-273") {
+                  var key = nmeaData.keys.elementAt(i);
+                  nmeaData[key] = '-';
+                }
+                
+              } on RangeError {
+                // do nothing
               }
-              
-            } on RangeError {
-              // do nothing
+              i++;
             }
-            i++;
           }
-        }
-        if (mounted) {
-          setState(() {});
-        } else {
-          if (Platform.isAndroid) {
-            KeepScreenOn.turnOff();
+          if (mounted) {
+            setState(() {});
+          } else {
+            if (Platform.isAndroid) {KeepScreenOn.turnOff();}
           }
-        }
-      });
+        });
+      }
     } on SocketException {
       // do nothing
     }
-    // _isVisible = false;
+    connected = true;
     _saveIP(connectURL);
     getOptions();
-    if (Platform.isAndroid) {
-      KeepScreenOn.turnOn();
-    }
+    if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+  }
+
+  sseUnsubscribe() async {
+    connected = false;
+    if (Platform.isAndroid) {KeepScreenOn.turnOff();}
+    stream?.pause();
+    // stream?.cancel();
   }
 }
 
@@ -744,9 +764,9 @@ class _ReplayPageState extends State<ReplayPage> {
     'Water Temp (C)':20.0,
     'Battery Voltage (V)':15.0,
     'Engine Hours (h)':10000.0,
-    'Latitude':49.0,
+    'Latitude':50.0,
     'Longitude':-122.0,
-    'Magnetic Variation (*)':17.0,
+    'Magnetic Variation (*)':20.0,
   };
 
   void _onSliderChanged(double value) {
@@ -878,7 +898,6 @@ class _ReplayPageState extends State<ReplayPage> {
     super.initState();
     _getTheme();
     _getLimits();
-    // Timer.periodic(const Duration(seconds: 1), (Timer t) => setState((){}));
   }
 
   @override
@@ -889,14 +908,16 @@ class _ReplayPageState extends State<ReplayPage> {
         length: 4,
         child: Scaffold(
           drawer: Drawer(
+            width: 200,
             backgroundColor: Theme.of(context).colorScheme.background,
             child: ListView(
               children: <Widget>[
                 DrawerHeader(
                   decoration: const BoxDecoration(
+                    image: DecorationImage(image: AssetImage('assets/images/nmeatraxLogo.png')),
                     color: Color(0xFF0050C7),
                   ),
-                  child: Text('NMEATrax App', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  child: Text('NMEATrax', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                 ),
                 ListTile(
                   textColor: Theme.of(context).colorScheme.onBackground,
@@ -925,11 +946,22 @@ class _ReplayPageState extends State<ReplayPage> {
                     Icons.directions_boat,
                   ),
                   applicationName: 'NMEATrax',
-                  applicationVersion: '1.0.0',
+                  applicationVersion: _appVersion,
                   aboutBoxChildren: const [
                     Text("For use with NMEATrax Vessel Monitoring System")
                   ],
                   child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                ),
+                Center(
+                  child: ElevatedButton(
+                    style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
+                    child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode_outlined, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onError,),
+                    onPressed: () {
+                      MyApp.themeNotifier.value =
+                        MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+                      _saveTheme(MyApp.themeNotifier.value);
+                    },
+                  ),
                 ),
               ],
             ),
@@ -1200,7 +1232,6 @@ class _ReplayPageState extends State<ReplayPage> {
                           leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onBackground),
                           title: Text('Dark Mode', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                         ),
-                        // SettingsTile.navigation(title: Text('App Version 1.1', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),)),
                       ],
                     ),
                   ],
@@ -1360,7 +1391,7 @@ class SizedNMEABox extends StatelessWidget {
   final String value;
   final String title;
   final String unit;
-  final double width;
+  final double fontSize;
   final dynamic mainContext;
 
   const SizedNMEABox({
@@ -1368,14 +1399,14 @@ class SizedNMEABox extends StatelessWidget {
     required this.value,
     required this.title,
     required this.unit,
-    this.width = 100,
+    this.fontSize = 24,
     required this.mainContext,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: width,
+      width: 100,
       child: Container(
         padding: const EdgeInsets.all(4.0),
         margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
@@ -1395,7 +1426,7 @@ class SizedNMEABox extends StatelessWidget {
                   value,
                   style: TextStyle(
                     color: Theme.of(mainContext).colorScheme.onBackground,
-                    fontSize: 24,
+                    fontSize: fontSize,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1403,7 +1434,7 @@ class SizedNMEABox extends StatelessWidget {
                   unit,
                   style: TextStyle(
                     color: Theme.of(mainContext).colorScheme.onBackground,
-                    fontSize: 24,
+                    fontSize: fontSize,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1424,6 +1455,19 @@ class DownloadsPage extends StatefulWidget {
 }
 
 class _DownloadsPageState extends State<DownloadsPage> {
+  
+  Future<void> getFilesList() async {
+    final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
+
+    if (dlList.statusCode == 200) {
+      List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
+      downloadList = converted.elementAt(0);
+      downloadList.removeAt(downloadList.length - 1);
+      setState(() {});
+    } else {
+      throw Exception('Failed to get download list');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1433,135 +1477,144 @@ class _DownloadsPageState extends State<DownloadsPage> {
         title: const Text('Voyage Recordings'),
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          const Text("Tap on the file you wish to download"),
-          ButtonBar(
-            alignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return StatefulBuilder(
-                        builder: (aContext, setState) {
-                          return AlertDialog(
-                            title: const Text("Email Progress"),
-                            content: Text(emailData),
-                            actions: [
-                              ElevatedButton(
-                                onPressed: () {
-                                  setState(() {emailData = "";});
-                                  SseChannel email = SseChannel.connect(Uri.parse('http://$connectURL/NMEATrax'));
-                                  try {
-                                    email.stream.listen((message) {
-                                      if (message.toString().substring(2, 5) != "rpm") {
-                                        if (aContext.mounted) {
-                                          setState(() {
-                                            emailData += message;
-                                            emailData += "\r\n";
-                                          });
+      body: RefreshIndicator(
+        onRefresh: getFilesList,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            const Text("Tap on the file you wish to download"),
+            ButtonBar(
+              alignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return StatefulBuilder(
+                          builder: (aContext, setState) {
+                            return AlertDialog(
+                              title: const Text("Email Progress"),
+                              content: Text(emailData),
+                              actions: [
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {emailData = "";});
+                                    SseChannel email = SseChannel.connect(Uri.parse('http://$connectURL/NMEATrax'));
+                                    try {
+                                      email.stream.listen((message) {
+                                        if (message.toString().substring(2, 5) != "rpm") {
+                                          if (aContext.mounted) {
+                                            setState(() {
+                                              emailData += message;
+                                              emailData += "\r\n";
+                                            });
+                                          }
                                         }
-                                      }
-                                    });
-                                  } on SocketException {
-                                    // do nothing
-                                  }
-                                  Future.delayed(const Duration(seconds: 2), () {
-                                    http.post(Uri.parse("http://$connectURL/set?email=true"));
-                                  },);
-                                },
-                                child: const Text("Send Email"),
-                              ),
+                                      });
+                                    } on SocketException {
+                                      // do nothing
+                                    }
+                                    Future.delayed(const Duration(seconds: 2), () {
+                                      http.post(Uri.parse("http://$connectURL/set?email=true"));
+                                    },);
+                                  },
+                                  child: const Text("Send Email"),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    
+                                    Navigator.of(context, rootNavigator: true).pop();
+                                  },
+                                  child: const Text("Close"),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                  child: const Text("Email Files"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text("Downloading all files...", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                      duration: const Duration(seconds: 3),
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                    ));}
+                    for (var file in downloadList) {
+                      await downloadData(file);
+                    }
+                    if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                      duration: const Duration(seconds: 3),
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                    ));}
+                  },
+                  child: const Text("Download All"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          title: const Text("Are you sure?"),
+                          actions: [
                               ElevatedButton(
                                 onPressed: () {
-                                  
+                                  http.post(Uri.parse("http://$connectURL/set?eraseData=true"));
+                                  downloadList.clear();
+                                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                    content: Text("Erased all recordings", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                                    duration: const Duration(seconds: 5),
+                                    backgroundColor: Theme.of(context).colorScheme.surface,
+                                  ));}
                                   Navigator.of(context, rootNavigator: true).pop();
+                                  setState(() {});
                                 },
-                                child: const Text("Close"),
-                              ),
-                            ],
-                          );
-                        },
-                      );
+                              child: const Text("Yes"),
+                            )
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  child: const Text("Erase All"),
+                ),
+                // ElevatedButton(
+                //   onPressed: getFilesList,
+                //   child: const Text("Refresh")
+                // ),
+              ],
+            ),
+            Expanded(
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemCount: downloadList.length,
+                itemBuilder: (BuildContext context, int index) {
+                  return ListTile(
+                    mouseCursor: MaterialStateMouseCursor.clickable,
+                    hoverColor: Theme.of(context).colorScheme.surface,
+                    leading: downloadList.elementAt(index).substring(downloadList.elementAt(index).length - 3) == 'gpx' ? const Icon(Icons.location_on) : const Icon(Icons.insert_drive_file),
+                    title: Text(downloadList.elementAt(index)),
+                    onTap: () async {
+                      String s = await downloadData(downloadList.elementAt(index));
+                      if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                        duration: const Duration(seconds: 5),
+                        backgroundColor: Theme.of(context).colorScheme.surface,
+                      ));}
                     },
                   );
                 },
-                child: const Text("Email Files"),
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Downloading all files...", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                    duration: const Duration(seconds: 3),
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                  ));}
-                  for (var file in downloadList) {
-                    await downloadData(file);
-                  }
-                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                    duration: const Duration(seconds: 3),
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                  ));}
-                },
-                child: const Text("Download All"),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: const Text("Are you sure?"),
-                        actions: [
-                            ElevatedButton(
-                              onPressed: () {
-                                // http.post(Uri.parse("http://$connectURL/set?eraseData=true"));
-                                downloadList.clear();
-                                if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                  content: Text("Erased all recordings", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                                  duration: const Duration(seconds: 5),
-                                  backgroundColor: Theme.of(context).colorScheme.surface,
-                                ));}
-                                Navigator.of(context, rootNavigator: true).pop();
-                                setState(() {});
-                              },
-                            child: const Text("Yes"),
-                          )
-                        ],
-                      );
-                    },
-                  );
-                },
-                child: const Text("Erase All"),
-              ),
-            ],
-          ),
-          ListView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            itemCount: downloadList.length,
-            itemBuilder: (BuildContext context, int index) {
-              return ListTile(
-                mouseCursor: MaterialStateMouseCursor.clickable,
-                hoverColor: Theme.of(context).colorScheme.surface,
-                leading: downloadList.elementAt(index).substring(downloadList.elementAt(index).length - 3) == 'gpx' ? const Icon(Icons.location_on) : const Icon(Icons.insert_drive_file),
-                title: Text(downloadList.elementAt(index)),
-                onTap: () async {
-                  String s = await downloadData(downloadList.elementAt(index));
-                  if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                    duration: const Duration(seconds: 5),
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                  ));}
-                },
-              );
-            },
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

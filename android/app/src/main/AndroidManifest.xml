@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.nmeatrax_replay">
+    package="com.nmeatrax.app">
    <application
         android:label="NMEATrax"
         android:name="${applicationName}"

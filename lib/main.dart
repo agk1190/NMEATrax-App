@@ -10,7 +10,6 @@ import 'package:flutter_map/flutter_map.dart'; // Suitable for most situations
 import 'package:latlong2/latlong.dart';
 import 'package:gpx/gpx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sse_channel/sse_channel.dart';
 import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -19,11 +18,9 @@ import 'package:permission_handler/permission_handler.dart';
 Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-"};
 Map<String, dynamic> ntOptions = {"isMeters":false, "isDegF":false, "recInt":0, "timeZone":0, "recMode":0};
 const Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
-String connectURL = "192.168.1.231";
-late SseChannel channel;
+String connectURL = "192.168.1.1";
 List<String> downloadList = [];
 String emailData = "";
-StreamSubscription? stream;
 const _appVersion = '2.0.0';
 
 ColorScheme myLightColors = const ColorScheme(
@@ -179,6 +176,7 @@ class _LivePageState extends State<LivePage> {
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   bool connected = false;
   final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
+  late StreamSubscription<String> subscription;
 
   Future<void> _getTheme() async {
     final SharedPreferences prefs = await _prefs;
@@ -283,6 +281,7 @@ class _LivePageState extends State<LivePage> {
                   title: const Text('Live'),
                   leading: const Icon(Icons.bolt),
                   onTap: () {
+                    if (connected) stopSSE();
                     Navigator.pushReplacementNamed(context, '/live');
                   },
                 ),
@@ -292,6 +291,7 @@ class _LivePageState extends State<LivePage> {
                   title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                   leading: const Icon(Icons.timeline),
                   onTap: () {
+                    if (connected) stopSSE();
                     Navigator.pushReplacementNamed(context, '/replay');
                   },
                 ),
@@ -541,7 +541,7 @@ class _LivePageState extends State<LivePage> {
             onPressed: () {
               if (connected) {
                 setState(() {connected = false;});                
-                sseUnsubscribe();
+                stopSSE();
               } else {
                 showConnectDialog(context, "IP Address");
               }
@@ -563,7 +563,7 @@ class _LivePageState extends State<LivePage> {
       onPressed: () {
         setState(() {
           connectURL = input;
-          sseSubscribe();
+          listenToSSE();
         });
         //https://stackoverflow.com/a/50683571 for nav.pop
         Navigator.of(context, rootNavigator: true).pop();
@@ -588,7 +588,7 @@ class _LivePageState extends State<LivePage> {
         onFieldSubmitted: (value) {
           setState(() {
             connectURL = value;
-            sseSubscribe();
+            listenToSSE();
           });
           Navigator.of(context, rootNavigator: true).pop();
         },
@@ -659,50 +659,57 @@ class _LivePageState extends State<LivePage> {
     );
   }
 
-  sseSubscribe() async {
-    channel = SseChannel.connect(Uri.parse('http://$connectURL/NMEATrax'));
-    try {
-      connected = true;
-      if (connected) {
-        stream = channel.stream.listen((message) {
-          int i = 0;
-          if (message.toString().substring(2, 5) != "rpm") {
-          } else {
-            nmeaData = jsonDecode(message);
-            for (String element in nmeaData.values) {
-              try {
-                if (element.substring(0, 4) == "-273") {
-                  var key = nmeaData.keys.elementAt(i);
-                  nmeaData[key] = '-';
-                }
-                
-              } on RangeError {
-                // do nothing
-              }
-              i++;
-            }
+  void handleSSE(String data) {
+    int i = 0;
+    if (data.toString().substring(2, 5) != "rpm") {
+    } else {
+      nmeaData = jsonDecode(data);
+      for (String element in nmeaData.values) {
+        try {
+          if (element.substring(0, 4) == "-273") {
+            var key = nmeaData.keys.elementAt(i);
+            nmeaData[key] = '-';
           }
-          if (mounted) {
-            setState(() {});
-          } else {
-            if (Platform.isAndroid) {KeepScreenOn.turnOff();}
-          }
-        });
+        } on RangeError {
+          // do nothing
+        }
+        i++;
       }
-    } on SocketException {
-      // do nothing
     }
-    connected = true;
+    if (mounted) {
+      setState(() {});
+    } else {
+      if (Platform.isAndroid) {KeepScreenOn.turnOff();}
+    }
+  }
+
+  Future<void> listenToSSE() async {
+    var request = http.Request('GET', Uri.parse('http://$connectURL/NMEATrax'));
+    dynamic response;
+    try {
+      response = await request.send();
+    } on Exception {
+      return;
+    }
+
+    // Create a stream transformer to parse SSE data
+    var stream = response.stream.transform(utf8.decoder).transform(const LineSplitter());
+    setState(() {connected = true;});
     _saveIP(connectURL);
     getOptions();
     if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+
+    subscription = stream.listen((line) {
+      if (line.isNotEmpty && line.startsWith('data:')) {
+        handleSSE(line.substring(6));
+      }
+    });
   }
 
-  sseUnsubscribe() async {
+  void stopSSE() {
     connected = false;
     if (Platform.isAndroid) {KeepScreenOn.turnOff();}
-    stream?.pause();
-    // stream?.cancel();
+    subscription.cancel();
   }
 }
 
@@ -717,7 +724,7 @@ class _ReplayPageState extends State<ReplayPage> {
 
   List<List<dynamic>> csvListData = [];
   List<dynamic> csvHeaderData = [];
-  List<LatLng> gpxLL = [LatLng(0, 0)];
+  List<LatLng> gpxLL = [const LatLng(0, 0)];
   List<List<String>> analyzedData = [];
   int curLineNum = 0;
   File csvFilePath = File("c");
@@ -726,7 +733,7 @@ class _ReplayPageState extends State<ReplayPage> {
   int errCount = 0;
   final mapController = MapController();
   bool _isVisible = true;
-  final homeCoords = LatLng(48.668070, -123.404493);
+  final homeCoords = const LatLng(48.668070, -123.404493);
 
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
@@ -1087,8 +1094,8 @@ class _ReplayPageState extends State<ReplayPage> {
                         zoom: 13.0,
                         maxZoom: 18.0,
                         maxBounds: LatLngBounds(
-                          LatLng(-90.0, -180.0),
-                          LatLng(90.0, 180.0),
+                          const LatLng(-90.0, -180.0),
+                          const LatLng(90.0, 180.0),
                         ),
                         keepAlive: true,
                         interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate & ~InteractiveFlag.flingAnimation,
@@ -1098,7 +1105,7 @@ class _ReplayPageState extends State<ReplayPage> {
                           });
                         },
                         onLongPress: (tapPosition, point) {
-                          if (gpxLL.first != LatLng(0,0)) {
+                          if (gpxLL.first != const LatLng(0,0)) {
                             mapController.move(gpxLL.first, 13);
                           } else {
                             mapController.move(homeCoords, 13);
@@ -1498,23 +1505,36 @@ class _DownloadsPageState extends State<DownloadsPage> {
                               content: Text(emailData),
                               actions: [
                                 ElevatedButton(
-                                  onPressed: () {
+                                  onPressed: () async {
                                     setState(() {emailData = "";});
-                                    SseChannel email = SseChannel.connect(Uri.parse('http://$connectURL/NMEATrax'));
+                                    var request = http.Request('GET', Uri.parse('http://$connectURL/NMEATrax'));
+                                    dynamic response;
                                     try {
-                                      email.stream.listen((message) {
-                                        if (message.toString().substring(2, 5) != "rpm") {
+                                      response = await request.send();
+                                    } on Exception {
+                                      if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                        content: Text("Could not connect...", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                                        duration: const Duration(seconds: 3),
+                                        backgroundColor: Theme.of(context).colorScheme.surface,
+                                      ));}
+                                      return;
+                                    }
+
+                                    var stream = response.stream.transform(utf8.decoder).transform(const LineSplitter());
+
+                                    stream.listen((line) {
+                                      if (line.isNotEmpty && line.startsWith('data:')) {
+                                        var data = line.substring(6);
+                                        if (data.toString().substring(2, 5) != "rpm") {
                                           if (aContext.mounted) {
                                             setState(() {
-                                              emailData += message;
+                                              emailData += data;
                                               emailData += "\r\n";
                                             });
                                           }
                                         }
-                                      });
-                                    } on SocketException {
-                                      // do nothing
-                                    }
+                                      }
+                                    });
                                     Future.delayed(const Duration(seconds: 2), () {
                                       http.post(Uri.parse("http://$connectURL/set?email=true"));
                                     },);
@@ -1523,7 +1543,6 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                 ),
                                 ElevatedButton(
                                   onPressed: () {
-                                    
                                     Navigator.of(context, rootNavigator: true).pop();
                                   },
                                   child: const Text("Close"),

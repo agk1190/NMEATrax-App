@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart'; // Suitable for most situations
@@ -52,7 +53,7 @@ class _ReplayPageState extends State<ReplayPage> {
 
   List<List<dynamic>> csvListData = [];
   List<dynamic> csvHeaderData = [];
-  List<LatLng> gpxLL = [const LatLng(0, 0)];
+  List<List<LatLng>> gpxLL = [[const LatLng(0, 0)]];
   List<List<String>> analyzedData = [];
   int curLineNum = 0;
   File csvFilePath = File("c");
@@ -60,8 +61,14 @@ class _ReplayPageState extends State<ReplayPage> {
   num maxLines = 1;
   int errCount = 0;
   final mapController = MapController();
-  bool _isVisible = true;
   final homeCoords = const LatLng(48.668070, -123.404493);
+  int selectedLimit = 0;
+  List<int> gpxNum = [];
+  List<dynamic> gpxColors = [const Color(0xFF0050C7)];
+  bool markerVisibility = false;
+  int gpxToCsvOffset = 0;
+  int gpxToCsvLineNum = 0;
+  bool linkedFiles = false;
 
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
@@ -107,6 +114,11 @@ class _ReplayPageState extends State<ReplayPage> {
   void _onSliderChanged(double value) {
     setState(() {
       curLineNum = value.toInt();
+      if (curLineNum - gpxToCsvOffset >= 0) {
+        gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
+      } else {
+        gpxToCsvLineNum = 0;
+      }
     });
   }
 
@@ -129,29 +141,53 @@ class _ReplayPageState extends State<ReplayPage> {
               }
               j++;
             }
+            int latIndex = csvHeaderData.indexWhere((element) => element == "Latitude");
+            if (row.elementAt(latIndex) != '-' && gpxToCsvOffset == 0) {gpxToCsvOffset = i;}
             j = 0;
             i++;
           }
           setState(() {
             curLineNum = 0;
+            gpxToCsvLineNum = 0;
             maxLines = csvListData.length - 1;
           });
         }
       });
     }
+    gpxLL.clear();
+    gpxLL.add([const LatLng(0, 0)]);
+    gpxNum.clear();
+    String cut = csvFilePath.path.substring(0, csvFilePath.path.lastIndexOf('.'));
+    linkedFiles = true;
+    _getGPX(File('$cut.gpx'));
   }
 
-  void _getGPX() async {
-    gpxFilePath = await _getFilePath(['gpx', 'xml']);
+  void _getGPX(File filePath) async {
+    if (filePath.existsSync()) {
+      gpxFilePath = filePath;
+    } else {
+      gpxFilePath = await _getFilePath(['gpx', 'xml']);
+    }
     if (gpxFilePath.path != "null") {
       _loadGPX(gpxFilePath).then((rows) {
         if (rows.isNotEmpty) {
-          gpxLL.clear();
+          int idx = 0;
+          if (gpxNum.isNotEmpty) {
+            idx = gpxNum.length;
+            gpxLL.add([const LatLng(0, 0)]);
+          }
+          if (gpxLL.isEmpty) {
+            gpxLL.add([const LatLng(0, 0)]);
+          }
+          if (gpxLL.elementAt(idx).isNotEmpty) {gpxLL.elementAt(idx).clear();}
           for (Wpt wpt in rows) {
-            gpxLL.add(LatLng(wpt.lat!, wpt.lon!));
+            gpxLL.elementAt(idx).add(LatLng(wpt.lat!, wpt.lon!));
           }
           setState(() {
-            _isVisible = false;
+            gpxNum.add(idx + 1);
+            if (idx > 0 && idx >= gpxColors.length) {
+              gpxColors.add(Color.fromARGB(255, Random().nextInt(255), Random().nextInt(255), Random().nextInt(255)));
+            }
           });
         }
       });
@@ -162,6 +198,11 @@ class _ReplayPageState extends State<ReplayPage> {
     setState(() {
       if (curLineNum > 0) {
         curLineNum--;
+        if (curLineNum - gpxToCsvOffset >= 0) {
+          gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
+        } else {
+          gpxToCsvLineNum = 0;
+        }
       }
     });
   }
@@ -170,6 +211,11 @@ class _ReplayPageState extends State<ReplayPage> {
     setState(() {
       if (curLineNum != maxLines){
         curLineNum++;
+        if (curLineNum - gpxToCsvOffset >= 0) {
+          gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
+        } else {
+          gpxToCsvLineNum = 0;
+        }
       }
     });
   }
@@ -224,8 +270,10 @@ class _ReplayPageState extends State<ReplayPage> {
     final SharedPreferences prefs = await _prefs;
     if (prefs.getString("lower") == null) {return;}
     if (prefs.getString("upper") == null) {return;}
-    lowerLimits = jsonDecode(prefs.getString("lower")!);
-    upperLimits = jsonDecode(prefs.getString("upper")!);
+    setState(() {
+      lowerLimits = jsonDecode(prefs.getString("lower")!);
+      upperLimits = jsonDecode(prefs.getString("upper")!);
+    });
   }
   
   @override
@@ -327,16 +375,18 @@ class _ReplayPageState extends State<ReplayPage> {
                     const SizedBox(height: 10,),
                     Text("Data", style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 24, fontWeight: FontWeight.w400),),
                     const SizedBox(height: 10,),
+                    Text(csvFilePath.toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 14, fontWeight: FontWeight.w400),),
+                    const SizedBox(height: 10,),
                     ListData(csvHeaderData: csvHeaderData, csvListData: csvListData, curLineNum: curLineNum, mainContext: context),
                     const SizedBox(height: 20),
                     Slider(
-                          value: curLineNum.toDouble(),
-                          onChanged: _onSliderChanged,
-                          label: curLineNum.toString(),
-                          max: maxLines.toDouble(),
-                          min: 0,
-                          activeColor: Theme.of(context).colorScheme.primary,
-                          inactiveColor: Theme.of(context).colorScheme.primaryContainer,
+                      value: curLineNum.toDouble(),
+                      onChanged: _onSliderChanged,
+                      label: curLineNum.toString(),
+                      max: maxLines.toDouble(),
+                      min: 0,
+                      activeColor: Theme.of(context).colorScheme.primary,
+                      inactiveColor: Theme.of(context).colorScheme.primaryContainer,
                     ),
                     Container(
                       padding: const EdgeInsets.fromLTRB(3.0, 0, 3.0, 0),
@@ -414,6 +464,7 @@ class _ReplayPageState extends State<ReplayPage> {
                 ),
               ),
               Stack(
+                alignment: AlignmentDirectional.topStart,
                 children: [
                   Scaffold(
                     body: FlutterMap(
@@ -428,18 +479,12 @@ class _ReplayPageState extends State<ReplayPage> {
                         ),
                         keepAlive: true,
                         interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate & ~InteractiveFlag.flingAnimation,
-                        onTap: (tapPosition, point) {
-                          setState(() {
-                            _isVisible = !_isVisible;
-                          });
-                        },
                         onLongPress: (tapPosition, point) {
-                          if (gpxLL.first != const LatLng(0,0)) {
-                            mapController.move(gpxLL.first, 13);
+                          if (gpxLL[0].first != const LatLng(0,0)) {
+                            mapController.move(gpxLL[0].first, 13);
                           } else {
                             mapController.move(homeCoords, 13);
                           }
-                          
                         },
                       ),
                       nonRotatedChildren: const [
@@ -456,121 +501,170 @@ class _ReplayPageState extends State<ReplayPage> {
                       children: [
                         TileLayer(
                           urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                          // userAgentPackageName: 'dev.fleaflet.flutter_map.example',
                           userAgentPackageName: 'com.nmeatrax.app',
                           errorTileCallback: (tile, error, stackTrace) {},
                         ),
-                        // MarkerLayer(
-                        //   markers: [
-                        //     Marker(
-                        //       point: LatLng(48.66807, -123.405),
-                        //       width: 80,
-                        //       height: 80,
-                        //       builder: (context) => FlutterLogo(),
-                        //     ),
-                        //   ],
-                        // ),
-                        PolylineLayer(
-                          polylineCulling: false,
-                          polylines: [
-                            Polyline(
-                              points: gpxLL,
-                              color: Theme.of(context).colorScheme.primary,
-                              strokeWidth: 3,
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: gpxLL[0].length > 1 ? gpxLL.first.elementAt(gpxToCsvLineNum) : homeCoords,
+                              width: 80,
+                              height: 80,
+                              builder: (context) {
+                                if (markerVisibility) {
+                                  return const Icon(Icons.directions_ferry);
+                                } else {
+                                  return const Text("");
+                                }
+                              },
                             ),
                           ],
-                        )
+                        ),
+                        buildPolylinesLayer()
                       ],
                     ),
-                    floatingActionButton: Visibility(
-                      visible: _isVisible,
-                      child: FloatingActionButton(
-                        onPressed: _getGPX,
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        child: const Icon(Icons.file_upload),
-                      ),
+                    floatingActionButton: FloatingActionButton(
+                      onPressed: () => _getGPX(File("c")),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      child: const Icon(Icons.add),
                     ),
+                  ),
+                  Column(
+                    children: [
+                      Visibility(
+                        visible: linkedFiles,
+                        child: Slider(
+                          value: curLineNum.toDouble(),
+                          onChanged: _onSliderChanged,
+                          label: curLineNum.toString(),
+                          max: maxLines.toDouble(),
+                          min: 0,
+                          activeColor: Theme.of(context).colorScheme.primary,
+                          inactiveColor: Theme.of(context).colorScheme.primaryContainer,
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox(
+                          height: 60,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              Visibility(
+                                visible: linkedFiles,
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+                                  child: ElevatedButton(
+                                    style: ButtonStyle(
+                                      backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+                                    ),
+                                    onPressed: () => setState(() {markerVisibility = !markerVisibility;}), 
+                                    child: const Icon(Icons.location_pin)
+                                  ),
+                                ),
+                              ),
+                              buildElevatedButtonRow(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
               SingleChildScrollView(
-                child: SettingsList(
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  darkTheme: SettingsThemeData(
-                    settingsSectionBackground: Theme.of(context).colorScheme.background,
-                    settingsListBackground: Theme.of(context).colorScheme.background,
-                    titleTextColor: Theme.of(context).colorScheme.onBackground,
-                  ),
-                  lightTheme: SettingsThemeData(
-                    settingsSectionBackground: Theme.of(context).colorScheme.background,
-                    settingsListBackground: Theme.of(context).colorScheme.background,
-                    titleTextColor: Theme.of(context).colorScheme.onBackground,
-                  ),
-                  platform: DevicePlatform.android,
-                  sections: [
-                    SettingsSection(
-                      title: const Text(
-                        "Analyze - Lower Limits", 
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(0, 10, 0, 20),
+                      child: Text(
+                        "Analysis Limits",
                         style: TextStyle(
-                          fontWeight: FontWeight.bold, 
+                          color: Theme.of(context).colorScheme.onBackground,
                           fontSize: 22,
-                          decoration: TextDecoration.underline,
                         ),
                       ),
-                      //https://stackoverflow.com/a/61674640 .map()
-                      tiles: csvHeaderData.map((e) => SettingsTile.navigation(
-                          leading: Icon(Icons.settings_applications, color: Theme.of(context).colorScheme.onBackground),
-                          title: Text("Lower $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                          value: Text(lowerLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                          onPressed: (context) {
-                            showInputDialog(mainContext, "Lower $e Limit", e, false);
-                          },
-                        )
-                      ).toList(),
                     ),
-                    SettingsSection(
-                      title: const Text(
-                        "Analyze - Upper Limits", 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold, 
-                          fontSize: 22,
-                          decoration: TextDecoration.underline,
-                        ),
+                    DropdownMenu(
+                      initialSelection: upperLimits.keys.first,
+                      menuStyle: MenuStyle(
+                        backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.surface),
                       ),
-                      tiles: csvHeaderData.map((e) => SettingsTile.navigation(
-                          leading: Icon(Icons.settings_applications, color: Theme.of(context).colorScheme.onBackground),
-                          title: Text("Upper $e Limit", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                          value: Text(upperLimits[e].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                          onPressed: (context) {
-                            showInputDialog(mainContext, "Upper $e Limit", e, true);
-                          },
-                        )
-                      ).toList(),
+                      textStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onBackground,
+                      ),
+                      enableSearch: false,
+                      enableFilter: false,
+                      dropdownMenuEntries: upperLimits.keys.map<DropdownMenuEntry<dynamic>>((String value) {
+                        return DropdownMenuEntry<String>(
+                          value: value,
+                          label: value,
+                        );
+                      }).toList(),
+                      onSelected: (value) {
+                        setState(() {
+                          final List mySet = Set.from(upperLimits.keys).toList();
+                          int myIndex = mySet.indexOf(value);
+                          selectedLimit = myIndex;
+                        });
+                      },
                     ),
-                    SettingsSection(
-                      title: const Text(
-                        "App Theme", 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold, 
-                          fontSize: 22,
-                          decoration: TextDecoration.underline,
-                        ),
+                    SettingsList(
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      darkTheme: SettingsThemeData(
+                        settingsSectionBackground: Theme.of(context).colorScheme.background,
+                        settingsListBackground: Theme.of(context).colorScheme.background,
+                        titleTextColor: Theme.of(context).colorScheme.onBackground,
                       ),
-                      tiles: <SettingsTile>[
-                        SettingsTile.switchTile(
-                          onToggle: (value) {
-                              MyApp.themeNotifier.value =
-                                MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-                              _saveTheme(MyApp.themeNotifier.value);
-                          },
-                          initialValue: MyApp.themeNotifier.value == ThemeMode.light ? false : true,
-                          leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onBackground),
-                          title: Text('Dark Mode', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                      lightTheme: SettingsThemeData(
+                        settingsSectionBackground: Theme.of(context).colorScheme.background,
+                        settingsListBackground: Theme.of(context).colorScheme.background,
+                        titleTextColor: Theme.of(context).colorScheme.onBackground,
+                      ),
+                      platform: DevicePlatform.android,
+                      sections: [
+                        SettingsSection(
+                          title: const Text(
+                            "Lower Limit", 
+                            style: TextStyle(
+                              fontSize: 18,
+                            ),
+                          ),
+                          tiles: [
+                            SettingsTile.navigation(
+                              title: Text(
+                                lowerLimits.values.elementAt(selectedLimit).toString(),
+                                style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
+                              ),
+                              onPressed: (lcontext) {
+                                showInputDialog(context, "Enter lower limit", false);
+                              },
+                            ),
+                          ],
+                        ),
+                        SettingsSection(
+                          title: const Text(
+                            "Upper Limit", 
+                            style: TextStyle(
+                              fontSize: 18,
+                            ),
+                          ),
+                          tiles: [
+                            SettingsTile.navigation(
+                              title: Text(
+                                upperLimits.values.elementAt(selectedLimit).toString(),
+                                style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
+                              ),
+                              onPressed: (lcontext) {
+                                showInputDialog(context, "Enter upper limit", true);
+                              },
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ]
                 ),
               ),
             ]
@@ -580,8 +674,63 @@ class _ReplayPageState extends State<ReplayPage> {
     );
   }
 
+  PolylineLayer buildPolylinesLayer() {
+    List<Polyline> polylines = [];
+    int colorIndex = 0;
+    for (List<LatLng> track in gpxLL) {
+      final Polyline polyline = Polyline(
+        points: track,
+        color: gpxColors[colorIndex],
+        strokeWidth: 3.0,
+      );
+      polylines.add(polyline);
+      colorIndex++;
+    }
+
+    return PolylineLayer(
+      polylineCulling: false,
+      polylines: polylines,
+    );
+  }
+
+  Widget buildElevatedButtonRow() {
+    return ListView.builder(
+      shrinkWrap: true,
+      scrollDirection: Axis.horizontal,
+      itemCount: gpxNum.length,
+      itemBuilder: (lcontext, index) {
+        return Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: ElevatedButton(
+            style: ButtonStyle(
+              backgroundColor: MaterialStatePropertyAll(gpxColors[index]),
+            ),
+            onPressed: () {
+              mapController.move(gpxLL.elementAt(index).first, 13);
+            },
+            onLongPress: () {
+              setState(() {
+                markerVisibility = false;
+                curLineNum = 0;
+                gpxToCsvLineNum = 0;
+                gpxToCsvOffset = 0;
+                gpxLL.removeAt(index);
+                gpxNum.removeAt(index);
+                if (gpxLL.isEmpty) {
+                  linkedFiles = false;
+                  gpxLL.add([const LatLng(0, 0)]);
+                }
+              });
+            },
+            child: const Icon(Icons.route_outlined),
+          ),
+        );
+      },
+    );
+  }
+
   //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
-  showInputDialog(BuildContext context, String title, dynamic e, bool upper) {
+  showInputDialog(BuildContext context, String title, bool upper) {
     double input = 0;
 
     Widget confirmButton = ElevatedButton(
@@ -589,10 +738,10 @@ class _ReplayPageState extends State<ReplayPage> {
       onPressed: () {
         setState(() {
           if (upper) {
-            upperLimits[e] = input;
+            upperLimits[upperLimits.keys.elementAt(selectedLimit)] = input;
             _saveLimits("upper", upperLimits);
           } else {
-            lowerLimits[e] = input;
+            lowerLimits[lowerLimits.keys.elementAt(selectedLimit)] = input;
             _saveLimits("lower", lowerLimits);
           }
         });
@@ -619,10 +768,10 @@ class _ReplayPageState extends State<ReplayPage> {
           setState(() {
             try {
               if (upper) {
-                upperLimits[e] = double.parse(value);
+                upperLimits[upperLimits.keys.elementAt(selectedLimit)] = double.parse(value);
                 _saveLimits("upper", upperLimits);
               } else {
-                lowerLimits[e] = double.parse(value);
+                lowerLimits[lowerLimits.keys.elementAt(selectedLimit)] = double.parse(value);
                 _saveLimits("lower", lowerLimits);
               }
             } on Exception {
@@ -631,12 +780,6 @@ class _ReplayPageState extends State<ReplayPage> {
           });
           Navigator.of(context, rootNavigator: true).pop();
         },
-        // decoration: const InputDecoration(
-        //   prefixIcon: Icon(
-        //     Icons.playlist_add,
-        //     size: 18.0,
-        //   ),
-        // ),
       ),
       actions: [
         confirmButton,

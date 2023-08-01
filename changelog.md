@@ -1,0 +1,29 @@
+# NMEATrax App Change Log
+All notable changes to this project will be documented in this file.
+ 
+The format is based on [Keep a Changelog](http://keepachangelog.com/)
+and this project tries to adhere to [Semantic Versioning](http://semver.org/).
+
+## [Unreleased] - yyyy-mm-dd
+ 
+### Coming Soon
+
+### In Progress
+- Snackbar on connect
+- linked csv gpx don't work on android
+
+
+## [2.1.0] - 2023-07-31
+
+### Added
+- Multiple GPX on map
+- Chosen filename now shows on Replay data tab
+- GPX will now load with csv
+
+### Changed
+- Replay analysis limits now under dropdown
+- Added warning if recording if off
+
+
+## [2.0.0] - 2023-07-18
+- Version 2 Release

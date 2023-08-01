@@ -79,6 +79,7 @@ class _LivePageState extends State<LivePage> {
 
     if (dlList.statusCode == 200) {
       List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
+      if (converted.isEmpty) {return;}
       downloadList = converted.elementAt(0);
       downloadList.removeAt(downloadList.length - 1);
     } else {
@@ -184,8 +185,21 @@ class _LivePageState extends State<LivePage> {
             systemOverlayStyle: SystemUiOverlayStyle(systemNavigationBarColor: Theme.of(context).colorScheme.background),
             backgroundColor: Theme.of(context).colorScheme.primary,
             iconTheme: Theme.of(context).primaryIconTheme,
-            title: Text('NMEATrax Live', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-            // leading: Icon(Icons.bolt),
+            title: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('NMEATrax Live', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                if (ntOptions["recMode"] == 0) const Expanded(
+                  child: Text(
+                    "  Recording Off!",
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 14,
+                    ),
+                  ),
+                ) else const Text(""),
+              ],
+            ),
             bottom: TabBar(
               indicatorColor: Theme.of(context).colorScheme.secondary,
               tabs: const [
@@ -263,7 +277,6 @@ class _LivePageState extends State<LivePage> {
                       child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // Expanded(child: Text(dataModel.jsonData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
                             Expanded(child: Text(nmeaData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(context).colorScheme.onBackground))),
                             Expanded(child: Text(nmeaData.values.elementAt(index), textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground),))
                           ],

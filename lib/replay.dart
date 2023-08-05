@@ -122,7 +122,7 @@ class _ReplayPageState extends State<ReplayPage> {
     });
   }
 
-  void _getCSV() async {
+  void _getCSV([bool linked = false]) async {
     csvFilePath = await _getFilePath(['csv']);
     if (csvFilePath.path != "null") {
       _loadCSV(csvFilePath).then((rows) {
@@ -153,19 +153,37 @@ class _ReplayPageState extends State<ReplayPage> {
           });
         }
       });
+      if (linked) {
+        setState(() {
+          gpxLL.clear();
+          gpxLL.add([const LatLng(0, 0)]);
+          gpxNum.clear();
+          linkedFiles = true;
+        });
+        String cut = csvFilePath.path.substring(0, csvFilePath.path.lastIndexOf('.'));
+        _getGPX(File('$cut.gpx'), true);
+      } else {
+        setState(() {
+          linkedFiles = false;
+          markerVisibility = false;
+        });
+      }
     }
-    gpxLL.clear();
-    gpxLL.add([const LatLng(0, 0)]);
-    gpxNum.clear();
-    String cut = csvFilePath.path.substring(0, csvFilePath.path.lastIndexOf('.'));
-    linkedFiles = true;
-    _getGPX(File('$cut.gpx'));
   }
 
-  void _getGPX(File filePath) async {
-    if (filePath.existsSync()) {
-      gpxFilePath = filePath;
+  void _getGPX(File filePath, [bool fromLinked = false]) async {
+    if (fromLinked) {
+      if (filePath.existsSync()) {
+        gpxFilePath = filePath;
+      } else {
+        return;
+      }
     } else {
+      setState(() {
+        linkedFiles = false;
+        markerVisibility = false;
+        gpxFilePath = File('c');
+      });
       gpxFilePath = await _getFilePath(['gpx', 'xml']);
     }
     if (gpxFilePath.path != "null") {
@@ -237,7 +255,9 @@ class _ReplayPageState extends State<ReplayPage> {
       }
       i++;
     }
-    setState(() {});
+    setState(() {
+      analyzedData.removeWhere((element) => element.first == "Oil Pressure (kpa):" && (element.last == " 0 @ line 0" || element.last == " 4 @ line 0"));
+    });
   }
 
   Future<void> _saveTheme(ThemeMode darkMode) async {
@@ -375,7 +395,14 @@ class _ReplayPageState extends State<ReplayPage> {
                     const SizedBox(height: 10,),
                     Text("Data", style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 24, fontWeight: FontWeight.w400),),
                     const SizedBox(height: 10,),
-                    Text(csvFilePath.toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 14, fontWeight: FontWeight.w400),),
+                    Text(
+                      csvFilePath.path == "c" ? "" : csvFilePath.path.substring(csvFilePath.path.lastIndexOf('/'), csvFilePath.path.length),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onBackground,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        fontStyle: FontStyle.italic),
+                      ),
                     const SizedBox(height: 10,),
                     ListData(csvHeaderData: csvHeaderData, csvListData: csvListData, curLineNum: curLineNum, mainContext: context),
                     const SizedBox(height: 20),
@@ -427,12 +454,61 @@ class _ReplayPageState extends State<ReplayPage> {
                         ),
                       ],
                     ),
+                    Platform.isWindows ? 
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 0, 10, 0),
+                          child: ElevatedButton(
+                            onPressed: _getCSV,
+                            style: ButtonStyle(
+                              backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
+                            ),
+                            child: const Row(
+                              children: [
+                                Padding(
+                                padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
+                                child: Icon(Icons.link_off),
+                              ),
+                                Text("CSV Only"),
+                              ],
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => _getCSV(true),
+                          style: ButtonStyle(
+                            backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
+                          ),
+                          child: const Row(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
+                                child: Icon(Icons.link),
+                              ),
+                              Text("CSV & GPX"),
+                            ],
+                          ), 
+                        ),
+                      ],
+                    ) : 
                     ElevatedButton(
-                      onPressed: _getCSV,
+                      onPressed: () => _getCSV(false),
                       style: ButtonStyle(
                         backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
                       ),
-                      child: const Icon(Icons.file_upload), 
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
+                            child: Icon(Icons.file_open_outlined),
+                          ),
+                          Text("CSV"),
+                        ],
+                      ), 
                     ),
                     const SizedBox(height: 50,),
                   ],
@@ -507,7 +583,7 @@ class _ReplayPageState extends State<ReplayPage> {
                         MarkerLayer(
                           markers: [
                             Marker(
-                              point: gpxLL[0].length > 1 ? gpxLL.first.elementAt(gpxToCsvLineNum) : homeCoords,
+                              point: linkedFiles ? gpxLL.first.elementAt(gpxToCsvLineNum) : homeCoords,
                               width: 80,
                               height: 80,
                               builder: (context) {

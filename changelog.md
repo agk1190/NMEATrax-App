@@ -10,7 +10,6 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 
 ### In Progress
 - Snackbar on connect
-- linked csv gpx don't work on android
 
 
 ## [2.1.0] - 2023-07-31
@@ -18,11 +17,12 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ### Added
 - Multiple GPX on map
 - Chosen filename now shows on Replay data tab
-- GPX will now load with csv
+- GPX will now load with csv only on Windows
 
 ### Changed
 - Replay analysis limits now under dropdown
 - Added warning if recording if off
+- Removed 0 oil pressure @ line 0 warning
 
 
 ## [2.0.0] - 2023-07-18

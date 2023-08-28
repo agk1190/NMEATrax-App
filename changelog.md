@@ -19,6 +19,7 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 - Chosen filename now shows on Replay data tab
 - GPX will now load with csv only on Windows
 - Type line num
+- Added more NMEATrax settings
 
 ### Changed
 - Replay analysis limits now under dropdown

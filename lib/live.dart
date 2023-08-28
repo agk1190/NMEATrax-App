@@ -8,6 +8,7 @@ import 'package:csv/csv.dart';
 import 'package:settings_ui/settings_ui.dart';
 import 'package:http/http.dart' as http;
 import 'package:keep_screen_on/keep_screen_on.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'classes.dart';
 import 'downloads.dart';
@@ -31,6 +32,7 @@ class _LivePageState extends State<LivePage> {
   bool connected = false;
   final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
   late StreamSubscription<String> subscription;
+  bool moreSettingsVisible = false;
 
   Future<void> _getTheme() async {
     final SharedPreferences prefs = await _prefs;
@@ -390,15 +392,66 @@ class _LivePageState extends State<LivePage> {
                         )
                       ],
                     ),
-                    ElevatedButton(
-                      style: ButtonStyle(
-                        backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+                    Visibility(
+                      visible: moreSettingsVisible,
+                      child: SettingsList(
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        darkTheme: SettingsThemeData(
+                          settingsSectionBackground: Theme.of(context).colorScheme.background,
+                          settingsListBackground: Theme.of(context).colorScheme.surface,
+                          titleTextColor: Theme.of(context).colorScheme.onBackground,
+                        ),
+                        lightTheme: SettingsThemeData(
+                          settingsSectionBackground: Theme.of(context).colorScheme.background,
+                          settingsListBackground: Theme.of(context).colorScheme.background,
+                          titleTextColor: Theme.of(context).colorScheme.onBackground,
+                        ),
+                        platform: DevicePlatform.android,
+                        sections: [
+                          SettingsSection(
+                            tiles: [
+                              SettingsTile.navigation(
+                                title: Text("Reset Wifi Settings", style: TextStyle(color: Theme.of(context).colorScheme.error),),
+                                onPressed: (context) async {
+                                  await http.get(Uri.parse('http://$connectURL/get'));
+                                },
+                              ),
+                              SettingsTile.navigation(
+                                title: Text("OTA Update", style: TextStyle(color: Theme.of(context).colorScheme.error),),
+                                onPressed: (context) async {
+                                  if (!await launchUrl(Uri.parse('http://$connectURL/update'))) {
+                                    throw Exception('Could not launch http://$connectURL/update');
+                                  }
+                                },
+                              ),
+                            ],
+                          )
+                        ],
                       ),
-                      onPressed: () {
-                        getOptions();
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const DownloadsPage()));
-                      },
-                      child: const Text('Voyage Recordings', style: TextStyle(fontSize: 18),),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+                        ),
+                        onPressed: () {setState(() {moreSettingsVisible = !moreSettingsVisible;});},
+                        child: moreSettingsVisible ? const Text('Less Settings', style: TextStyle(fontSize: 12),) : const Text('More Settings', style: TextStyle(fontSize: 12),),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+                        ),
+                        onPressed: () {
+                          getOptions();
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const DownloadsPage()));
+                        },
+                        child: const Text('Voyage Recordings', style: TextStyle(fontSize: 18),),
+                      ),
                     ),
                   ]
                 ),

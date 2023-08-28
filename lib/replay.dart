@@ -256,6 +256,7 @@ class _ReplayPageState extends State<ReplayPage> {
       i++;
     }
     setState(() {
+      if (analyzedData.last.contains(" 0 @ line 0") || analyzedData.last.contains(" 4 @ line 0")) errCount--;
       analyzedData.removeWhere((element) => element.first == "Oil Pressure (kpa):" && (element.last == " 0 @ line 0" || element.last == " 4 @ line 0"));
     });
   }
@@ -396,7 +397,7 @@ class _ReplayPageState extends State<ReplayPage> {
                     Text("Data", style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 24, fontWeight: FontWeight.w400),),
                     const SizedBox(height: 10,),
                     Text(
-                      csvFilePath.path == "c" ? "" : csvFilePath.path.substring(csvFilePath.path.lastIndexOf('/'), csvFilePath.path.length),
+                      csvFilePath.path == "c" ? "" : csvFilePath.path.substring(csvFilePath.path.lastIndexOf(Platform.isWindows ? '\\' : '/'), csvFilePath.path.length),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onBackground,
                         fontSize: 14,
@@ -420,11 +421,43 @@ class _ReplayPageState extends State<ReplayPage> {
                       decoration: BoxDecoration(
                         border: Border.all(color: Theme.of(context).colorScheme.onBackground, width: 2,),
                       ),
-                      child: Text(
-                        curLineNum.toString(), 
+                      width: 60,
+                      child: TextFormField(
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        maxLines: 1,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        cursorColor: Theme.of(context).colorScheme.primary,
+                        decoration: null,
+                        controller: TextEditingController.fromValue(TextEditingValue(text: curLineNum.toString())),
+                        selectionControls: MaterialTextSelectionControls(),
+                        
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onBackground,
                         ),
+                        onFieldSubmitted: (value) {
+                          try {
+                            if (int.parse(value) <= maxLines && int.parse(value) >= 1) {
+                              setState(() {
+                                curLineNum = int.parse(value);
+                                if (curLineNum - gpxToCsvOffset >= 0) {
+                                  gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
+                                } else {
+                                  gpxToCsvLineNum = 0;
+                                }
+                              });
+                            }
+                          } on Exception {
+                            setState(() {
+                              curLineNum = 0;
+                              if (curLineNum - gpxToCsvOffset >= 0) {
+                                gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
+                              } else {
+                                gpxToCsvLineNum = 0;
+                              }
+                            });
+                          }
+                        },
                       ),
                     ),
                     ButtonBar(

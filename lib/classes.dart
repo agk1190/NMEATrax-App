@@ -16,24 +16,27 @@ class ListData extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      shrinkWrap: true,
-      itemCount: csvHeaderData.length,
-      itemBuilder: (BuildContext context, int index) {
-        return Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
-          ),
-          child: 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(child: Text(csvHeaderData.elementAt(index) + ':', textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
-                Expanded(child: Text(' ${csvListData.elementAt(curLineNum)[index]}', textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onBackground),))
-              ],
-            )
-        );
-      },
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: csvHeaderData.length,
+        itemBuilder: (BuildContext context, int index) {
+          return Container(
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+            ),
+            child: 
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(child: Text(csvHeaderData.elementAt(index) + ':', textAlign: TextAlign.right, style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground))),
+                  Expanded(child: Text(' ${csvListData.elementAt(curLineNum)[index]}', textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onBackground),))
+                ],
+              )
+          );
+        },
+      ),
     );
   }
 }

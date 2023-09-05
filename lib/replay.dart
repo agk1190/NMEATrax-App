@@ -17,31 +17,6 @@ import 'main.dart';
 
 const _appVersion = '2.0.0';
 
-Future<List<List<dynamic>>> _loadCSV(File filePath) async {
-  String csvData = await filePath.readAsString();
-  List<List<dynamic>> rowsAsListOfValues = const CsvToListConverter().convert(csvData);
-  return rowsAsListOfValues;
-}
-
-Future<List<dynamic>> _loadGPX(File filePath) async {
-  String gpxData = await filePath.readAsString();
-  var gpxWPTs = GpxReader().fromString(gpxData);
-  var trackpts = gpxWPTs.trks[0].trksegs[0].trkpts;
-  trackpts.removeWhere((element) => element.lat == 0);
-  return trackpts;
-}
-
-Future<File> _getFilePath(List<String> ext) async {
-  FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ext);
-    if (result != null) {
-      File file = File(result.files.single.path!);
-      return file;
-    } else {
-      // User canceled the picker
-      return File("null");
-    }
-}
-
 class ReplayPage extends StatefulWidget {
   const ReplayPage({super.key});
 
@@ -56,8 +31,8 @@ class _ReplayPageState extends State<ReplayPage> {
   List<List<LatLng>> gpxLL = [[const LatLng(0, 0)]];
   List<List<String>> analyzedData = [];
   int curLineNum = 0;
-  File csvFilePath = File("c");
-  File gpxFilePath = File("c");
+  File csvFilePath = File("null");
+  File gpxFilePath = File("null");
   num maxLines = 1;
   int errCount = 0;
   final mapController = MapController();
@@ -111,6 +86,32 @@ class _ReplayPageState extends State<ReplayPage> {
     'Magnetic Variation (*)':20.0,
   };
 
+  Future<File> _getFilePath(List<String> ext) async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ext);
+      if (result != null) {
+        File file = File(result.files.single.path!);
+        return file;
+      } else {
+        // User canceled the picker
+        // return File("null");
+        return csvFilePath;
+      }
+  }
+
+  Future<List<List<dynamic>>> _loadCSV(File filePath) async {
+    String csvData = await filePath.readAsString();
+    List<List<dynamic>> rowsAsListOfValues = const CsvToListConverter().convert(csvData);
+    return rowsAsListOfValues;
+  }
+
+  Future<List<dynamic>> _loadGPX(File filePath) async {
+    String gpxData = await filePath.readAsString();
+    var gpxWPTs = GpxReader().fromString(gpxData);
+    var trackpts = gpxWPTs.trks[0].trksegs[0].trkpts;
+    trackpts.removeWhere((element) => element.lat == 0);
+    return trackpts;
+  }
+  
   void _onSliderChanged(double value) {
     setState(() {
       curLineNum = value.toInt();
@@ -150,6 +151,8 @@ class _ReplayPageState extends State<ReplayPage> {
             curLineNum = 0;
             gpxToCsvLineNum = 0;
             maxLines = csvListData.length - 1;
+            errCount = 0;
+            analyzedData.clear();
           });
         }
       });
@@ -182,7 +185,7 @@ class _ReplayPageState extends State<ReplayPage> {
       setState(() {
         linkedFiles = false;
         markerVisibility = false;
-        gpxFilePath = File('c');
+        gpxFilePath = File("null");
       });
       gpxFilePath = await _getFilePath(['gpx', 'xml']);
     }
@@ -247,18 +250,18 @@ class _ReplayPageState extends State<ReplayPage> {
       for (var col in row) {
         if (col is! String) {
           if ((col < lowerLimits[csvHeaderData[j]] || col > upperLimits[csvHeaderData[j]]) && col != -273.0) {
-            analyzedData.add([csvHeaderData[j] + ':', ' $col @ line $i']);
-            errCount++;
+            if (!(csvHeaderData[j] == "Oil Pressure (kpa)" && (col == 0 || col == 4))) {
+              setState(() {
+                analyzedData.add([csvHeaderData[j] + ':', ' $col @ line $i']);
+                errCount++;
+              });
+            }
           }
         }
         j++;
       }
       i++;
     }
-    setState(() {
-      if (analyzedData.last.contains(" 0 @ line 0") || analyzedData.last.contains(" 4 @ line 0")) errCount--;
-      analyzedData.removeWhere((element) => element.first == "Oil Pressure (kpa):" && (element.last == " 0 @ line 0" || element.last == " 4 @ line 0"));
-    });
   }
 
   Future<void> _saveTheme(ThemeMode darkMode) async {
@@ -390,162 +393,185 @@ class _ReplayPageState extends State<ReplayPage> {
           ),
           body: TabBarView(
             children: [
-              SingleChildScrollView(
-                child: Column(
-                  children: <Widget>[
-                    const SizedBox(height: 10,),
-                    Text("Data", style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 24, fontWeight: FontWeight.w400),),
-                    const SizedBox(height: 10,),
-                    Text(
-                      csvFilePath.path == "c" ? "" : csvFilePath.path.substring(csvFilePath.path.lastIndexOf(Platform.isWindows ? '\\' : '/'), csvFilePath.path.length),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onBackground,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        fontStyle: FontStyle.italic),
+              LayoutBuilder(
+                builder: (BuildContext mainContext, BoxConstraints viewportConstraints) {
+                  return SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: viewportConstraints.maxHeight,
                       ),
-                    const SizedBox(height: 10,),
-                    ListData(csvHeaderData: csvHeaderData, csvListData: csvListData, curLineNum: curLineNum, mainContext: context),
-                    const SizedBox(height: 20),
-                    Slider(
-                      value: curLineNum.toDouble(),
-                      onChanged: _onSliderChanged,
-                      label: curLineNum.toString(),
-                      max: maxLines.toDouble(),
-                      min: 0,
-                      activeColor: Theme.of(context).colorScheme.primary,
-                      inactiveColor: Theme.of(context).colorScheme.primaryContainer,
-                    ),
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(3.0, 0, 3.0, 0),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Theme.of(context).colorScheme.onBackground, width: 2,),
-                      ),
-                      width: 60,
-                      child: TextFormField(
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                        maxLines: 1,
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        cursorColor: Theme.of(context).colorScheme.primary,
-                        decoration: null,
-                        controller: TextEditingController.fromValue(TextEditingValue(text: curLineNum.toString())),
-                        selectionControls: MaterialTextSelectionControls(),
-                        
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onBackground,
-                        ),
-                        onFieldSubmitted: (value) {
-                          try {
-                            if (int.parse(value) <= maxLines && int.parse(value) >= 1) {
-                              setState(() {
-                                curLineNum = int.parse(value);
-                                if (curLineNum - gpxToCsvOffset >= 0) {
-                                  gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
-                                } else {
-                                  gpxToCsvLineNum = 0;
-                                }
-                              });
-                            }
-                          } on Exception {
-                            setState(() {
-                              curLineNum = 0;
-                              if (curLineNum - gpxToCsvOffset >= 0) {
-                                gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
-                              } else {
-                                gpxToCsvLineNum = 0;
-                              }
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                    ButtonBar(
-                      alignment: MainAxisAlignment.center,
-                      children: [
-                        TextButton(
-                          onPressed: _decrCurLineNum, 
-                          child: Text(
-                            "Decrease", 
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary, 
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16
-                            ),
-                          )
-                        ),
-                        TextButton(
-                          onPressed: _incrCurLineNum, 
-                          child: Text(
-                            "Increase", 
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16
-                            ),
-                          )
-                        ),
-                      ],
-                    ),
-                    Platform.isWindows ? 
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 0, 10, 0),
-                          child: ElevatedButton(
-                            onPressed: _getCSV,
-                            style: ButtonStyle(
-                              backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
-                            ),
-                            child: const Row(
-                              children: [
-                                Padding(
-                                padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
-                                child: Icon(Icons.link_off),
+                      child: IntrinsicHeight(
+                        child: Column(
+                          children: <Widget>[
+                            SizedBox(
+                              height: 90,
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 10,),
+                                  Text("Data", style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 24, fontWeight: FontWeight.w400),),
+                                  const SizedBox(height: 10,),
+                                  Text(
+                                    csvFilePath.path == "null" ? "" : csvFilePath.path.substring(csvFilePath.path.lastIndexOf(Platform.isWindows ? '\\' : '/'), csvFilePath.path.length),
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onBackground,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w400,
+                                      fontStyle: FontStyle.italic),
+                                    ),
+                                  const SizedBox(height: 10,),
+                                ],
                               ),
-                                Text("CSV Only"),
-                              ],
                             ),
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => _getCSV(true),
-                          style: ButtonStyle(
-                            backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
-                          ),
-                          child: const Row(
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
-                                child: Icon(Icons.link),
+                            Expanded(child: ListData(csvHeaderData: csvHeaderData, csvListData: csvListData, curLineNum: curLineNum, mainContext: context)),
+                            SizedBox(
+                              height: 250,
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 20),
+                                  Slider(
+                                    value: curLineNum.toDouble(),
+                                    onChanged: _onSliderChanged,
+                                    label: curLineNum.toString(),
+                                    max: maxLines.toDouble(),
+                                    min: 0,
+                                    activeColor: Theme.of(context).colorScheme.primary,
+                                    inactiveColor: Theme.of(context).colorScheme.primaryContainer,
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.fromLTRB(3.0, 0, 3.0, 0),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Theme.of(context).colorScheme.onBackground, width: 2,),
+                                    ),
+                                    width: 60,
+                                    child: TextFormField(
+                                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                      maxLines: 1,
+                                      keyboardType: TextInputType.number,
+                                      textAlign: TextAlign.center,
+                                      cursorColor: Theme.of(context).colorScheme.primary,
+                                      decoration: null,
+                                      controller: TextEditingController.fromValue(TextEditingValue(text: curLineNum.toString())),
+                                      selectionControls: MaterialTextSelectionControls(),
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.onBackground,
+                                      ),
+                                      onFieldSubmitted: (value) {
+                                        try {
+                                          if (int.parse(value) <= maxLines && int.parse(value) >= 1) {
+                                            setState(() {
+                                              curLineNum = int.parse(value);
+                                              if (curLineNum - gpxToCsvOffset >= 0) {
+                                                gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
+                                              } else {
+                                                gpxToCsvLineNum = 0;
+                                              }
+                                            });
+                                          }
+                                        } on Exception {
+                                          setState(() {
+                                            curLineNum = 0;
+                                            if (curLineNum - gpxToCsvOffset >= 0) {
+                                              gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
+                                            } else {
+                                              gpxToCsvLineNum = 0;
+                                            }
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  ButtonBar(
+                                    alignment: MainAxisAlignment.center,
+                                    children: [
+                                      TextButton(
+                                        onPressed: _decrCurLineNum, 
+                                        child: Text(
+                                          "Decrease", 
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.primary, 
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16
+                                          ),
+                                        )
+                                      ),
+                                      TextButton(
+                                        onPressed: _incrCurLineNum, 
+                                        child: Text(
+                                          "Increase", 
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16
+                                          ),
+                                        )
+                                      ),
+                                    ],
+                                  ),
+                                  Platform.isWindows ? 
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(0, 0, 10, 0),
+                                        child: ElevatedButton(
+                                          onPressed: _getCSV,
+                                          style: ButtonStyle(
+                                            backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
+                                          ),
+                                          child: const Row(
+                                            children: [
+                                              Padding(
+                                              padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
+                                              child: Icon(Icons.link_off),
+                                            ),
+                                              Text("CSV Only"),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () => _getCSV(true),
+                                        style: ButtonStyle(
+                                          backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
+                                        ),
+                                        child: const Row(
+                                          children: [
+                                            Padding(
+                                              padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
+                                              child: Icon(Icons.link),
+                                            ),
+                                            Text("CSV & GPX"),
+                                          ],
+                                        ), 
+                                      ),
+                                    ],
+                                  ) : 
+                                  ElevatedButton(
+                                    onPressed: () => _getCSV(false),
+                                    style: ButtonStyle(
+                                      backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Padding(
+                                          padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
+                                          child: Icon(Icons.file_open_outlined),
+                                        ),
+                                        Text("CSV"),
+                                      ],
+                                    ), 
+                                  ),
+                                ],
                               ),
-                              Text("CSV & GPX"),
-                            ],
-                          ), 
+                            ),
+                          ],
                         ),
-                      ],
-                    ) : 
-                    ElevatedButton(
-                      onPressed: () => _getCSV(false),
-                      style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
-                            child: Icon(Icons.file_open_outlined),
-                          ),
-                          Text("CSV"),
-                        ],
-                      ), 
                     ),
-                    const SizedBox(height: 50,),
-                  ],
-                ),
+                  );
+                }
               ),
               SingleChildScrollView(
                 child: Column(
@@ -558,7 +584,7 @@ class _ReplayPageState extends State<ReplayPage> {
                     ),
                     const SizedBox(height: 10,),
                     Text(
-                      "Results:\n$errCount Violations Found", 
+                      "Results:\n$errCount Violation${errCount == 1 ? '' : 's'} Found", 
                       style: TextStyle(
                         fontWeight: FontWeight.bold, 
                         fontSize: 16, 
@@ -633,7 +659,7 @@ class _ReplayPageState extends State<ReplayPage> {
                       ],
                     ),
                     floatingActionButton: FloatingActionButton(
-                      onPressed: () => _getGPX(File("c")),
+                      onPressed: () => _getGPX(File("null")),
                       backgroundColor: Theme.of(context).colorScheme.primary,
                       child: const Icon(Icons.add),
                     ),

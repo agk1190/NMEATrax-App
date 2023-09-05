@@ -6,10 +6,12 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
  
-### Coming Soon
+### To-Do
+- Remove "homepage"
+- Change scroll limit color
+- Snackbar on connect
 
 ### In Progress
-- Snackbar on connect
 
 
 ## [2.1.0] - 2023-07-31
@@ -18,13 +20,14 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 - Multiple GPX on map
 - Chosen filename now shows on Replay data tab
 - GPX will now load with csv only on Windows
-- Type line num
+- Type line num to go to
 - Added more NMEATrax settings
 
 ### Changed
 - Replay analysis limits now under dropdown
 - Added warning if recording if off
 - Removed 0 oil pressure @ line 0 warning
+- Changed replay data page scroll behaviour
 
 
 ## [2.0.0] - 2023-07-18

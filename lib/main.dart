@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'replay.dart';
 import 'live.dart';
-
-const _appVersion = '2.0.0';
 
 ColorScheme myLightColors = const ColorScheme(
   brightness: Brightness.light, 
@@ -56,7 +53,7 @@ class MyApp extends StatelessWidget {
           theme: ThemeData(colorScheme: myLightColors),
           darkTheme: ThemeData(colorScheme: myDarkColors),
           themeMode: currentMode,
-          home: const HomePage(),
+          home: const LivePage(),
           initialRoute: '/live',
           routes: {
             '/live':(context) => const LivePage(),
@@ -64,60 +61,5 @@ class MyApp extends StatelessWidget {
           },
         );
       });
-  }
-}
-
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('NMEATrax App'),
-        systemOverlayStyle: SystemUiOverlayStyle(systemNavigationBarColor: Theme.of(context).colorScheme.background),
-      ),
-      drawer: Drawer(
-        child: ListView(
-          children: <Widget>[
-            const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color(0xFF0050C7),
-              ),
-              child: Text('NMEATrax App'),
-            ),
-            ListTile(
-              title: const Text('Live'),
-              onTap: () {
-                Navigator.pushReplacementNamed(context, '/live');
-              },
-            ),
-            ListTile(
-              title: const Text('Replay'),
-              onTap: () {
-                Navigator.pushReplacementNamed(context, '/replay');
-              },
-            ),
-            const AboutListTile(
-              icon: Icon(
-                Icons.info,
-              ),
-              applicationIcon: Icon(
-                Icons.directions_boat,
-              ),
-              applicationName: 'NMEATrax',
-              applicationVersion: _appVersion,
-              aboutBoxChildren: [
-                Text("For use with NMEATrax Vessel Monitoring System")
-              ],
-              child: Text('About app'),
-            ),
-          ],
-        ),
-      ),
-      body: const Center(
-        child: Text('Home Page'),
-      ),
-    );
   }
 }

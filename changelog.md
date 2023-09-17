@@ -7,7 +7,6 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - yyyy-mm-dd
  
 ### To-Do
-- Remove "homepage"
 - Change scroll limit color
 - Snackbar on connect
 
@@ -28,6 +27,7 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 - Added warning if recording if off
 - Removed 0 oil pressure @ line 0 warning
 - Changed replay data page scroll behaviour
+- Removed unused "homepage"
 
 
 ## [2.0.0] - 2023-07-18

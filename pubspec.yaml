@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.0.0+1
+version: 2.1.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -31,22 +31,22 @@ dependencies:
   flutter:
     sdk: flutter
   csv: ^5.0.2
-  file_picker: ^5.3.3
+  file_picker: ^5.5.0
   settings_ui: ^2.0.2
   flutter_map: ^5.0.0
   latlong2: ^0.9.0
   gpx: ^2.2.1
-  shared_preferences: ^2.1.1
+  shared_preferences: ^2.2.1
   provider: ^6.0.1
   keep_screen_on: ^2.1.0
   http: ^1.1.0
-  path_provider: ^2.0.15
-  permission_handler: ^10.4.1
-  url_launcher: ^6.1.12
+  path_provider: ^2.1.1
+  permission_handler: ^11.0.0
+  url_launcher: ^6.1.14
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.2
+  cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
@@ -57,7 +57,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^2.0.2
+  flutter_lints: ^2.0.3
   flutter_launcher_icons: "^0.13.1"
 
 flutter_launcher_icons:

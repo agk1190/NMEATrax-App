@@ -15,7 +15,7 @@ import 'package:settings_ui/settings_ui.dart';
 import 'classes.dart';
 import 'main.dart';
 
-const _appVersion = '2.0.0';
+const _appVersion = '2.1.0';
 
 class ReplayPage extends StatefulWidget {
   const ReplayPage({super.key});

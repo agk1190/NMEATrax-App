@@ -28,6 +28,8 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 - Removed 0 oil pressure @ line 0 warning
 - Changed replay data page scroll behaviour
 - Removed unused "homepage"
+- Analyze button now hides once pressed
+- Send email button now hides once pressed
 
 
 ## [2.0.0] - 2023-07-18

@@ -67,25 +67,29 @@ class _LivePageState extends State<LivePage> {
   }
 
   Future<void> getOptions() async {
+    dynamic response;
+    try {
+      response = await http.get(Uri.parse('http://$connectURL/get'));
 
-    final response = await http.get(Uri.parse('http://$connectURL/get'));
+      if (response.statusCode == 200) {
+        ntOptions = jsonDecode(response.body);
+        setState(() {});
+      } else {
+        throw Exception('Failed to get options');
+      }
 
-    if (response.statusCode == 200) {
-      ntOptions = jsonDecode(response.body);
-      setState(() {});
-    } else {
-      throw Exception('Failed to get options');
-    }
+      final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
 
-    final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
-
-    if (dlList.statusCode == 200) {
-      List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
-      if (converted.isEmpty) {return;}
-      downloadList = converted.elementAt(0);
-      downloadList.removeAt(downloadList.length - 1);
-    } else {
-      throw Exception('Failed to get download list');
+      if (dlList.statusCode == 200) {
+        List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
+        if (converted.isEmpty) {return;}
+        downloadList = converted.elementAt(0);
+        downloadList.removeAt(downloadList.length - 1);
+      } else {
+        throw Exception('Failed to get download list');
+      }
+    } on Exception {
+      // do nothing
     }
   }
 

@@ -44,6 +44,7 @@ class _ReplayPageState extends State<ReplayPage> {
   int gpxToCsvOffset = 0;
   int gpxToCsvLineNum = 0;
   bool linkedFiles = false;
+  bool analyzeVisible = false;
 
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
@@ -153,6 +154,7 @@ class _ReplayPageState extends State<ReplayPage> {
             maxLines = csvListData.length - 1;
             errCount = 0;
             analyzedData.clear();
+            analyzeVisible = false;
           });
         }
       });
@@ -577,20 +579,29 @@ class _ReplayPageState extends State<ReplayPage> {
                 child: Column(
                   children: <Widget>[
                     const SizedBox(height: 30,),
-                    ElevatedButton(
-                      onPressed: _analyzeData, 
-                      style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary)), 
-                      child: const Text("Analyze All")
+                    Visibility(
+                      visible: !analyzeVisible,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          _analyzeData();
+                          setState(() {analyzeVisible = true;});
+                        }, 
+                        style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary)), 
+                        child: const Text("Analyze File")
+                      ),
                     ),
                     const SizedBox(height: 10,),
-                    Text(
-                      "Results:\n$errCount Violation${errCount == 1 ? '' : 's'} Found", 
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold, 
-                        fontSize: 16, 
-                        color: Theme.of(context).colorScheme.onBackground,
+                    Visibility(
+                      visible: analyzeVisible,
+                      child: Text(
+                        "Results:\n$errCount Violation${errCount == 1 ? '' : 's'} Found", 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 16, 
+                          color: Theme.of(context).colorScheme.onBackground,
+                        ),
+                        textAlign: TextAlign.center
                       ),
-                      textAlign: TextAlign.center
                     ),
                     const SizedBox(height: 10,),
                     ListAnalyzedData(analyzedData: analyzedData, mainContext: context),

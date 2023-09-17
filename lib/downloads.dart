@@ -55,21 +55,29 @@ class _DownloadsPageState extends State<DownloadsPage> {
                     showDialog(
                       context: context,
                       builder: (context) {
+                        bool emailBtnVis = true;
                         return StatefulBuilder(
                           builder: (aContext, setState) {
                             return AlertDialog(
                               title: const Text("Email Progress"),
                               content: Text(emailData),
                               actions: [
+                                emailBtnVis ? 
                                 ElevatedButton(
+                                  style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(
+                                    emailBtnVis ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.secondary
+                                  ),),
                                   onPressed: () async {
-                                    setState(() {emailData = "";});
+                                    setState(() {
+                                      emailData = "";
+                                      emailBtnVis = false;
+                                    });
                                     var request = http.Request('GET', Uri.parse('http://$connectURL/NMEATrax'));
                                     dynamic response;
                                     try {
                                       response = await request.send();
                                     } on Exception {
-                                      if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                      if (aContext.mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                         content: Text("Could not connect...", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                                         duration: const Duration(seconds: 3),
                                         backgroundColor: Theme.of(context).colorScheme.surface,
@@ -97,9 +105,11 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                     },);
                                   },
                                   child: const Text("Send Email"),
-                                ),
+                                )
+                                : const Text("Sending..."),
                                 ElevatedButton(
                                   onPressed: () {
+                                    emailBtnVis = true;
                                     Navigator.of(context, rootNavigator: true).pop();
                                   },
                                   child: const Text("Close"),
@@ -111,7 +121,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                       },
                     );
                   },
-                  child: const Text("Email Files"),
+                  child: const Icon(Icons.email, size: 36,),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -125,11 +135,12 @@ class _DownloadsPageState extends State<DownloadsPage> {
                     }
                     if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                      duration: const Duration(seconds: 3),
+                      duration: const Duration(minutes: 5),
+                      showCloseIcon: true,
                       backgroundColor: Theme.of(context).colorScheme.surface,
                     ));}
                   },
-                  child: const Text("Download All"),
+                  child: const Icon(Icons.download, size: 36,),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -138,6 +149,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                       builder: (context) {
                         return AlertDialog(
                           title: const Text("Are you sure?"),
+                          content: const Text("This will delete all recordings."),
                           actions: [
                               ElevatedButton(
                                 onPressed: () {
@@ -158,7 +170,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                       },
                     );
                   },
-                  child: const Text("Erase All"),
+                  child: const Icon(Icons.delete_rounded, color: Colors.red, size: 36,),
                 ),
                 // ElevatedButton(
                 //   onPressed: getFilesList,

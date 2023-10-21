@@ -3,8 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_map/flutter_map.dart'; // Suitable for most situations
-// import 'package:flutter_map/plugin_api.dart'; // Only import if required functionality is not exposed by default
+import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
@@ -15,7 +14,7 @@ import 'package:settings_ui/settings_ui.dart';
 import 'classes.dart';
 import 'main.dart';
 
-const _appVersion = '2.1.0';
+const _appVersion = '3.0.0';
 
 class ReplayPage extends StatefulWidget {
   const ReplayPage({super.key});

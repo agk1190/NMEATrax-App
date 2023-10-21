@@ -9,12 +9,14 @@ import 'package:settings_ui/settings_ui.dart';
 import 'package:http/http.dart' as http;
 import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:web_socket_channel/io.dart';
+import 'package:dart_ping/dart_ping.dart';
 
 import 'classes.dart';
 import 'downloads.dart';
 import 'main.dart';
 
-const _appVersion = '2.1.0';
+const _appVersion = '3.0.0';
 Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-"};
 Map<String, dynamic> ntOptions = {"isMeters":false, "isDegF":false, "recInt":0, "timeZone":0, "recMode":0};
 const Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
@@ -29,10 +31,11 @@ class LivePage extends StatefulWidget {
 class _LivePageState extends State<LivePage> {
 
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
-  bool connected = false;
   final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
   late StreamSubscription<String> subscription;
   bool moreSettingsVisible = false;
+  IOWebSocketChannel? channel;
+  late BuildContext lcontext;
 
   Future<void> _getTheme() async {
     final SharedPreferences prefs = await _prefs;
@@ -102,6 +105,53 @@ class _LivePageState extends State<LivePage> {
     }
   }
   
+    // Function to connect or disconnect the WebSocket
+  void connectWebSocket() async {
+    if (channel == null) {
+      final validIP = await Ping(connectURL, count: 1).stream.first;
+      if (validIP.response != null) {
+        channel = IOWebSocketChannel.connect(Uri.parse('ws://$connectURL/ws'));
+        channel!.stream.listen((message) {
+          int i = 0;
+          if (message.toString().substring(2, 5) != "rpm") {
+          } else {
+            setState(() {
+              nmeaData = jsonDecode(message);
+              for (String element in nmeaData.values) {
+                try {
+                  if (element.substring(0, 4) == "-273") {
+                    var key = nmeaData.keys.elementAt(i);
+                    nmeaData[key] = '-';
+                  }
+                } on RangeError {
+                  // do nothing
+                }
+                i++;
+              }
+            });
+          }
+        });
+        setState(() {
+          getOptions();
+          if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+        });
+      }
+    }
+  }
+
+  // Function to disconnect the WebSocket
+  void disconnectWebSocket() {
+    if (channel != null) {
+      // If WebSocket is connected, close the connection
+      channel!.sink.close();
+      channel = null;
+      setState(() {
+        if (Platform.isAndroid) {KeepScreenOn.turnOff();}
+        nmeaData = {"rpm": "-", "etemp": "-", "otemp": "-", "opres": "-", "fuel_rate": "-", "flevel": "-", "efficiency": "-", "leg_tilt": "-", "speed": "-", "heading": "-", "depth": "-", "wtemp": "-", "battV": "-", "ehours": "-", "gear": "-", "lat": "-", "lon": "-", "mag_var": "-", "time": "-"};
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -119,7 +169,7 @@ class _LivePageState extends State<LivePage> {
   }
 
   @override
-  Widget build(BuildContext lcontext) {
+  Widget build(lcontext) {
     return MaterialApp(
       home: DefaultTabController(
         length: 3,
@@ -142,7 +192,7 @@ class _LivePageState extends State<LivePage> {
                   title: const Text('Live'),
                   leading: const Icon(Icons.bolt),
                   onTap: () {
-                    if (connected) stopSSE();
+                    if (channel != null) disconnectWebSocket();
                     Navigator.pushReplacementNamed(context, '/live');
                   },
                 ),
@@ -152,7 +202,7 @@ class _LivePageState extends State<LivePage> {
                   title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                   leading: const Icon(Icons.timeline),
                   onTap: () {
-                    if (connected) stopSSE();
+                    if (channel != null) disconnectWebSocket();
                     Navigator.pushReplacementNamed(context, '/replay');
                   },
                 ),
@@ -464,14 +514,13 @@ class _LivePageState extends State<LivePage> {
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () {
-              if (connected) {
-                setState(() {connected = false;});                
-                stopSSE();
+              if (channel != null) {
+                disconnectWebSocket();
               } else {
                 showConnectDialog(context, "IP Address");
               }
             },
-            label: connected ? const Text("Disconnect") : const Text("Connect"),
+            label: channel != null ? const Text("Disconnect") : const Text("Connect"),
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         ),
@@ -488,7 +537,8 @@ class _LivePageState extends State<LivePage> {
       onPressed: () {
         setState(() {
           connectURL = input;
-          listenToSSE();
+          connectWebSocket();
+          if (channel != null) {_saveIP(connectURL);}
         });
         //https://stackoverflow.com/a/50683571 for nav.pop
         Navigator.of(context, rootNavigator: true).pop();
@@ -512,8 +562,9 @@ class _LivePageState extends State<LivePage> {
         },
         onFieldSubmitted: (value) {
           setState(() {
-            connectURL = value;
-            listenToSSE();
+            connectURL = input;
+            connectWebSocket();
+            if (channel != null) {_saveIP(connectURL);}
           });
           Navigator.of(context, rootNavigator: true).pop();
         },
@@ -582,58 +633,5 @@ class _LivePageState extends State<LivePage> {
         return alert;
       },
     );
-  }
-
-  void handleSSE(String data) {
-    int i = 0;
-    if (data.toString().substring(2, 5) != "rpm") {
-    } else {
-      nmeaData = jsonDecode(data);
-      for (String element in nmeaData.values) {
-        try {
-          if (element.substring(0, 4) == "-273") {
-            var key = nmeaData.keys.elementAt(i);
-            nmeaData[key] = '-';
-          }
-        } on RangeError {
-          // do nothing
-        }
-        i++;
-      }
-    }
-    if (mounted) {
-      setState(() {});
-    } else {
-      if (Platform.isAndroid) {KeepScreenOn.turnOff();}
-    }
-  }
-
-  Future<void> listenToSSE() async {
-    var request = http.Request('GET', Uri.parse('http://$connectURL/NMEATrax'));
-    dynamic response;
-    try {
-      response = await request.send();
-    } on Exception {
-      return;
-    }
-
-    // Create a stream transformer to parse SSE data
-    var stream = response.stream.transform(utf8.decoder).transform(const LineSplitter());
-    setState(() {connected = true;});
-    _saveIP(connectURL);
-    getOptions();
-    if (Platform.isAndroid) {KeepScreenOn.turnOn();}
-
-    subscription = stream.listen((line) {
-      if (line.isNotEmpty && line.startsWith('data:')) {
-        handleSSE(line.substring(6));
-      }
-    });
-  }
-
-  void stopSSE() {
-    connected = false;
-    if (Platform.isAndroid) {KeepScreenOn.turnOff();}
-    subscription.cancel();
   }
 }

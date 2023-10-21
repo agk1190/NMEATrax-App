@@ -1,15 +1,17 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:web_socket_channel/io.dart';
+import 'package:dart_ping/dart_ping.dart';
 
 List<String> downloadList = [];
 String emailData = "";
 String connectURL = "192.168.1.1";
+IOWebSocketChannel? channel;
 
 class DownloadsPage extends StatefulWidget {
   const DownloadsPage({super.key});
@@ -30,6 +32,18 @@ class _DownloadsPageState extends State<DownloadsPage> {
       setState(() {});
     } else {
       throw Exception('Failed to get download list');
+    }
+  }
+
+  // Function to disconnect the WebSocket
+  void disconnectWebSocket() {
+    if (channel != null) {
+      // If WebSocket is connected, close the connection
+      channel!.sink.close();
+      channel = null;
+      setState(() {
+        emailData = "";
+      });
     }
   }
 
@@ -72,37 +86,17 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                       emailData = "";
                                       emailBtnVis = false;
                                     });
-                                    var request = http.Request('GET', Uri.parse('http://$connectURL/NMEATrax'));
-                                    dynamic response;
-                                    try {
-                                      response = await request.send();
-                                    } on Exception {
-                                      if (aContext.mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                        content: Text("Could not connect...", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                                        duration: const Duration(seconds: 3),
-                                        backgroundColor: Theme.of(context).colorScheme.surface,
-                                      ));}
-                                      return;
-                                    }
-
-                                    var stream = response.stream.transform(utf8.decoder).transform(const LineSplitter());
-
-                                    stream.listen((line) {
-                                      if (line.isNotEmpty && line.startsWith('data:')) {
-                                        var data = line.substring(6);
-                                        if (data.toString().substring(2, 5) != "rpm") {
-                                          if (aContext.mounted) {
-                                            setState(() {
-                                              emailData += data;
-                                              emailData += "\r\n";
-                                            });
-                                          }
-                                        }
-                                      }
-                                    });
-                                    Future.delayed(const Duration(seconds: 2), () {
+                                    final validIP = await Ping(connectURL, count: 1).stream.first;
+                                    if (validIP.response != null) {
+                                      channel = IOWebSocketChannel.connect(Uri.parse('ws://$connectURL/emws'));
+                                      channel!.stream.listen((message) {
+                                        setState(() {
+                                          emailData += message;
+                                          emailData += "\r\n";
+                                        });
+                                      });
                                       http.post(Uri.parse("http://$connectURL/set?email=true"));
-                                    },);
+                                    }
                                   },
                                   child: const Text("Send Email"),
                                 )
@@ -110,6 +104,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                 ElevatedButton(
                                   onPressed: () {
                                     emailBtnVis = true;
+                                    disconnectWebSocket();
                                     Navigator.of(context, rootNavigator: true).pop();
                                   },
                                   child: const Text("Close"),

@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "NMEATrax"
-#define MyAppVersion "2.1.0"
+#define MyAppVersion "3.0.0"
 #define MyAppPublisher "NMEATrax"
 #define MyAppURL "https://elexprep.wixsite.com/nmeatrax"
 #define MyAppExeName "nmeatrax.exe"

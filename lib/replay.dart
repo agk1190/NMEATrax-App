@@ -615,15 +615,14 @@ class _ReplayPageState extends State<ReplayPage> {
                     body: FlutterMap(
                       mapController: mapController,
                       options: MapOptions(
-                        center: homeCoords,
-                        zoom: 13.0,
+                        initialCenter: homeCoords,
+                        initialZoom: 13.0,
                         maxZoom: 18.0,
-                        maxBounds: LatLngBounds(
-                          const LatLng(-90.0, -180.0),
-                          const LatLng(90.0, 180.0),
-                        ),
+                        cameraConstraint: const CameraConstraint.unconstrained(),
                         keepAlive: true,
-                        interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate & ~InteractiveFlag.flingAnimation,
+                        interactionOptions: const InteractionOptions(
+                          flags: InteractiveFlag.all & ~InteractiveFlag.rotate & ~InteractiveFlag.flingAnimation,
+                        ),
                         onLongPress: (tapPosition, point) {
                           if (gpxLL[0].first != const LatLng(0,0)) {
                             mapController.move(gpxLL[0].first, 13);
@@ -632,17 +631,6 @@ class _ReplayPageState extends State<ReplayPage> {
                           }
                         },
                       ),
-                      nonRotatedChildren: const [
-                        RichAttributionWidget(
-                          alignment: AttributionAlignment.bottomLeft,
-                          showFlutterMapAttribution: false,
-                          attributions: [
-                            TextSourceAttribution(
-                              'OpenStreetMap contributors',
-                            ),
-                          ],
-                        ),
-                      ],
                       children: [
                         TileLayer(
                           urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -655,17 +643,20 @@ class _ReplayPageState extends State<ReplayPage> {
                               point: linkedFiles ? gpxLL.first.elementAt(gpxToCsvLineNum) : homeCoords,
                               width: 80,
                               height: 80,
-                              builder: (context) {
-                                if (markerVisibility) {
-                                  return const Icon(Icons.directions_ferry);
-                                } else {
-                                  return const Text("");
-                                }
-                              },
+                              child: markerVisibility ? const Icon(Icons.directions_ferry) : const Text(""),
                             ),
                           ],
                         ),
-                        buildPolylinesLayer()
+                        buildPolylinesLayer(),
+                        const RichAttributionWidget(
+                          alignment: AttributionAlignment.bottomLeft,
+                          showFlutterMapAttribution: false,
+                          attributions: [
+                            TextSourceAttribution(
+                              'OpenStreetMap contributors',
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     floatingActionButton: FloatingActionButton(

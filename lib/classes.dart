@@ -83,13 +83,13 @@ class SizedNMEABox extends StatelessWidget {
   final dynamic mainContext;
 
   const SizedNMEABox({
-    Key? key,
+    super.key,
     required this.value,
     required this.title,
     required this.unit,
     this.fontSize = 24,
     required this.mainContext,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

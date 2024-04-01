@@ -65,6 +65,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
               alignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary,)
+                  ),
                   onPressed: () {
                     showDialog(
                       context: context,
@@ -76,6 +79,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                               title: const Text("Email Progress"),
                               content: Text(emailData),
                               actions: [
+                                // LinearProgressIndicator(),
                                 emailBtnVis ? 
                                 ElevatedButton(
                                   style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(
@@ -98,7 +102,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                       http.post(Uri.parse("http://$connectURL/set?email=true"));
                                     }
                                   },
-                                  child: const Text("Send Email"),
+                                  child: Text("Send Email", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
                                 )
                                 : const Text("Sending..."),
                                 ElevatedButton(
@@ -107,7 +111,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                     disconnectWebSocket();
                                     Navigator.of(context, rootNavigator: true).pop();
                                   },
-                                  child: const Text("Close"),
+                                  child: Text("Close", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
                                 ),
                               ],
                             );
@@ -116,9 +120,12 @@ class _DownloadsPageState extends State<DownloadsPage> {
                       },
                     );
                   },
-                  child: const Icon(Icons.email, size: 36,),
+                  child: Icon(Icons.email, size: 36, color: Theme.of(context).colorScheme.onPrimary,),
                 ),
                 ElevatedButton(
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary,)
+                  ),
                   onPressed: () async {
                     if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text("Downloading all files...", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
@@ -128,16 +135,19 @@ class _DownloadsPageState extends State<DownloadsPage> {
                     for (var file in downloadList) {
                       await downloadData(file);
                     }
-                    if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    if (context.mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                       duration: const Duration(minutes: 5),
                       showCloseIcon: true,
                       backgroundColor: Theme.of(context).colorScheme.surface,
                     ));}
                   },
-                  child: const Icon(Icons.download, size: 36,),
+                  child: Icon(Icons.download, size: 36, color: Theme.of(context).colorScheme.onPrimary,),
                 ),
                 ElevatedButton(
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary,)
+                  ),
                   onPressed: () {
                     showDialog(
                       context: context,
@@ -186,7 +196,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                     title: Text(downloadList.elementAt(index)),
                     onTap: () async {
                       String s = await downloadData(downloadList.elementAt(index));
-                      if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      if (context.mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                         content: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                         duration: const Duration(seconds: 5),
                         backgroundColor: Theme.of(context).colorScheme.surface,

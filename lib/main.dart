@@ -2,36 +2,6 @@ import 'package:flutter/material.dart';
 import 'replay.dart';
 import 'live.dart';
 
-ColorScheme myLightColors = const ColorScheme(
-  brightness: Brightness.light, 
-  primary: Color(0xFF0050C7), 
-  primaryContainer: Color.fromARGB(255, 118, 176, 241),
-  onPrimary: Color.fromARGB(255, 219, 217, 217), 
-  secondary: Color.fromARGB(255, 87, 144, 236),
-  onSecondary: Color.fromARGB(255, 194, 194, 194),
-  error: Color(0xFFFF50C7), 
-  onError: Colors.black,
-  background: Color.fromARGB(255, 240, 240, 240),
-  onBackground: Color.fromARGB(255, 22, 22, 22), 
-  surface: Color.fromARGB(255, 231, 231, 231),
-  onSurface: Color.fromARGB(255, 219, 219, 219),
-);
-
-ColorScheme myDarkColors = const ColorScheme(
-  brightness: Brightness.dark, 
-  primary: Color(0xFF0050C7), 
-  primaryContainer: Color.fromARGB(255, 6, 38, 80),
-  onPrimary: Color.fromARGB(255, 219, 219, 219), 
-  secondary: Color.fromARGB(255, 87, 144, 236),
-  onSecondary: Color.fromARGB(255, 194, 194, 194),
-  error: Color(0xFFFF50C7), 
-  onError: Colors.black,
-  background: Color.fromARGB(255, 36, 36, 36),
-  onBackground: Color.fromARGB(255, 219, 219, 219), 
-  surface: Color.fromARGB(255, 80, 76, 76),
-  onSurface: Color.fromARGB(255, 219, 219, 219),
-);
-
 void main() {
   runApp(const MyApp());
 }
@@ -50,8 +20,27 @@ class MyApp extends StatelessWidget {
       builder: (_, ThemeMode currentMode, __) {
         return MaterialApp(
           title: 'NMEATrax App',
-          theme: ThemeData(colorScheme: myLightColors),
-          darkTheme: ThemeData(colorScheme: myDarkColors),
+          theme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.light,
+            ).copyWith(
+              primary: const Color(0xFF0050C7),
+              onPrimary: Colors.white,
+            ),
+          ),
+          darkTheme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.dark,
+              ).copyWith(
+                primary: const Color(0xFF0050C7),
+                onPrimary: Colors.white,
+              ),
+            brightness: Brightness.dark,
+            useMaterial3: true,
+          ),
           themeMode: currentMode,
           home: const LivePage(),
           initialRoute: '/live',

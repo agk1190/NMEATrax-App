@@ -14,7 +14,7 @@ import 'package:settings_ui/settings_ui.dart';
 import 'classes.dart';
 import 'main.dart';
 
-const _appVersion = '3.0.0';
+const _appVersion = '4.0.0';
 
 class ReplayPage extends StatefulWidget {
   const ReplayPage({super.key});
@@ -311,6 +311,17 @@ class _ReplayPageState extends State<ReplayPage> {
   @override
   Widget build(BuildContext mainContext) {
     return MaterialApp(
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark,
+          ).copyWith(
+            primary: const Color(0xFF0050C7),
+            onPrimary: Colors.white,
+          ),
+        brightness: Brightness.dark,
+        useMaterial3: true,
+      ),
       title: 'NMEATrax Replay',
       home: DefaultTabController(
         length: 4,
@@ -363,7 +374,7 @@ class _ReplayPageState extends State<ReplayPage> {
                 Center(
                   child: ElevatedButton(
                     style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
-                    child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode_outlined, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onError,),
+                    child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onPrimary,),
                     onPressed: () {
                       MyApp.themeNotifier.value =
                         MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
@@ -385,10 +396,10 @@ class _ReplayPageState extends State<ReplayPage> {
             bottom: TabBar(
               indicatorColor: Theme.of(context).colorScheme.secondary,
               tabs: const [
-                Tab(icon: Icon(Icons.directions_boat_sharp)),
-                Tab(icon: Icon(Icons.analytics)),
-                Tab(icon: Icon(Icons.map)),
-                Tab(icon: Icon(Icons.settings)),
+                Tab(icon: Icon(Icons.directions_boat_sharp, color: Colors.white)),
+                Tab(icon: Icon(Icons.analytics, color: Colors.white)),
+                Tab(icon: Icon(Icons.map, color: Colors.white)),
+                Tab(icon: Icon(Icons.settings, color: Colors.white)),
               ],
             ),
           ),
@@ -485,26 +496,20 @@ class _ReplayPageState extends State<ReplayPage> {
                                     alignment: MainAxisAlignment.center,
                                     children: [
                                       TextButton(
-                                        onPressed: _decrCurLineNum, 
-                                        child: Text(
-                                          "Decrease", 
-                                          style: TextStyle(
-                                            color: Theme.of(context).colorScheme.primary, 
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16
-                                          ),
-                                        )
+                                        onPressed: _decrCurLineNum,
+                                        child: Icon(
+                                          Icons.arrow_circle_left_outlined,
+                                          color: Theme.of(context).colorScheme.primary,
+                                          size: 35,
+                                        ),
                                       ),
                                       TextButton(
-                                        onPressed: _incrCurLineNum, 
-                                        child: Text(
-                                          "Increase", 
-                                          style: TextStyle(
-                                            color: Theme.of(context).colorScheme.primary,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16
-                                          ),
-                                        )
+                                        onPressed: _incrCurLineNum,
+                                        child: Icon(
+                                          Icons.arrow_circle_right_outlined,
+                                          color: Theme.of(context).colorScheme.primary,
+                                          size: 35,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -524,9 +529,9 @@ class _ReplayPageState extends State<ReplayPage> {
                                             children: [
                                               Padding(
                                               padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
-                                              child: Icon(Icons.link_off),
+                                              child: Icon(Icons.link_off, color: Colors.white,),
                                             ),
-                                              Text("CSV Only"),
+                                              Text("CSV Only", style: TextStyle(color: Colors.white),),
                                             ],
                                           ),
                                         ),
@@ -540,9 +545,9 @@ class _ReplayPageState extends State<ReplayPage> {
                                           children: [
                                             Padding(
                                               padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
-                                              child: Icon(Icons.link),
+                                              child: Icon(Icons.link, color: Colors.white,),
                                             ),
-                                            Text("CSV & GPX"),
+                                            Text("CSV & GPX", style: TextStyle(color: Colors.white),),
                                           ],
                                         ), 
                                       ),
@@ -558,9 +563,9 @@ class _ReplayPageState extends State<ReplayPage> {
                                       children: [
                                         Padding(
                                           padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
-                                          child: Icon(Icons.file_open_outlined),
+                                          child: Icon(Icons.file_open_outlined, color: Colors.white,),
                                         ),
-                                        Text("CSV"),
+                                        Text("CSV", style: TextStyle(color: Colors.white),),
                                       ],
                                     ), 
                                   ),
@@ -586,7 +591,7 @@ class _ReplayPageState extends State<ReplayPage> {
                           setState(() {analyzeVisible = true;});
                         }, 
                         style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary)), 
-                        child: const Text("Analyze File")
+                        child: const Text("Analyze File", style: TextStyle(color: Colors.white),)
                       ),
                     ),
                     const SizedBox(height: 10,),
@@ -662,7 +667,7 @@ class _ReplayPageState extends State<ReplayPage> {
                     floatingActionButton: FloatingActionButton(
                       onPressed: () => _getGPX(File("null")),
                       backgroundColor: Theme.of(context).colorScheme.primary,
-                      child: const Icon(Icons.add),
+                      child: const Icon(Icons.add, color: Colors.white,),
                     ),
                   ),
                   Column(
@@ -695,7 +700,7 @@ class _ReplayPageState extends State<ReplayPage> {
                                       backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
                                     ),
                                     onPressed: () => setState(() {markerVisibility = !markerVisibility;}), 
-                                    child: const Icon(Icons.location_pin)
+                                    child: Icon(Icons.location_pin, color: Theme.of(context).colorScheme.onPrimary,)
                                   ),
                                 ),
                               ),
@@ -725,9 +730,11 @@ class _ReplayPageState extends State<ReplayPage> {
                       initialSelection: upperLimits.keys.first,
                       menuStyle: MenuStyle(
                         backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.surface),
+                        surfaceTintColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.surfaceVariant),
                       ),
                       textStyle: TextStyle(
                         color: Theme.of(context).colorScheme.onBackground,
+                        backgroundColor: Theme.of(context).colorScheme.background,
                       ),
                       enableSearch: false,
                       enableFilter: false,
@@ -735,6 +742,7 @@ class _ReplayPageState extends State<ReplayPage> {
                         return DropdownMenuEntry<String>(
                           value: value,
                           label: value,
+                          style: ButtonStyle(foregroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.onSurfaceVariant))
                         );
                       }).toList(),
                       onSelected: (value) {
@@ -858,7 +866,7 @@ class _ReplayPageState extends State<ReplayPage> {
                 }
               });
             },
-            child: const Icon(Icons.route_outlined),
+            child: Icon(Icons.route_outlined, color: Theme.of(context).colorScheme.onPrimary,),
           ),
         );
       },

@@ -16,7 +16,7 @@ import 'classes.dart';
 import 'downloads.dart';
 import 'main.dart';
 
-const _appVersion = '3.0.0';
+const _appVersion = '4.0.0';
 Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-"};
 Map<String, dynamic> ntOptions = {"isMeters":false, "isDegF":false, "recInt":0, "timeZone":0, "recMode":0};
 const Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
@@ -171,6 +171,17 @@ class _LivePageState extends State<LivePage> {
   @override
   Widget build(lcontext) {
     return MaterialApp(
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark,
+          ).copyWith(
+            primary: const Color(0xFF0050C7),
+            onPrimary: Colors.white,
+          ),
+        brightness: Brightness.dark,
+        useMaterial3: true,
+      ),
       home: DefaultTabController(
         length: 3,
         child: Scaffold(
@@ -224,7 +235,7 @@ class _LivePageState extends State<LivePage> {
                 Center(
                   child: ElevatedButton(
                     style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
-                    child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode_outlined, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onError,),
+                    child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onPrimary,),
                     onPressed: () {
                       MyApp.themeNotifier.value =
                         MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
@@ -259,9 +270,9 @@ class _LivePageState extends State<LivePage> {
             bottom: TabBar(
               indicatorColor: Theme.of(context).colorScheme.secondary,
               tabs: const [
-                Tab(icon: Icon(Icons.dashboard)),
-                Tab(icon: Icon(Icons.list)),
-                Tab(icon: Icon(Icons.settings)),
+                Tab(icon: Icon(Icons.dashboard, color: Colors.white)),
+                Tab(icon: Icon(Icons.list, color: Colors.white)),
+                Tab(icon: Icon(Icons.settings, color: Colors.white)),
               ],
             ),
           ),
@@ -491,7 +502,7 @@ class _LivePageState extends State<LivePage> {
                           backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
                         ),
                         onPressed: () {setState(() {moreSettingsVisible = !moreSettingsVisible;});},
-                        child: moreSettingsVisible ? const Text('Less Settings', style: TextStyle(fontSize: 12),) : const Text('More Settings', style: TextStyle(fontSize: 12),),
+                        child: moreSettingsVisible ? Text('Less Settings', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimary),) : Text('More Settings', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimary),),
                       ),
                     ),
                     Padding(
@@ -504,7 +515,7 @@ class _LivePageState extends State<LivePage> {
                           getOptions();
                           Navigator.push(context, MaterialPageRoute(builder: (context) => const DownloadsPage()));
                         },
-                        child: const Text('Voyage Recordings', style: TextStyle(fontSize: 18),),
+                        child: Text('Voyage Recordings', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onPrimary),),
                       ),
                     ),
                   ]
@@ -520,7 +531,7 @@ class _LivePageState extends State<LivePage> {
                 showConnectDialog(context, "IP Address");
               }
             },
-            label: channel != null ? const Text("Disconnect") : const Text("Connect"),
+            label: channel != null ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         ),
@@ -533,7 +544,10 @@ class _LivePageState extends State<LivePage> {
     String input = connectURL;
 
     Widget confirmButton = ElevatedButton(
-      child: const Text("Connect"),
+      style: ButtonStyle(
+        backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+      ),
+      child: Text("Connect", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
       onPressed: () {
         setState(() {
           connectURL = input;
@@ -591,7 +605,10 @@ class _LivePageState extends State<LivePage> {
     int input = 0;
 
     Widget confirmButton = ElevatedButton(
-      child: const Text("Set"),
+      style: ButtonStyle(
+        backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+      ),
+      child: Text("Set", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
       onPressed: () {
         setState(() {
           setOptions("$parameter=$input");

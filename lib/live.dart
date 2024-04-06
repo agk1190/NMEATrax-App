@@ -182,6 +182,16 @@ class _LivePageState extends State<LivePage> {
         brightness: Brightness.dark,
         useMaterial3: true,
       ),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: const Color(0xFF0050C7),
+          onPrimary: Colors.white,
+        ),
+      ),
       home: DefaultTabController(
         length: 3,
         child: Scaffold(
@@ -232,6 +242,7 @@ class _LivePageState extends State<LivePage> {
                   ],
                   child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
                 ),
+                const SizedBox(height: 10,),
                 Center(
                   child: ElevatedButton(
                     style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
@@ -345,7 +356,7 @@ class _LivePageState extends State<LivePage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Expanded(child: Text(nmeaData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(context).colorScheme.onBackground))),
-                            Expanded(child: Text(nmeaData.values.elementAt(index), textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground),))
+                            Expanded(child: Text(" ${nmeaData.values.elementAt(index)}", textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground),))
                           ],
                         ),
                     );
@@ -368,6 +379,7 @@ class _LivePageState extends State<LivePage> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 15,),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
@@ -378,33 +390,32 @@ class _LivePageState extends State<LivePage> {
                             fontSize: 18,
                           ),
                         ),
-                        DropdownButton(
-                          autofocus: false,
-                          // value: recModeOptions.first,
-                          value: recModeEnum[ntOptions["recMode"]],
-                          // icon: const Icon(Icons.abc),
-                          elevation: 8,
-                          style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
-                          dropdownColor: Theme.of(context).colorScheme.background,
-                          underline: Container(
-                            height: 2,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          items: recModeOptions.map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
+                        DropdownMenu(
+                          // menuStyle: MenuStyle(
+                          //   backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.surfaceVariant)
+                          // ),
+                          initialSelection: recModeEnum[ntOptions["recMode"]],
+                          enableSearch: false,
+                          dropdownMenuEntries: recModeOptions.map<DropdownMenuEntry<String>>((String value) {
+                            return DropdownMenuEntry<String>(
                               value: value,
-                              child: Text(value),
+                              label: value,
+                              // style: ButtonStyle(
+                              //   backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.surfaceVariant)
+                              // ),
                             );
                           }).toList(),
-                          onChanged: (value) {
+                          onSelected: (value) {
                             setOptions("recMode=${recModeEnum.keys.firstWhere((element) => recModeEnum[element] == value)}");
                           },
                         ),
                       ],
                     ),
+                    const SizedBox(height: 15,),
                     SettingsList(
                       physics: const NeverScrollableScrollPhysics(),
                       shrinkWrap: true,
+                      brightness: MyApp.themeNotifier.value == ThemeMode.light ? Brightness.light : Brightness.dark,
                       darkTheme: SettingsThemeData(
                         settingsSectionBackground: Theme.of(context).colorScheme.background,
                         settingsListBackground: Theme.of(context).colorScheme.surface,
@@ -412,7 +423,7 @@ class _LivePageState extends State<LivePage> {
                       ),
                       lightTheme: SettingsThemeData(
                         settingsSectionBackground: Theme.of(context).colorScheme.background,
-                        settingsListBackground: Theme.of(context).colorScheme.background,
+                        settingsListBackground: Theme.of(context).colorScheme.surface,
                         titleTextColor: Theme.of(context).colorScheme.onBackground,
                       ),
                       platform: DevicePlatform.android,
@@ -457,6 +468,7 @@ class _LivePageState extends State<LivePage> {
                         )
                       ],
                     ),
+                    const SizedBox(height: 15,),
                     Visibility(
                       visible: moreSettingsVisible,
                       child: SettingsList(

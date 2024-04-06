@@ -265,47 +265,36 @@ class _ReplayPageState extends State<ReplayPage> {
     }
   }
 
-  Future<void> _saveTheme(ThemeMode darkMode) async {
+  Future<void> _savePrefs() async {
     final SharedPreferences prefs = await _prefs;
 
     setState(() {
-      prefs.setBool('darkMode', darkMode==ThemeMode.dark? true : false);
+      prefs.setBool('darkMode', MyApp.themeNotifier.value == ThemeMode.dark ? true : false);
+      prefs.setString("lower", jsonEncode(lowerLimits));
+      prefs.setString("upper", jsonEncode(upperLimits));
     });
   }
 
-  Future<void> _saveLimits(String label, var limits) async {
-    final SharedPreferences prefs = await _prefs;
-
-    setState(() {
-      prefs.setString(label, jsonEncode(limits));
-    });
-  }
-
-  Future<void> _getTheme() async {
+  Future<void> _getPrefs() async {
     final SharedPreferences prefs = await _prefs;
     if (prefs.getBool('darkMode') == null) {return;}
-    if (prefs.getBool('darkMode')!) {
-      MyApp.themeNotifier.value = ThemeMode.dark;
-    } else {
-      MyApp.themeNotifier.value = ThemeMode.light;
-    }
-  }
-
-  Future<void> _getLimits() async {
-    final SharedPreferences prefs = await _prefs;
     if (prefs.getString("lower") == null) {return;}
     if (prefs.getString("upper") == null) {return;}
     setState(() {
       lowerLimits = jsonDecode(prefs.getString("lower")!);
       upperLimits = jsonDecode(prefs.getString("upper")!);
+      if (prefs.getBool('darkMode')!) {
+        MyApp.themeNotifier.value = ThemeMode.dark;
+      } else {
+        MyApp.themeNotifier.value = ThemeMode.light;
+      }
     });
   }
   
   @override
   void initState() {
     super.initState();
-    _getTheme();
-    _getLimits();
+    _getPrefs();
   }
 
   @override
@@ -321,6 +310,16 @@ class _ReplayPageState extends State<ReplayPage> {
           ),
         brightness: Brightness.dark,
         useMaterial3: true,
+      ),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: const Color(0xFF0050C7),
+          onPrimary: Colors.white,
+        ),
       ),
       title: 'NMEATrax Replay',
       home: DefaultTabController(
@@ -378,7 +377,7 @@ class _ReplayPageState extends State<ReplayPage> {
                     onPressed: () {
                       MyApp.themeNotifier.value =
                         MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-                      _saveTheme(MyApp.themeNotifier.value);
+                      _savePrefs();
                     },
                   ),
                 ),
@@ -392,8 +391,8 @@ class _ReplayPageState extends State<ReplayPage> {
             backgroundColor: Theme.of(context).colorScheme.primary,
             iconTheme: Theme.of(context).primaryIconTheme,
             title: Text('NMEATrax Replay', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-            // leading: Icon(Icons.bolt),
             bottom: TabBar(
+              onTap: (value) => setState(() {}),
               indicatorColor: Theme.of(context).colorScheme.secondary,
               tabs: const [
                 Tab(icon: Icon(Icons.directions_boat_sharp, color: Colors.white)),
@@ -403,7 +402,22 @@ class _ReplayPageState extends State<ReplayPage> {
               ],
             ),
           ),
+          bottomNavigationBar: Builder(
+            builder: (context) {
+              return BottomAppBar(
+                color: Theme.of(mainContext).colorScheme.surface,
+                child: switch (DefaultTabController.of(context).index) {
+                  0 => dataAppBar(context),
+                  1 => analyzeAppBar(mainContext),
+                  2 => mapAppBar(context),
+                  3 => settingsAppBar(context),
+                  int() => const Row(),
+                }
+              );
+            }
+          ),
           body: TabBarView(
+            physics: const NeverScrollableScrollPhysics(),
             children: [
               LayoutBuilder(
                 builder: (BuildContext mainContext, BoxConstraints viewportConstraints) {
@@ -415,162 +429,38 @@ class _ReplayPageState extends State<ReplayPage> {
                       child: IntrinsicHeight(
                         child: Column(
                           children: <Widget>[
-                            SizedBox(
-                              height: 90,
-                              child: Column(
-                                children: [
-                                  const SizedBox(height: 10,),
-                                  Text("Data", style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 24, fontWeight: FontWeight.w400),),
-                                  const SizedBox(height: 10,),
-                                  Text(
-                                    csvFilePath.path == "null" ? "" : csvFilePath.path.substring(csvFilePath.path.lastIndexOf(Platform.isWindows ? '\\' : '/'), csvFilePath.path.length),
+                            Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Text(
+                                    csvFilePath.path == "null" ? "Open a file to view data" : csvFilePath.path.substring(csvFilePath.path.lastIndexOf(Platform.isWindows ? '\\' : '/'), csvFilePath.path.length),
                                     style: TextStyle(
                                       color: Theme.of(context).colorScheme.onBackground,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w400,
-                                      fontStyle: FontStyle.italic),
+                                      fontStyle: FontStyle.italic
                                     ),
-                                  const SizedBox(height: 10,),
-                                ],
-                              ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Text("Line $curLineNum", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                                ),
+                              ],
                             ),
                             Expanded(child: ListData(csvHeaderData: csvHeaderData, csvListData: csvListData, curLineNum: curLineNum, mainContext: context)),
-                            SizedBox(
-                              height: 250,
-                              child: Column(
-                                children: [
-                                  const SizedBox(height: 20),
-                                  Slider(
-                                    value: curLineNum.toDouble(),
-                                    onChanged: _onSliderChanged,
-                                    label: curLineNum.toString(),
-                                    max: maxLines.toDouble(),
-                                    min: 0,
-                                    activeColor: Theme.of(context).colorScheme.primary,
-                                    inactiveColor: Theme.of(context).colorScheme.primaryContainer,
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.fromLTRB(3.0, 0, 3.0, 0),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: Theme.of(context).colorScheme.onBackground, width: 2,),
-                                    ),
-                                    width: 60,
-                                    child: TextFormField(
-                                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                      maxLines: 1,
-                                      keyboardType: TextInputType.number,
-                                      textAlign: TextAlign.center,
-                                      cursorColor: Theme.of(context).colorScheme.primary,
-                                      decoration: null,
-                                      controller: TextEditingController.fromValue(TextEditingValue(text: curLineNum.toString())),
-                                      selectionControls: MaterialTextSelectionControls(),
-                                      style: TextStyle(
-                                        color: Theme.of(context).colorScheme.onBackground,
-                                      ),
-                                      onFieldSubmitted: (value) {
-                                        try {
-                                          if (int.parse(value) <= maxLines && int.parse(value) >= 1) {
-                                            setState(() {
-                                              curLineNum = int.parse(value);
-                                              if (curLineNum - gpxToCsvOffset >= 0) {
-                                                gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
-                                              } else {
-                                                gpxToCsvLineNum = 0;
-                                              }
-                                            });
-                                          }
-                                        } on Exception {
-                                          setState(() {
-                                            curLineNum = 0;
-                                            if (curLineNum - gpxToCsvOffset >= 0) {
-                                              gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
-                                            } else {
-                                              gpxToCsvLineNum = 0;
-                                            }
-                                          });
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                  ButtonBar(
-                                    alignment: MainAxisAlignment.center,
-                                    children: [
-                                      TextButton(
-                                        onPressed: _decrCurLineNum,
-                                        child: Icon(
-                                          Icons.arrow_circle_left_outlined,
-                                          color: Theme.of(context).colorScheme.primary,
-                                          size: 35,
-                                        ),
-                                      ),
-                                      TextButton(
-                                        onPressed: _incrCurLineNum,
-                                        child: Icon(
-                                          Icons.arrow_circle_right_outlined,
-                                          color: Theme.of(context).colorScheme.primary,
-                                          size: 35,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Platform.isWindows ? 
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(0, 0, 10, 0),
-                                        child: ElevatedButton(
-                                          onPressed: _getCSV,
-                                          style: ButtonStyle(
-                                            backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
-                                          ),
-                                          child: const Row(
-                                            children: [
-                                              Padding(
-                                              padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
-                                              child: Icon(Icons.link_off, color: Colors.white,),
-                                            ),
-                                              Text("CSV Only", style: TextStyle(color: Colors.white),),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () => _getCSV(true),
-                                        style: ButtonStyle(
-                                          backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
-                                        ),
-                                        child: const Row(
-                                          children: [
-                                            Padding(
-                                              padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
-                                              child: Icon(Icons.link, color: Colors.white,),
-                                            ),
-                                            Text("CSV & GPX", style: TextStyle(color: Colors.white),),
-                                          ],
-                                        ), 
-                                      ),
-                                    ],
-                                  ) : 
-                                  ElevatedButton(
-                                    onPressed: () => _getCSV(false),
-                                    style: ButtonStyle(
-                                      backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Padding(
-                                          padding: EdgeInsets.fromLTRB(0, 0, 8, 0),
-                                          child: Icon(Icons.file_open_outlined, color: Colors.white,),
-                                        ),
-                                        Text("CSV", style: TextStyle(color: Colors.white),),
-                                      ],
-                                    ), 
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(height: 20),
+                            Slider(
+                              value: curLineNum.toDouble(),
+                              onChanged: _onSliderChanged,
+                              label: curLineNum.toString(),
+                              max: maxLines.toDouble(),
+                              min: 0,
+                              divisions: maxLines.toInt(),
+                              activeColor: Theme.of(context).colorScheme.primary,
+                              inactiveColor: Theme.of(context).colorScheme.primaryContainer,
                             ),
                           ],
                         ),
@@ -582,23 +472,19 @@ class _ReplayPageState extends State<ReplayPage> {
               SingleChildScrollView(
                 child: Column(
                   children: <Widget>[
-                    const SizedBox(height: 30,),
-                    Visibility(
-                      visible: !analyzeVisible,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _analyzeData();
-                          setState(() {analyzeVisible = true;});
-                        }, 
-                        style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary)), 
-                        child: const Text("Analyze File", style: TextStyle(color: Colors.white),)
-                      ),
+                    const SizedBox(height: 15),
+                    Text(
+                      "Results:",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 16, 
+                          color: Theme.of(context).colorScheme.onBackground,
+                        ),
                     ),
-                    const SizedBox(height: 10,),
                     Visibility(
                       visible: analyzeVisible,
                       child: Text(
-                        "Results:\n$errCount Violation${errCount == 1 ? '' : 's'} Found", 
+                        "$errCount Violation${errCount == 1 ? '' : 's'} Found", 
                         style: TextStyle(
                           fontWeight: FontWeight.bold, 
                           fontSize: 16, 
@@ -663,11 +549,6 @@ class _ReplayPageState extends State<ReplayPage> {
                           ],
                         ),
                       ],
-                    ),
-                    floatingActionButton: FloatingActionButton(
-                      onPressed: () => _getGPX(File("null")),
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      child: const Icon(Icons.add, color: Colors.white,),
                     ),
                   ),
                   Column(
@@ -818,6 +699,94 @@ class _ReplayPageState extends State<ReplayPage> {
     );
   }
 
+  Row dataAppBar(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ElevatedButton.icon(
+          style: ButtonStyle(
+            backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary)
+          ),
+          icon: Icon(Icons.file_open_outlined, color: Theme.of(context).colorScheme.onPrimary,),
+          label: Text("CSV", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+          onPressed: () => _getCSV(false),
+        ),
+        const Spacer(),
+        IconButton(
+          onPressed: _decrCurLineNum,
+          icon: const Icon(Icons.arrow_circle_left_outlined),
+          color: Theme.of(context).colorScheme.primary,
+          iconSize: 35,
+        ),
+        IconButton(
+          onPressed: _incrCurLineNum,
+          icon: const Icon(Icons.arrow_circle_right_outlined),
+          color: Theme.of(context).colorScheme.primary,
+          iconSize: 35,
+        ),
+      ],
+    );
+  }
+
+  Row analyzeAppBar(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Visibility(
+          visible: analyzeVisible,
+          child: Text(
+            "${analyzedData.length} Violation${analyzedData.length == 1 ? '.' : 's.'}",
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          )
+        ),
+        const Spacer(),
+        ElevatedButton(
+          style: ButtonStyle(
+            backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+          ),
+          onPressed: () {
+            _analyzeData();
+            setState(() {analyzeVisible = true;});
+          },
+          child: Text("Refresh", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+        ),
+      ],
+    );
+  }
+
+  Row mapAppBar(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Spacer(),
+        ElevatedButton.icon(
+          style: ButtonStyle(
+            backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary)
+          ),
+          icon: Icon(Icons.location_on, color: Theme.of(context).colorScheme.onPrimary,),
+          label: Text("GPX", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+          onPressed: () => _getGPX(File("null")),
+        ),
+      ],
+    );
+  }
+
+  Row settingsAppBar(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        IconButton(
+          onPressed: () {
+            MyApp.themeNotifier.value =
+              MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+            _savePrefs();
+          },
+          icon: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.background,) : Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onPrimary,),
+        ),
+      ],
+    );
+  }
+
   PolylineLayer buildPolylinesLayer() {
     List<Polyline> polylines = [];
     int colorIndex = 0;
@@ -878,15 +847,18 @@ class _ReplayPageState extends State<ReplayPage> {
     double input = 0;
 
     Widget confirmButton = ElevatedButton(
-      child: const Text("OK"),
+      style: ButtonStyle(
+        backgroundColor:MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+      ),
+      child: Text("OK", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
       onPressed: () {
         setState(() {
           if (upper) {
             upperLimits[upperLimits.keys.elementAt(selectedLimit)] = input;
-            _saveLimits("upper", upperLimits);
+            _savePrefs();
           } else {
             lowerLimits[lowerLimits.keys.elementAt(selectedLimit)] = input;
-            _saveLimits("lower", lowerLimits);
+            _savePrefs();
           }
         });
         //https://stackoverflow.com/a/50683571 for nav.pop
@@ -913,10 +885,10 @@ class _ReplayPageState extends State<ReplayPage> {
             try {
               if (upper) {
                 upperLimits[upperLimits.keys.elementAt(selectedLimit)] = double.parse(value);
-                _saveLimits("upper", upperLimits);
+                _savePrefs();
               } else {
                 lowerLimits[lowerLimits.keys.elementAt(selectedLimit)] = double.parse(value);
-                _saveLimits("lower", lowerLimits);
+                _savePrefs();
               }
             } on Exception {
               // do nothing

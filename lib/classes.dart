@@ -94,42 +94,20 @@ class SizedNMEABox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 100,
-      child: Container(
-        padding: const EdgeInsets.all(4.0),
-        margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey),
-        ),
-        child: Column(
-          children: [
-            Text(
-              title,
-              style: TextStyle(color: Theme.of(mainContext).colorScheme.onBackground, fontSize: 14),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: Theme.of(mainContext).colorScheme.onBackground,
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  unit,
-                  style: TextStyle(
-                    color: Theme.of(mainContext).colorScheme.onBackground,
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+      // height: fontSize == 24 ? 80 : 100,
+      child: Card(
+        color: Theme.of(mainContext).colorScheme.surface,
+        elevation: 3,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              Text(title, style: TextStyle(color: Theme.of(mainContext).colorScheme.onSurface),),
+              Text("$value$unit", style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onSurface),),
+            ],
+          ),
+        )
       ),
     );
   }

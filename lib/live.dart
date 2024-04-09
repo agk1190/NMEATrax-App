@@ -17,9 +17,10 @@ import 'downloads.dart';
 import 'main.dart';
 
 const _appVersion = '4.0.0';
-Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-"};
+Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-", "evcErrorMsg": "-"};
 Map<String, dynamic> ntOptions = {"isMeters":false, "isDegF":false, "recInt":0, "timeZone":0, "recMode":0};
 const Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
+List<String> evcErrorList = List.empty();
 
 class LivePage extends StatefulWidget {
   const LivePage({super.key});
@@ -128,12 +129,14 @@ class _LivePageState extends State<LivePage> {
                 }
                 i++;
               }
+              evcErrorList = nmeaData["evcErrorMsg"].toString().split(', ');
             });
           }
         });
         setState(() {
           getOptions();
           if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+          _saveIP(connectURL);
         });
       }
     }
@@ -147,7 +150,8 @@ class _LivePageState extends State<LivePage> {
       channel = null;
       setState(() {
         if (Platform.isAndroid) {KeepScreenOn.turnOff();}
-        nmeaData = {"rpm": "-", "etemp": "-", "otemp": "-", "opres": "-", "fuel_rate": "-", "flevel": "-", "efficiency": "-", "leg_tilt": "-", "speed": "-", "heading": "-", "depth": "-", "wtemp": "-", "battV": "-", "ehours": "-", "gear": "-", "lat": "-", "lon": "-", "mag_var": "-", "time": "-"};
+        nmeaData.updateAll((key, value) => value = "-");
+        evcErrorList = List.empty();
       });
     }
   }
@@ -288,6 +292,7 @@ class _LivePageState extends State<LivePage> {
             ),
           ),
           body: TabBarView(
+            physics: const NeverScrollableScrollPhysics(),
             children: [
               SingleChildScrollView(
                 child: Column(
@@ -297,6 +302,29 @@ class _LivePageState extends State<LivePage> {
                       children: [
                         Text(nmeaData["time"], style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
                       ],
+                    ),
+                    Visibility(
+                      visible: evcErrorList.isNotEmpty,
+                      child: SizedBox(
+                        height: 50,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          shrinkWrap: true,
+                          itemCount: evcErrorList.length,
+                          itemBuilder: (lcontext, index) {
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 8, 2, 8),
+                              child: Chip(
+                                elevation: 4,
+                                label: Text(evcErrorList.elementAt(index)),
+                                backgroundColor: Theme.of(context).colorScheme.background,
+                                labelStyle: const TextStyle(color: Colors.red),
+                                side: const BorderSide(color: Colors.red),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

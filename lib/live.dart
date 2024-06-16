@@ -11,6 +11,7 @@ import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:dart_ping/dart_ping.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 
 import 'classes.dart';
 import 'downloads.dart';
@@ -21,6 +22,8 @@ Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273"
 Map<String, dynamic> ntOptions = {"isMeters":false, "isDegF":false, "recInt":0, "timeZone":0, "recMode":0};
 const Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
 List<String> evcErrorList = List.empty();
+const serviceUUID = 'ce04e30a-1ec8-40a4-86ef-1df9627c8666';
+late QualifiedCharacteristic nmeaCharacteristic;
 
 class LivePage extends StatefulWidget {
   const LivePage({super.key});
@@ -37,6 +40,9 @@ class _LivePageState extends State<LivePage> {
   bool moreSettingsVisible = false;
   IOWebSocketChannel? channel;
   late BuildContext lcontext;
+  final flutterReactiveBle = FlutterReactiveBle();
+  List<DiscoveredDevice> listBLEdevices = [];
+  late StreamSubscription<List<int>> bleStream;
 
   Future<void> _getTheme() async {
     final SharedPreferences prefs = await _prefs;
@@ -106,7 +112,50 @@ class _LivePageState extends State<LivePage> {
     }
   }
   
-    // Function to connect or disconnect the WebSocket
+  void listBLE() {
+    flutterReactiveBle.scanForDevices(withServices: [Uuid.parse(serviceUUID)]).listen((device) {
+      if (listBLEdevices.every((element) => element.id != device.id)) {
+        setState(() {
+          listBLEdevices.add(device);
+        });
+      }
+    }, onError: (Object error) {
+      // print(error);
+    });
+  }
+
+  void connectBLE() {
+    flutterReactiveBle.connectToAdvertisingDevice(
+      id: listBLEdevices.first.id,
+      withServices: [Uuid.parse(serviceUUID)],
+      prescanDuration: const Duration(seconds: 5),
+      connectionTimeout: const Duration(seconds:  2),
+    ).listen((connectionState) {
+      // print("connected");
+      // print(connectionState);
+      subscribeBLE();
+    }, onError: (dynamic error) {
+      // print(error);
+    });
+  }
+
+  void subscribeBLE() {
+    nmeaCharacteristic = QualifiedCharacteristic(serviceId: Uuid.parse(serviceUUID), characteristicId: Uuid.parse('016c0d02-220f-4631-8882-b3e974fe137d'), deviceId: listBLEdevices.first.id);
+    bleStream = flutterReactiveBle.subscribeToCharacteristic(nmeaCharacteristic).listen((data) {
+      // print(data.toString());
+      readBLE();
+    }, onError: (dynamic error) {
+      // print(error);
+    });
+  }
+
+  void readBLE() async {
+    final response = await flutterReactiveBle.readCharacteristic(nmeaCharacteristic);
+    // print(response.toString());
+    print(String.fromCharCodes(response));
+  }
+
+  // Function to connect or disconnect the WebSocket
   void connectWebSocket() async {
     if (channel == null) {
       final validIP = await Ping(connectURL, count: 1).stream.first;
@@ -201,19 +250,19 @@ class _LivePageState extends State<LivePage> {
         child: Scaffold(
           drawer: Drawer(
             width: 200,
-            backgroundColor: Theme.of(context).colorScheme.background,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             child: ListView(
               children: <Widget>[
-                DrawerHeader(
-                  decoration: const BoxDecoration(
+                const DrawerHeader(
+                  decoration: BoxDecoration(
                     image: DecorationImage(image: AssetImage('assets/images/nmeatraxLogo.png')),
                     color: Color(0xFF0050C7),
                   ),
-                  child: Text('NMEATrax', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  child: Text('NMEATrax'),
                 ),
                 ListTile(
-                  textColor: Theme.of(context).colorScheme.onBackground,
-                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  textColor: Theme.of(context).colorScheme.onSurface,
+                  iconColor: Theme.of(context).colorScheme.onSurface,
                   title: const Text('Live'),
                   leading: const Icon(Icons.bolt),
                   onTap: () {
@@ -222,9 +271,9 @@ class _LivePageState extends State<LivePage> {
                   },
                 ),
                 ListTile(
-                  textColor: Theme.of(context).colorScheme.onBackground,
-                  iconColor: Theme.of(context).colorScheme.onBackground,
-                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  textColor: Theme.of(context).colorScheme.onSurface,
+                  iconColor: Theme.of(context).colorScheme.onSurface,
+                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                   leading: const Icon(Icons.timeline),
                   onTap: () {
                     if (channel != null) disconnectWebSocket();
@@ -233,7 +282,7 @@ class _LivePageState extends State<LivePage> {
                 ),
                 AboutListTile(
                   icon: Icon(
-                    color: Theme.of(context).colorScheme.onBackground,
+                    color: Theme.of(context).colorScheme.onSurface,
                     Icons.info,
                   ),
                   applicationIcon: const Icon(
@@ -244,12 +293,12 @@ class _LivePageState extends State<LivePage> {
                   aboutBoxChildren: const [
                     Text("For use with NMEATrax Vessel Monitoring System")
                   ],
-                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                 ),
                 const SizedBox(height: 10,),
                 Center(
                   child: ElevatedButton(
-                    style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
+                    style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
                     child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onPrimary,),
                     onPressed: () {
                       MyApp.themeNotifier.value =
@@ -262,9 +311,9 @@ class _LivePageState extends State<LivePage> {
             ),
           ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-          backgroundColor: Theme.of(context).colorScheme.background,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           appBar: AppBar(
-            systemOverlayStyle: SystemUiOverlayStyle(systemNavigationBarColor: Theme.of(context).colorScheme.background),
+            systemOverlayStyle: SystemUiOverlayStyle(systemNavigationBarColor: Theme.of(context).colorScheme.surface),
             backgroundColor: Theme.of(context).colorScheme.primary,
             iconTheme: Theme.of(context).primaryIconTheme,
             title: Row(
@@ -300,11 +349,11 @@ class _LivePageState extends State<LivePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Text(nmeaData["time"], style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+                        Text(nmeaData["time"], style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                       ],
                     ),
                     Visibility(
-                      visible: evcErrorList.isNotEmpty,
+                      visible: evcErrorList.isNotEmpty && evcErrorList.first != ("-"),
                       child: SizedBox(
                         height: 50,
                         child: ListView.builder(
@@ -317,7 +366,7 @@ class _LivePageState extends State<LivePage> {
                               child: Chip(
                                 elevation: 4,
                                 label: Text(evcErrorList.elementAt(index)),
-                                backgroundColor: Theme.of(context).colorScheme.background,
+                                backgroundColor: Theme.of(context).colorScheme.surface,
                                 labelStyle: const TextStyle(color: Colors.red),
                                 side: const BorderSide(color: Colors.red),
                               ),
@@ -383,8 +432,8 @@ class _LivePageState extends State<LivePage> {
                       child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Expanded(child: Text(nmeaData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(context).colorScheme.onBackground))),
-                            Expanded(child: Text(" ${nmeaData.values.elementAt(index)}", textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground),))
+                            Expanded(child: Text(nmeaData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(context).colorScheme.onSurface))),
+                            Expanded(child: Text(" ${nmeaData.values.elementAt(index)}", textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),))
                           ],
                         ),
                     );
@@ -402,7 +451,7 @@ class _LivePageState extends State<LivePage> {
                           fontWeight: FontWeight.bold, 
                           fontSize: 22,
                           decoration: TextDecoration.underline,
-                          color: Theme.of(context).colorScheme.onBackground,
+                          color: Theme.of(context).colorScheme.onSurface,
                           letterSpacing: 0.75,
                         ),
                       ),
@@ -414,13 +463,13 @@ class _LivePageState extends State<LivePage> {
                         Text(
                           "Recording Mode",
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onBackground,
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontSize: 18,
                           ),
                         ),
                         DropdownMenu(
                           // menuStyle: MenuStyle(
-                          //   backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.surfaceVariant)
+                          //   backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceVariant)
                           // ),
                           initialSelection: recModeEnum[ntOptions["recMode"]],
                           enableSearch: false,
@@ -429,7 +478,7 @@ class _LivePageState extends State<LivePage> {
                               value: value,
                               label: value,
                               // style: ButtonStyle(
-                              //   backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.surfaceVariant)
+                              //   backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceVariant)
                               // ),
                             );
                           }).toList(),
@@ -445,14 +494,14 @@ class _LivePageState extends State<LivePage> {
                       shrinkWrap: true,
                       brightness: MyApp.themeNotifier.value == ThemeMode.light ? Brightness.light : Brightness.dark,
                       darkTheme: SettingsThemeData(
-                        settingsSectionBackground: Theme.of(context).colorScheme.background,
+                        settingsSectionBackground: Theme.of(context).colorScheme.surface,
                         settingsListBackground: Theme.of(context).colorScheme.surface,
-                        titleTextColor: Theme.of(context).colorScheme.onBackground,
+                        titleTextColor: Theme.of(context).colorScheme.onSurface,
                       ),
                       lightTheme: SettingsThemeData(
-                        settingsSectionBackground: Theme.of(context).colorScheme.background,
+                        settingsSectionBackground: Theme.of(context).colorScheme.surface,
                         settingsListBackground: Theme.of(context).colorScheme.surface,
-                        titleTextColor: Theme.of(context).colorScheme.onBackground,
+                        titleTextColor: Theme.of(context).colorScheme.onSurface,
                       ),
                       platform: DevicePlatform.android,
                       sections: [
@@ -465,29 +514,29 @@ class _LivePageState extends State<LivePage> {
                             //   },
                             // ),
                             SettingsTile.switchTile(
-                              title: Text("Depth in Meters?", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                              title: Text("Depth in Meters?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                               initialValue: ntOptions["isMeters"],
                               onToggle: (value) {
                                 setOptions("isMeters=$value");
                               },
                             ),
                             SettingsTile.switchTile(
-                              title: Text("Temperature in Fahrenheit?", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                              title: Text("Temperature in Fahrenheit?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                               initialValue: ntOptions["isDegF"],
                               onToggle: (value) {
                                 setOptions("isDegF=$value");
                               },
                             ),
                             SettingsTile(
-                              title: Text("Time Zone", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                              value: Text(ntOptions["timeZone"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                              title: Text("Time Zone", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              value: Text(ntOptions["timeZone"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                               onPressed: (lContext) {
                                 showInputDialog(context, "Timezone", ntOptions["timeZone"], "timeZone");
                               },
                             ),
                             SettingsTile(
-                              title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
-                              value: Text(ntOptions["recInt"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                              title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              value: Text(ntOptions["recInt"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                               onPressed: (lContext) {
                                 showInputDialog(context, "Recording Interval", ntOptions["recInt"], "recInt");
                               },
@@ -503,14 +552,14 @@ class _LivePageState extends State<LivePage> {
                         physics: const NeverScrollableScrollPhysics(),
                         shrinkWrap: true,
                         darkTheme: SettingsThemeData(
-                          settingsSectionBackground: Theme.of(context).colorScheme.background,
+                          settingsSectionBackground: Theme.of(context).colorScheme.surface,
                           settingsListBackground: Theme.of(context).colorScheme.surface,
-                          titleTextColor: Theme.of(context).colorScheme.onBackground,
+                          titleTextColor: Theme.of(context).colorScheme.onSurface,
                         ),
                         lightTheme: SettingsThemeData(
-                          settingsSectionBackground: Theme.of(context).colorScheme.background,
-                          settingsListBackground: Theme.of(context).colorScheme.background,
-                          titleTextColor: Theme.of(context).colorScheme.onBackground,
+                          settingsSectionBackground: Theme.of(context).colorScheme.surface,
+                          settingsListBackground: Theme.of(context).colorScheme.surface,
+                          titleTextColor: Theme.of(context).colorScheme.onSurface,
                         ),
                         platform: DevicePlatform.android,
                         sections: [
@@ -539,7 +588,7 @@ class _LivePageState extends State<LivePage> {
                       padding: const EdgeInsets.all(8.0),
                       child: ElevatedButton(
                         style: ButtonStyle(
-                          backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+                          backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
                         ),
                         onPressed: () {setState(() {moreSettingsVisible = !moreSettingsVisible;});},
                         child: moreSettingsVisible ? Text('Less Settings', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimary),) : Text('More Settings', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimary),),
@@ -549,7 +598,7 @@ class _LivePageState extends State<LivePage> {
                       padding: const EdgeInsets.all(8.0),
                       child: ElevatedButton(
                         style: ButtonStyle(
-                          backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+                          backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
                         ),
                         onPressed: () {
                           getOptions();
@@ -566,9 +615,21 @@ class _LivePageState extends State<LivePage> {
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () {
               if (channel != null) {
-                disconnectWebSocket();
+                // disconnectWebSocket();
               } else {
-                showConnectDialog(context, "IP Address");
+                // showConnectDialog(context, "IP Address");
+                listBLE();
+                showDialog(context: context, builder: (context) {
+                  return Dialog(
+                    child: Column(
+                      children: [
+                        listBLEdevices.isNotEmpty ? TextButton(onPressed: () {connectBLE();}, child: Text(listBLEdevices.firstOrNull!.id)) : const Text('None'),
+                        TextButton(onPressed: () => setState(() {}), child: const Text("Refresh")),
+                        TextButton(onPressed: () => bleStream.cancel(), child: const Text("Disconnect")),
+                      ]
+                    )
+                  );
+                },);
               }
             },
             label: channel != null ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
@@ -585,7 +646,7 @@ class _LivePageState extends State<LivePage> {
 
     Widget confirmButton = ElevatedButton(
       style: ButtonStyle(
-        backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+        backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
       ),
       child: Text("Connect", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
       onPressed: () {
@@ -646,7 +707,7 @@ class _LivePageState extends State<LivePage> {
 
     Widget confirmButton = ElevatedButton(
       style: ButtonStyle(
-        backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+        backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
       ),
       child: Text("Set", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
       onPressed: () {

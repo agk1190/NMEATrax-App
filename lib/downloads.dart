@@ -50,7 +50,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Voyage Recordings'),
         backgroundColor: Theme.of(context).colorScheme.primary,
@@ -66,7 +66,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
               children: [
                 ElevatedButton(
                   style: ButtonStyle(
-                    backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary,)
+                    backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary,)
                   ),
                   onPressed: () {
                     showDialog(
@@ -82,7 +82,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                 // LinearProgressIndicator(),
                                 emailBtnVis ? 
                                 ElevatedButton(
-                                  style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(
+                                  style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(
                                     emailBtnVis ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.secondary
                                   ),),
                                   onPressed: () async {
@@ -124,11 +124,11 @@ class _DownloadsPageState extends State<DownloadsPage> {
                 ),
                 ElevatedButton(
                   style: ButtonStyle(
-                    backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary,)
+                    backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary,)
                   ),
                   onPressed: () async {
                     if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text("Downloading all files...", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                      content: Text("Downloading all files...", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                       duration: const Duration(seconds: 3),
                       backgroundColor: Theme.of(context).colorScheme.surface,
                     ));}
@@ -136,7 +136,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                       await downloadData(file);
                     }
                     if (context.mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                      content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                       duration: const Duration(minutes: 5),
                       showCloseIcon: true,
                       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -146,7 +146,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                 ),
                 ElevatedButton(
                   style: ButtonStyle(
-                    backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary,)
+                    backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary,)
                   ),
                   onPressed: () {
                     showDialog(
@@ -161,7 +161,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                   http.post(Uri.parse("http://$connectURL/set?eraseData=true"));
                                   downloadList.clear();
                                   if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                    content: Text("Erased all recordings", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                                    content: Text("Erased all recordings", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                                     duration: const Duration(seconds: 5),
                                     backgroundColor: Theme.of(context).colorScheme.surface,
                                   ));}
@@ -190,14 +190,14 @@ class _DownloadsPageState extends State<DownloadsPage> {
                 itemCount: downloadList.length,
                 itemBuilder: (BuildContext context, int index) {
                   return ListTile(
-                    mouseCursor: MaterialStateMouseCursor.clickable,
+                    mouseCursor: WidgetStateMouseCursor.clickable,
                     hoverColor: Theme.of(context).colorScheme.surface,
                     leading: downloadList.elementAt(index).substring(downloadList.elementAt(index).length - 3) == 'gpx' ? const Icon(Icons.location_on) : const Icon(Icons.insert_drive_file),
                     title: Text(downloadList.elementAt(index)),
                     onTap: () async {
                       String s = await downloadData(downloadList.elementAt(index));
                       if (context.mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                        content: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                         duration: const Duration(seconds: 5),
                         backgroundColor: Theme.of(context).colorScheme.surface,
                       ));}

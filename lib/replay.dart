@@ -327,7 +327,7 @@ class _ReplayPageState extends State<ReplayPage> {
         child: Scaffold(
           drawer: Drawer(
             width: 200,
-            backgroundColor: Theme.of(context).colorScheme.background,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             child: ListView(
               children: <Widget>[
                 DrawerHeader(
@@ -335,11 +335,11 @@ class _ReplayPageState extends State<ReplayPage> {
                     image: DecorationImage(image: AssetImage('assets/images/nmeatraxLogo.png')),
                     color: Color(0xFF0050C7),
                   ),
-                  child: Text('NMEATrax', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  child: Text('NMEATrax', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                 ),
                 ListTile(
-                  textColor: Theme.of(context).colorScheme.onBackground,
-                  iconColor: Theme.of(context).colorScheme.onBackground,
+                  textColor: Theme.of(context).colorScheme.onSurface,
+                  iconColor: Theme.of(context).colorScheme.onSurface,
                   title: const Text('Live'),
                   leading: const Icon(Icons.bolt),
                   onTap: () {
@@ -347,9 +347,9 @@ class _ReplayPageState extends State<ReplayPage> {
                   },
                 ),
                 ListTile(
-                  textColor: Theme.of(context).colorScheme.onBackground,
-                  iconColor: Theme.of(context).colorScheme.onBackground,
-                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  textColor: Theme.of(context).colorScheme.onSurface,
+                  iconColor: Theme.of(context).colorScheme.onSurface,
+                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                   leading: const Icon(Icons.timeline),
                   onTap: () {
                     Navigator.pushReplacementNamed(context, '/replay');
@@ -357,7 +357,7 @@ class _ReplayPageState extends State<ReplayPage> {
                 ),
                 AboutListTile(
                   icon: Icon(
-                    color: Theme.of(context).colorScheme.onBackground,
+                    color: Theme.of(context).colorScheme.onSurface,
                     Icons.info,
                   ),
                   applicationIcon: const Icon(
@@ -368,11 +368,11 @@ class _ReplayPageState extends State<ReplayPage> {
                   aboutBoxChildren: const [
                     Text("For use with NMEATrax Vessel Monitoring System")
                   ],
-                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                 ),
                 Center(
                   child: ElevatedButton(
-                    style: ButtonStyle(backgroundColor: MaterialStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
+                    style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
                     child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onPrimary,),
                     onPressed: () {
                       MyApp.themeNotifier.value =
@@ -385,9 +385,9 @@ class _ReplayPageState extends State<ReplayPage> {
             ),
           ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-          backgroundColor: Theme.of(context).colorScheme.background,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           appBar: AppBar(
-            systemOverlayStyle: SystemUiOverlayStyle(systemNavigationBarColor: Theme.of(context).colorScheme.background),
+            systemOverlayStyle: SystemUiOverlayStyle(systemNavigationBarColor: Theme.of(context).colorScheme.surface),
             backgroundColor: Theme.of(context).colorScheme.primary,
             iconTheme: Theme.of(context).primaryIconTheme,
             title: Text('NMEATrax Replay', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
@@ -405,7 +405,7 @@ class _ReplayPageState extends State<ReplayPage> {
           bottomNavigationBar: Builder(
             builder: (context) {
               return BottomAppBar(
-                color: Theme.of(mainContext).colorScheme.surface,
+                color: Theme.of(mainContext).colorScheme.surfaceContainerLow,
                 child: switch (DefaultTabController.of(context).index) {
                   0 => dataAppBar(context),
                   1 => analyzeAppBar(mainContext),
@@ -436,7 +436,7 @@ class _ReplayPageState extends State<ReplayPage> {
                                   child: Text(
                                     csvFilePath.path == "null" ? "Open a file to view data" : csvFilePath.path.substring(csvFilePath.path.lastIndexOf(Platform.isWindows ? '\\' : '/'), csvFilePath.path.length),
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onBackground,
+                                      color: Theme.of(context).colorScheme.onSurface,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w400,
                                       fontStyle: FontStyle.italic
@@ -446,7 +446,7 @@ class _ReplayPageState extends State<ReplayPage> {
                                 const Spacer(),
                                 Padding(
                                   padding: const EdgeInsets.all(8.0),
-                                  child: Text("Line $curLineNum", style: TextStyle(color: Theme.of(context).colorScheme.onBackground),),
+                                  child: Text("Line $curLineNum", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                                 ),
                               ],
                             ),
@@ -478,7 +478,7 @@ class _ReplayPageState extends State<ReplayPage> {
                       style: TextStyle(
                           fontWeight: FontWeight.bold, 
                           fontSize: 16, 
-                          color: Theme.of(context).colorScheme.onBackground,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                     ),
                     Visibility(
@@ -488,7 +488,7 @@ class _ReplayPageState extends State<ReplayPage> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold, 
                           fontSize: 16, 
-                          color: Theme.of(context).colorScheme.onBackground,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                         textAlign: TextAlign.center
                       ),
@@ -578,7 +578,7 @@ class _ReplayPageState extends State<ReplayPage> {
                                   padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
                                   child: ElevatedButton(
                                     style: ButtonStyle(
-                                      backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+                                      backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
                                     ),
                                     onPressed: () => setState(() {markerVisibility = !markerVisibility;}), 
                                     child: Icon(Icons.location_pin, color: Theme.of(context).colorScheme.onPrimary,)
@@ -602,7 +602,7 @@ class _ReplayPageState extends State<ReplayPage> {
                       child: Text(
                         "Analysis Limits",
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onBackground,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 22,
                         ),
                       ),
@@ -610,12 +610,12 @@ class _ReplayPageState extends State<ReplayPage> {
                     DropdownMenu(
                       initialSelection: upperLimits.keys.first,
                       menuStyle: MenuStyle(
-                        backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.surface),
-                        surfaceTintColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.surfaceVariant),
+                        backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surface),
+                        surfaceTintColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceContainerHighest),
                       ),
                       textStyle: TextStyle(
-                        color: Theme.of(context).colorScheme.onBackground,
-                        backgroundColor: Theme.of(context).colorScheme.background,
+                        color: Theme.of(context).colorScheme.onSurface,
+                        backgroundColor: Theme.of(context).colorScheme.surface,
                       ),
                       enableSearch: false,
                       enableFilter: false,
@@ -623,7 +623,7 @@ class _ReplayPageState extends State<ReplayPage> {
                         return DropdownMenuEntry<String>(
                           value: value,
                           label: value,
-                          style: ButtonStyle(foregroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.onSurfaceVariant))
+                          style: ButtonStyle(foregroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.onSurfaceVariant))
                         );
                       }).toList(),
                       onSelected: (value) {
@@ -638,14 +638,14 @@ class _ReplayPageState extends State<ReplayPage> {
                       physics: const NeverScrollableScrollPhysics(),
                       shrinkWrap: true,
                       darkTheme: SettingsThemeData(
-                        settingsSectionBackground: Theme.of(context).colorScheme.background,
-                        settingsListBackground: Theme.of(context).colorScheme.background,
-                        titleTextColor: Theme.of(context).colorScheme.onBackground,
+                        settingsSectionBackground: Theme.of(context).colorScheme.surface,
+                        settingsListBackground: Theme.of(context).colorScheme.surface,
+                        titleTextColor: Theme.of(context).colorScheme.onSurface,
                       ),
                       lightTheme: SettingsThemeData(
-                        settingsSectionBackground: Theme.of(context).colorScheme.background,
-                        settingsListBackground: Theme.of(context).colorScheme.background,
-                        titleTextColor: Theme.of(context).colorScheme.onBackground,
+                        settingsSectionBackground: Theme.of(context).colorScheme.surface,
+                        settingsListBackground: Theme.of(context).colorScheme.surface,
+                        titleTextColor: Theme.of(context).colorScheme.onSurface,
                       ),
                       platform: DevicePlatform.android,
                       sections: [
@@ -660,7 +660,7 @@ class _ReplayPageState extends State<ReplayPage> {
                             SettingsTile.navigation(
                               title: Text(
                                 lowerLimits.values.elementAt(selectedLimit).toString(),
-                                style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                               ),
                               onPressed: (lcontext) {
                                 showInputDialog(context, "Enter lower limit", false);
@@ -679,7 +679,7 @@ class _ReplayPageState extends State<ReplayPage> {
                             SettingsTile.navigation(
                               title: Text(
                                 upperLimits.values.elementAt(selectedLimit).toString(),
-                                style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                               ),
                               onPressed: (lcontext) {
                                 showInputDialog(context, "Enter upper limit", true);
@@ -705,7 +705,7 @@ class _ReplayPageState extends State<ReplayPage> {
       children: [
         ElevatedButton.icon(
           style: ButtonStyle(
-            backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary)
+            backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
           ),
           icon: Icon(Icons.file_open_outlined, color: Theme.of(context).colorScheme.onPrimary,),
           label: Text("CSV", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
@@ -742,7 +742,7 @@ class _ReplayPageState extends State<ReplayPage> {
         const Spacer(),
         ElevatedButton(
           style: ButtonStyle(
-            backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+            backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
           ),
           onPressed: () {
             _analyzeData();
@@ -761,7 +761,7 @@ class _ReplayPageState extends State<ReplayPage> {
         const Spacer(),
         ElevatedButton.icon(
           style: ButtonStyle(
-            backgroundColor: MaterialStatePropertyAll(Theme.of(context).colorScheme.primary)
+            backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
           ),
           icon: Icon(Icons.location_on, color: Theme.of(context).colorScheme.onPrimary,),
           label: Text("GPX", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
@@ -781,7 +781,7 @@ class _ReplayPageState extends State<ReplayPage> {
               MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
             _savePrefs();
           },
-          icon: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.background,) : Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onPrimary,),
+          icon: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.surface,) : Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onPrimary,),
         ),
       ],
     );
@@ -801,7 +801,6 @@ class _ReplayPageState extends State<ReplayPage> {
     }
 
     return PolylineLayer(
-      polylineCulling: false,
       polylines: polylines,
     );
   }
@@ -816,7 +815,7 @@ class _ReplayPageState extends State<ReplayPage> {
           padding: const EdgeInsets.all(8.0),
           child: ElevatedButton(
             style: ButtonStyle(
-              backgroundColor: MaterialStatePropertyAll(gpxColors[index]),
+              backgroundColor: WidgetStatePropertyAll(gpxColors[index]),
             ),
             onPressed: () {
               mapController.move(gpxLL.elementAt(index).first, 13);
@@ -848,7 +847,7 @@ class _ReplayPageState extends State<ReplayPage> {
 
     Widget confirmButton = ElevatedButton(
       style: ButtonStyle(
-        backgroundColor:MaterialStatePropertyAll(Theme.of(context).colorScheme.primary),
+        backgroundColor:WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
       ),
       child: Text("OK", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
       onPressed: () {

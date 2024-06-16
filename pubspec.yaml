@@ -33,7 +33,7 @@ dependencies:
   csv: ^6.0.0
   file_picker: ^8.0.0
   settings_ui: ^2.0.2
-  flutter_map: ^6.1.0
+  flutter_map: ^7.0.1
   latlong2: ^0.9.1
   gpx: ^2.2.2
   shared_preferences: ^2.2.2
@@ -43,8 +43,9 @@ dependencies:
   path_provider: ^2.1.2
   permission_handler: ^11.3.1
   url_launcher: ^6.2.5
-  web_socket_channel: ^2.4.4
+  web_socket_channel: ^3.0.0
   dart_ping: ^9.0.1
+  flutter_reactive_ble: ^5.3.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -59,7 +60,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^3.0.2
+  flutter_lints: ^4.0.0
   flutter_launcher_icons: "^0.13.1"
 
 flutter_launcher_icons:

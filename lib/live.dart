@@ -11,7 +11,6 @@ import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:dart_ping/dart_ping.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 
 import 'classes.dart';
 import 'downloads.dart';
@@ -22,8 +21,6 @@ Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273"
 Map<String, dynamic> ntOptions = {"isMeters":false, "isDegF":false, "recInt":0, "timeZone":0, "recMode":0};
 const Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
 List<String> evcErrorList = List.empty();
-const serviceUUID = 'ce04e30a-1ec8-40a4-86ef-1df9627c8666';
-late QualifiedCharacteristic nmeaCharacteristic;
 
 class LivePage extends StatefulWidget {
   const LivePage({super.key});
@@ -40,9 +37,6 @@ class _LivePageState extends State<LivePage> {
   bool moreSettingsVisible = false;
   IOWebSocketChannel? channel;
   late BuildContext lcontext;
-  final flutterReactiveBle = FlutterReactiveBle();
-  List<DiscoveredDevice> listBLEdevices = [];
-  late StreamSubscription<List<int>> bleStream;
 
   Future<void> _getTheme() async {
     final SharedPreferences prefs = await _prefs;
@@ -110,49 +104,6 @@ class _LivePageState extends State<LivePage> {
       getOptions();
       setState(() {});
     }
-  }
-  
-  void listBLE() {
-    flutterReactiveBle.scanForDevices(withServices: [Uuid.parse(serviceUUID)]).listen((device) {
-      if (listBLEdevices.every((element) => element.id != device.id)) {
-        setState(() {
-          listBLEdevices.add(device);
-        });
-      }
-    }, onError: (Object error) {
-      // print(error);
-    });
-  }
-
-  void connectBLE() {
-    flutterReactiveBle.connectToAdvertisingDevice(
-      id: listBLEdevices.first.id,
-      withServices: [Uuid.parse(serviceUUID)],
-      prescanDuration: const Duration(seconds: 5),
-      connectionTimeout: const Duration(seconds:  2),
-    ).listen((connectionState) {
-      // print("connected");
-      // print(connectionState);
-      subscribeBLE();
-    }, onError: (dynamic error) {
-      // print(error);
-    });
-  }
-
-  void subscribeBLE() {
-    nmeaCharacteristic = QualifiedCharacteristic(serviceId: Uuid.parse(serviceUUID), characteristicId: Uuid.parse('016c0d02-220f-4631-8882-b3e974fe137d'), deviceId: listBLEdevices.first.id);
-    bleStream = flutterReactiveBle.subscribeToCharacteristic(nmeaCharacteristic).listen((data) {
-      // print(data.toString());
-      readBLE();
-    }, onError: (dynamic error) {
-      // print(error);
-    });
-  }
-
-  void readBLE() async {
-    final response = await flutterReactiveBle.readCharacteristic(nmeaCharacteristic);
-    // print(response.toString());
-    print(String.fromCharCodes(response));
   }
 
   // Function to connect or disconnect the WebSocket
@@ -615,21 +566,9 @@ class _LivePageState extends State<LivePage> {
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () {
               if (channel != null) {
-                // disconnectWebSocket();
+                disconnectWebSocket();
               } else {
-                // showConnectDialog(context, "IP Address");
-                listBLE();
-                showDialog(context: context, builder: (context) {
-                  return Dialog(
-                    child: Column(
-                      children: [
-                        listBLEdevices.isNotEmpty ? TextButton(onPressed: () {connectBLE();}, child: Text(listBLEdevices.firstOrNull!.id)) : const Text('None'),
-                        TextButton(onPressed: () => setState(() {}), child: const Text("Refresh")),
-                        TextButton(onPressed: () => bleStream.cancel(), child: const Text("Disconnect")),
-                      ]
-                    )
-                  );
-                },);
+                showConnectDialog(context, "IP Address");
               }
             },
             label: channel != null ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),

@@ -12,11 +12,25 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 
 ### In Progress
 
+## [4.1.0] - 2024-07-19
+
+### Changed
+- Updated Gradle
+
+
+## [4.0.0] - 2024-04-08
+
+### Changed
+- Updated packages
+- Updated live data widgets
+- Fixed colors
+
 
 ## [3.0.0] - 2023-10-21
 
 ### Changed
 - Now using websockets for NMEA & email data
+
 
 ## [2.1.0] - 2023-07-31
 

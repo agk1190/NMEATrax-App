@@ -111,7 +111,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                     disconnectWebSocket();
                                     Navigator.of(context, rootNavigator: true).pop();
                                   },
-                                  child: Text("Close", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                                  child: Text("Close", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                                 ),
                               ],
                             );
@@ -157,6 +157,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
                           content: const Text("This will delete all recordings."),
                           actions: [
                               ElevatedButton(
+                                style: ButtonStyle(
+                                  backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
+                                ),
                                 onPressed: () {
                                   http.post(Uri.parse("http://$connectURL/set?eraseData=true"));
                                   downloadList.clear();
@@ -168,7 +171,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                   Navigator.of(context, rootNavigator: true).pop();
                                   setState(() {});
                                 },
-                              child: const Text("Yes"),
+                              child: Text("Yes", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
                             )
                           ],
                         );

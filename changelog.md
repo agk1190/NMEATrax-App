@@ -9,10 +9,14 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ### To-Do
 - Change scroll limit color
 - Snackbar on connect
+- Click on analyze item to see that moment
 
 ### In Progress
 
 ## [4.1.0] - 2024-07-19
+
+### Added
+- Ability to change WiFi settings and reboot
 
 ### Changed
 - Updated Gradle

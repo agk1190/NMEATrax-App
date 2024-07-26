@@ -517,9 +517,69 @@ class _LivePageState extends State<LivePage> {
                           SettingsSection(
                             tiles: [
                               SettingsTile.navigation(
-                                title: Text("Reset Wifi Settings", style: TextStyle(color: Theme.of(context).colorScheme.error),),
+                                title: Text("WiFi Settings", style: TextStyle(color: Theme.of(context).colorScheme.error),),
                                 onPressed: (context) async {
-                                  await http.get(Uri.parse('http://$connectURL/get'));
+                                  // await http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true'));
+                                  showDialog(
+                                    context: lcontext,
+                                    builder: (context) {
+                                      String wifiSSID = '';
+                                      String wifiPASS = '';
+                                      return AlertDialog(
+                                        title: Text('WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                        backgroundColor: Theme.of(context).colorScheme.surface,
+                                        actionsAlignment: MainAxisAlignment.spaceBetween,
+                                        content: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text('SSID', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                            TextField(
+                                              autocorrect: false,
+                                              autofocus: true,
+                                              onChanged: (value) => wifiSSID,
+                                            ),
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 16),
+                                              child: Text('Password', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                            ),
+                                            TextField(
+                                              autocorrect: false,
+                                              onChanged: (value) => wifiPASS,
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            style: ButtonStyle(
+                                              backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.error)
+                                            ),
+                                            onPressed: () => http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true')),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(8.0),
+                                              child: Text('Erase WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onError),),
+                                            )
+                                          ),
+                                          TextButton(
+                                            style: ButtonStyle(
+                                              backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
+                                            ),
+                                            onPressed: () async {
+                                              await http.get(Uri.parse('http://$connectURL/set?AP_SSID=$wifiSSID'));
+                                              await http.get(Uri.parse('http://$connectURL/set?AP_PASS=$wifiPASS'));
+                                              Future.delayed(Durations.extralong4, () {
+                                                http.get(Uri.parse('http://$connectURL/set?reboot=true'));
+                                              },);
+                                            },
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(8.0),
+                                              child: Text('Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                                            )
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
                                 },
                               ),
                               SettingsTile.navigation(
@@ -528,6 +588,12 @@ class _LivePageState extends State<LivePage> {
                                   if (!await launchUrl(Uri.parse('http://$connectURL/update'))) {
                                     throw Exception('Could not launch http://$connectURL/update');
                                   }
+                                },
+                              ),
+                              SettingsTile.navigation(
+                                title: Text("Reboot", style: TextStyle(color: Theme.of(context).colorScheme.error),),
+                                onPressed: (context) async {
+                                  await http.get(Uri.parse('http://$connectURL/set?reboot=true'));
                                 },
                               ),
                             ],

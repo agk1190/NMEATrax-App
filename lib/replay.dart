@@ -14,7 +14,7 @@ import 'package:settings_ui/settings_ui.dart';
 import 'classes.dart';
 import 'main.dart';
 
-const _appVersion = '4.1.0';
+const _appVersion = '5.0.0';
 
 class ReplayPage extends StatefulWidget {
   const ReplayPage({super.key});
@@ -355,6 +355,16 @@ class _ReplayPageState extends State<ReplayPage> {
                     Navigator.pushReplacementNamed(context, '/replay');
                   },
                 ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onSurface,
+                  iconColor: Theme.of(context).colorScheme.onSurface,
+                  title: Text('Files', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                  leading: const Icon(Icons.edit_document),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/files');
+                  },
+                ),
+                const Divider(),
                 AboutListTile(
                   icon: Icon(
                     color: Theme.of(context).colorScheme.onSurface,
@@ -370,6 +380,7 @@ class _ReplayPageState extends State<ReplayPage> {
                   ],
                   child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                 ),
+                const Divider(),
                 Center(
                   child: ElevatedButton(
                     style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
@@ -434,7 +445,7 @@ class _ReplayPageState extends State<ReplayPage> {
                                 Padding(
                                   padding: const EdgeInsets.all(8.0),
                                   child: Text(
-                                    csvFilePath.path == "null" ? "Open a file to view data" : csvFilePath.path.substring(csvFilePath.path.lastIndexOf(Platform.isWindows ? '\\' : '/'), csvFilePath.path.length),
+                                    csvFilePath.path == "null" ? "Open a file to view data" : csvFilePath.path.substring(csvFilePath.path.lastIndexOf(Platform.pathSeparator), csvFilePath.path.length),
                                     style: TextStyle(
                                       color: Theme.of(context).colorScheme.onSurface,
                                       fontSize: 14,

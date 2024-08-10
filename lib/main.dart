@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'replay.dart';
 import 'live.dart';
+import 'file_manager.dart';
 
 void main() {
   runApp(const MyApp());
@@ -42,11 +43,12 @@ class MyApp extends StatelessWidget {
             useMaterial3: true,
           ),
           themeMode: currentMode,
-          home: const LivePage(),
+          // home: const LivePage(),
           initialRoute: '/live',
           routes: {
             '/live':(context) => const LivePage(),
             '/replay':(context) => const ReplayPage(),
+            '/files':(context) => const FilePage(),
           },
         );
       });

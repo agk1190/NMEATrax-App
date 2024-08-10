@@ -139,6 +139,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                       content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                       duration: const Duration(minutes: 5),
                       showCloseIcon: true,
+                      closeIconColor: Theme.of(context).colorScheme.onSecondaryContainer,
                       backgroundColor: Theme.of(context).colorScheme.surface,
                     ));}
                   },

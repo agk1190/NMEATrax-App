@@ -16,7 +16,7 @@ import 'classes.dart';
 import 'downloads.dart';
 import 'main.dart';
 
-const _appVersion = '4.1.0';
+const _appVersion = '5.0.0';
 Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-", "evcErrorMsg": "-"};
 Map<String, dynamic> ntOptions = {"isMeters":false, "isDegF":false, "recInt":0, "timeZone":0, "recMode":0};
 const Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
@@ -231,6 +231,17 @@ class _LivePageState extends State<LivePage> {
                     Navigator.pushReplacementNamed(context, '/replay');
                   },
                 ),
+                ListTile(
+                  textColor: Theme.of(context).colorScheme.onSurface,
+                  iconColor: Theme.of(context).colorScheme.onSurface,
+                  title: Text('Files', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                  leading: const Icon(Icons.edit_document),
+                  onTap: () {
+                    if (channel != null) disconnectWebSocket();
+                    Navigator.pushReplacementNamed(context, '/files');
+                  },
+                ),
+                const Divider(),
                 AboutListTile(
                   icon: Icon(
                     color: Theme.of(context).colorScheme.onSurface,
@@ -246,7 +257,7 @@ class _LivePageState extends State<LivePage> {
                   ],
                   child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                 ),
-                const SizedBox(height: 10,),
+                const Divider(),
                 Center(
                   child: ElevatedButton(
                     style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),

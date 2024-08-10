@@ -10,8 +10,16 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 - Change scroll limit color
 - Snackbar on connect
 - Click on analyze item to see that moment
+- Add file manager page
+- Remove file linking
+- Show map from csv file
 
-### In Progress
+
+## [5.0.0] - 2024-08-10
+
+### Added
+- File Manager page
+
 
 ## [4.1.0] - 2024-07-19
 

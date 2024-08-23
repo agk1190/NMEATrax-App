@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:csv/csv.dart';
 import 'package:settings_ui/settings_ui.dart';
@@ -17,8 +18,8 @@ import 'downloads.dart';
 import 'main.dart';
 
 const _appVersion = '5.0.0';
-Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-", "evcErrorMsg": "-"};
-Map<String, dynamic> ntOptions = {"isMeters":false, "isDegF":false, "recInt":0, "timeZone":0, "recMode":0};
+Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-273", "evcErrorMsg": "-"};
+Map<String, dynamic> ntOptions = {"recInt":0, "recMode":0};
 const Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
 List<String> evcErrorList = List.empty();
 
@@ -37,37 +38,31 @@ class _LivePageState extends State<LivePage> {
   bool moreSettingsVisible = false;
   IOWebSocketChannel? channel;
   late BuildContext lcontext;
+  bool depthInMeters = false;
+  bool tempInCelsius = true;
 
-  Future<void> _getTheme() async {
+  Future<void> savePrefs() async {
     final SharedPreferences prefs = await _prefs;
-    if (prefs.getBool('darkMode') == null) {return;}
-    if (prefs.getBool('darkMode')!) {
-      MyApp.themeNotifier.value = ThemeMode.dark;
-    } else {
-      MyApp.themeNotifier.value = ThemeMode.light;
-    }
-  }
-
-  Future<void> _saveTheme(ThemeMode darkMode) async {
-    final SharedPreferences prefs = await _prefs;
-
     setState(() {
-      prefs.setBool('darkMode', darkMode==ThemeMode.dark? true : false);
+      prefs.setBool('darkMode', MyApp.themeNotifier.value == ThemeMode.dark ? true : false);
+      prefs.setString("ip", jsonEncode(connectURL));
+      prefs.setBool('isMeters', depthInMeters);
+      prefs.setBool('isCelsius', tempInCelsius);
     });
   }
 
-  Future<void> _saveIP(String ip) async {
-      final SharedPreferences prefs = await _prefs;
-
-      setState(() {
-        prefs.setString("ip", jsonEncode(ip));
-      });
-    }
-
-  Future<void> _getIP() async {
+  Future<void> getPrefs() async {
     final SharedPreferences prefs = await _prefs;
+    if (prefs.getBool('darkMode') == null) {return;}
     if (prefs.getString("ip") == null) {return;}
-    connectURL = jsonDecode(prefs.getString("ip")!);
+    if (prefs.getBool("isMeters") == null) {return;}
+    if (prefs.getBool("isCelsius") == null) {return;}
+    setState(() {
+      prefs.getBool('darkMode')! == true ? MyApp.themeNotifier.value = ThemeMode.dark : MyApp.themeNotifier.value = ThemeMode.light;
+      connectURL = jsonDecode(prefs.getString("ip")!);
+      depthInMeters = prefs.getBool('isMeters')!;
+      tempInCelsius = prefs.getBool('isCelsius')!;
+    });
   }
 
   Future<void> getOptions() async {
@@ -121,7 +116,7 @@ class _LivePageState extends State<LivePage> {
               for (String element in nmeaData.values) {
                 try {
                   if (element.substring(0, 4) == "-273") {
-                    var key = nmeaData.keys.elementAt(i);
+                    String key = nmeaData.keys.elementAt(i);
                     nmeaData[key] = '-';
                   }
                 } on RangeError {
@@ -136,7 +131,7 @@ class _LivePageState extends State<LivePage> {
         setState(() {
           getOptions();
           if (Platform.isAndroid) {KeepScreenOn.turnOn();}
-          _saveIP(connectURL);
+          savePrefs();
         });
       }
     }
@@ -158,9 +153,8 @@ class _LivePageState extends State<LivePage> {
 
   @override
   void initState() {
+    getPrefs();
     super.initState();
-    _getTheme();
-    _getIP();
     int i = 0;
     for (var element in nmeaData.values) {
       if (element == "-273" || element == "-273.0" || element == "-273.00") {
@@ -265,7 +259,7 @@ class _LivePageState extends State<LivePage> {
                     onPressed: () {
                       MyApp.themeNotifier.value =
                         MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-                      _saveTheme(MyApp.themeNotifier.value);
+                      savePrefs();
                     },
                   ),
                 ),
@@ -309,9 +303,11 @@ class _LivePageState extends State<LivePage> {
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(nmeaData["time"], style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+                        nmeaData.keys.contains("nmeaTraxGenericMsg") ? Text(nmeaData["nmeaTraxGenericMsg"], style: TextStyle(color: Theme.of(context).colorScheme.onSurface)) : const Text(""),
+                        // Text(nmeaData["time"], style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+                        displayTimeStamp(),
                       ],
                     ),
                     Visibility(
@@ -341,7 +337,7 @@ class _LivePageState extends State<LivePage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Expanded(child: SizedNMEABox(value: nmeaData["speed"], title: "Knots", unit: " kn", mainContext: context,)),
-                        Expanded(child: SizedNMEABox(value: nmeaData["depth"], title: "Depth", unit: " ft", mainContext: context,)),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["depth"], ConversionType.depth), title: "Depth", unit: unitFor(ConversionType.depth), mainContext: context,)),
                       ],
                     ),
                     Row(
@@ -353,14 +349,14 @@ class _LivePageState extends State<LivePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["etemp"], title: "Engine", unit: "\u2103", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["etemp"], ConversionType.temp), title: "Engine", unit: unitFor(ConversionType.temp), mainContext: context,),),
                         Expanded(child: SizedNMEABox(value: nmeaData["flevel"], title: "Fuel", unit: "%", mainContext: context,),),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["otemp"], title: "Oil", unit: "\u2103", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["otemp"], ConversionType.temp), title: "Oil", unit: unitFor(ConversionType.temp), mainContext: context,),),
                         Expanded(child: SizedNMEABox(value: nmeaData["opres"], title: "Oil", unit: " kpa", mainContext: context,),),
                       ],
                     ),
@@ -375,7 +371,7 @@ class _LivePageState extends State<LivePage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Expanded(child: SizedNMEABox(value: nmeaData["leg_tilt"], title: "Leg Tilt", unit: "%", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["wtemp"], title: "Water Temp", unit: "\u2103", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["wtemp"], ConversionType.temp), title: "Water Temp", unit: unitFor(ConversionType.temp), mainContext: context,),),
                       ],
                     ),
                   ],
@@ -477,24 +473,13 @@ class _LivePageState extends State<LivePage> {
                             // ),
                             SettingsTile.switchTile(
                               title: Text("Depth in Meters?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              initialValue: ntOptions["isMeters"],
-                              onToggle: (value) {
-                                setOptions("isMeters=$value");
-                              },
+                              initialValue: depthInMeters,
+                              onToggle: (value) => setState(() {depthInMeters = value;}),
                             ),
                             SettingsTile.switchTile(
-                              title: Text("Temperature in Fahrenheit?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              initialValue: ntOptions["isDegF"],
-                              onToggle: (value) {
-                                setOptions("isDegF=$value");
-                              },
-                            ),
-                            SettingsTile(
-                              title: Text("Time Zone", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              value: Text(ntOptions["timeZone"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              onPressed: (lContext) {
-                                showInputDialog(context, "Timezone", ntOptions["timeZone"], "timeZone");
-                              },
+                              title: Text("Temperature in Celsius?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              initialValue: tempInCelsius,
+                              onToggle: (value) => setState(() {tempInCelsius = value;}),
                             ),
                             SettingsTile(
                               title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
@@ -656,6 +641,36 @@ class _LivePageState extends State<LivePage> {
     );
   }
 
+  Text displayTimeStamp() {
+    if (nmeaData["time"] == '-') {
+      return Text('-', style: TextStyle(color: Theme.of(context).colorScheme.onSurface));
+    } else {
+      return Text(DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(int.parse(nmeaData["time"]) * 1000, isUtc: false)));
+    }
+  }
+
+  String unitFor(ConversionType type) {
+    switch (type) {
+      case ConversionType.temp:
+        return tempInCelsius ? '\u2103' : '\u2109';
+      case ConversionType.depth:
+        return depthInMeters ? ' m' : ' ft';
+    }
+  }
+
+  String returnAfterConversion(String data, ConversionType type) {
+    if (data == '-') {return data;}
+    double value = double.parse(data);
+    switch (type) {
+      case ConversionType.temp:
+        value = tempInCelsius ? value + 273.15 : ((value - 273.15) * (9/5) + 32);
+        return value.toString();
+      case ConversionType.depth:
+        value = depthInMeters ? value : value * 3.280839895;
+        return value.toString();
+    }
+  }
+
     //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
   showConnectDialog(BuildContext context, String title) {
     String input = connectURL;
@@ -669,7 +684,7 @@ class _LivePageState extends State<LivePage> {
         setState(() {
           connectURL = input;
           connectWebSocket();
-          if (channel != null) {_saveIP(connectURL);}
+          if (channel != null) {savePrefs();}
         });
         //https://stackoverflow.com/a/50683571 for nav.pop
         Navigator.of(context, rootNavigator: true).pop();
@@ -695,7 +710,7 @@ class _LivePageState extends State<LivePage> {
           setState(() {
             connectURL = input;
             connectWebSocket();
-            if (channel != null) {_saveIP(connectURL);}
+            if (channel != null) {savePrefs();}
           });
           Navigator.of(context, rootNavigator: true).pop();
         },

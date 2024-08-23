@@ -9,16 +9,21 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ### To-Do
 - Change scroll limit color
 - Snackbar on connect
-- Click on analyze item to see that moment
-- Add file manager page
-- Remove file linking
-- Show map from csv file
+- Limits need to support base units
 
 
 ## [5.0.0] - 2024-08-10
 
 ### Added
 - File Manager page
+- Show route when opening csv file
+
+### Changed
+- Units from NMEATrax are metric. Conversion done locally.
+- Revamped analyze page. Click on violation to see moment in data.
+
+### Removed
+- File linking
 
 
 ## [4.1.0] - 2024-07-19

@@ -8,7 +8,6 @@ import 'package:csv/csv.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path/path.dart';
 import 'main.dart';
-import 'package:intl/intl.dart';
 
 const _appVersion = '5.0.0';
 
@@ -21,26 +20,21 @@ class FilePage extends StatefulWidget {
 
 class _FilePageState extends State<FilePage> {
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
-  // List<File> csvFiles = [];
-  // List<bool> fileCheckedState = [];
   bool? selectAll = false;
   List<CsvFile> csvFiles = [];
 
-  Future<void> _saveTheme(ThemeMode darkMode) async {
+  Future<void> saveTheme() async {
       final SharedPreferences prefs = await _prefs;
-
       setState(() {
-        prefs.setBool('darkMode', darkMode==ThemeMode.dark? true : false);
+        prefs.setBool('darkMode', MyApp.themeNotifier.value == ThemeMode.dark ? true : false);
       });
     }
 
-  Future<void> _addFiles() async {
+  Future<void> addFiles() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['csv'], allowMultiple: true);
     if (result != null) {
       for (PlatformFile file in result.files) {
         setState(() {
-          // csvFiles.add(File(file.path!));
-          // csvFiles.addAll({File(file.path!): false});
           csvFiles.add(CsvFile(file: File(file.path!), selected: false));
         });
       }
@@ -141,7 +135,7 @@ class _FilePageState extends State<FilePage> {
                     onPressed: () {
                       MyApp.themeNotifier.value =
                         MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-                      _saveTheme(MyApp.themeNotifier.value);
+                      saveTheme();
                     },
                   ),
                 ),
@@ -318,7 +312,7 @@ class _FilePageState extends State<FilePage> {
         ),
         body: Column(
           children: [
-            // Text(DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(1723322540 * 1000))),
+            // Text(DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(1723322540 * 1000, isUtc: true))),
             ReorderableListView.builder(
               header: CheckboxListTile(
                 tristate: true,
@@ -390,7 +384,7 @@ class _FilePageState extends State<FilePage> {
           backgroundColor: Theme.of(context).colorScheme.primary,
           onPressed: () {
             setState(() {
-              _addFiles();
+              addFiles();
             });
           },
           child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
@@ -23,12 +24,12 @@ class ReplayPage extends StatefulWidget {
   State<ReplayPage> createState() => _ReplayPageState();
 }
 
-class _ReplayPageState extends State<ReplayPage> {
+class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateMixin {
 
   List<List<dynamic>> csvListData = [];
   List<dynamic> csvHeaderData = [];
   List<List<LatLng>> gpxLL = [[const LatLng(0, 0)]];
-  List<List<String>> analyzedData = [];
+  List<NmeaViolation> analyzedData = [];
   int curLineNum = 0;
   File csvFilePath = File("null");
   File gpxFilePath = File("null");
@@ -39,11 +40,8 @@ class _ReplayPageState extends State<ReplayPage> {
   int selectedLimit = 0;
   List<int> gpxNum = [];
   List<dynamic> gpxColors = [const Color(0xFF0050C7)];
-  bool markerVisibility = false;
-  int gpxToCsvOffset = 0;
-  int gpxToCsvLineNum = 0;
-  bool linkedFiles = false;
   bool analyzeVisible = false;
+  late TabController _tabController;
 
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
@@ -86,7 +84,7 @@ class _ReplayPageState extends State<ReplayPage> {
     'Magnetic Variation (*)':20.0,
   };
 
-  Future<File> _getFilePath(List<String> ext) async {
+  Future<File> getFilePath(List<String> ext) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ext);
       if (result != null) {
         File file = File(result.files.single.path!);
@@ -98,13 +96,13 @@ class _ReplayPageState extends State<ReplayPage> {
       }
   }
 
-  Future<List<List<dynamic>>> _loadCSV(File filePath) async {
+  Future<List<List<dynamic>>> loadCSV(File filePath) async {
     String csvData = await filePath.readAsString();
     List<List<dynamic>> rowsAsListOfValues = const CsvToListConverter().convert(csvData);
     return rowsAsListOfValues;
   }
 
-  Future<List<dynamic>> _loadGPX(File filePath) async {
+  Future<List<Wpt>> loadGPX(File filePath) async {
     String gpxData = await filePath.readAsString();
     var gpxWPTs = GpxReader().fromString(gpxData);
     var trackpts = gpxWPTs.trks[0].trksegs[0].trkpts;
@@ -112,44 +110,46 @@ class _ReplayPageState extends State<ReplayPage> {
     return trackpts;
   }
   
-  void _onSliderChanged(double value) {
+  void onSliderChanged(double value) {
     setState(() {
       curLineNum = value.toInt();
-      if (curLineNum - gpxToCsvOffset >= 0) {
-        gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
-      } else {
-        gpxToCsvLineNum = 0;
-      }
     });
   }
 
-  void _getCSV([bool linked = false]) async {
-    csvFilePath = await _getFilePath(['csv']);
+  void getCSV() async {
+    csvFilePath = await getFilePath(['csv']);
     if (csvFilePath.path != "null") {
-      _loadCSV(csvFilePath).then((rows) {
+      loadCSV(csvFilePath).then((rows) {
         if (rows.isNotEmpty) {
           csvListData = rows;
           csvHeaderData = rows[0];
           csvListData.removeAt(0);
           int i = 0;
           int j = 0;
+          List<Wpt> waypoints = [];
           for (var row in csvListData) {
             for (var value in row) {
               if (value is! String) {
                 if ((-273.0).compareTo(value) == 0) {
                   csvListData[i][j] = "-";
                 }
+                if (j == csvHeaderData.indexOf("Time Stamp")) {
+                  csvListData[i][j] = DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(csvListData[i][j] * 1000, isUtc: false));
+                }
               }
               j++;
             }
-            int latIndex = csvHeaderData.indexWhere((element) => element == "Latitude");
-            if (row.elementAt(latIndex) != '-' && gpxToCsvOffset == 0) {gpxToCsvOffset = i;}
             j = 0;
             i++;
+
+            if (row.elementAt(csvHeaderData.indexOf("Latitude")) != '-') {
+              waypoints.add(Wpt(lat: row.elementAt(csvHeaderData.indexOf("Latitude")), lon: row.elementAt(csvHeaderData.indexOf("Longitude"))));
+            }
+
           }
           setState(() {
+            if (waypoints.isNotEmpty) {importGPX(waypoints);}
             curLineNum = 0;
-            gpxToCsvLineNum = 0;
             maxLines = csvListData.length - 1;
             errCount = 0;
             analyzedData.clear();
@@ -157,103 +157,71 @@ class _ReplayPageState extends State<ReplayPage> {
           });
         }
       });
-      if (linked) {
-        setState(() {
-          gpxLL.clear();
-          gpxLL.add([const LatLng(0, 0)]);
-          gpxNum.clear();
-          linkedFiles = true;
-        });
-        String cut = csvFilePath.path.substring(0, csvFilePath.path.lastIndexOf('.'));
-        _getGPX(File('$cut.gpx'), true);
-      } else {
-        setState(() {
-          linkedFiles = false;
-          markerVisibility = false;
-        });
-      }
     }
   }
 
-  void _getGPX(File filePath, [bool fromLinked = false]) async {
-    if (fromLinked) {
-      if (filePath.existsSync()) {
-        gpxFilePath = filePath;
-      } else {
-        return;
-      }
-    } else {
-      setState(() {
-        linkedFiles = false;
-        markerVisibility = false;
-        gpxFilePath = File("null");
-      });
-      gpxFilePath = await _getFilePath(['gpx', 'xml']);
-    }
+  void getGPX(File filePath) async {
+    gpxFilePath = await getFilePath(['gpx']);
+
     if (gpxFilePath.path != "null") {
-      _loadGPX(gpxFilePath).then((rows) {
-        if (rows.isNotEmpty) {
-          int idx = 0;
-          if (gpxNum.isNotEmpty) {
-            idx = gpxNum.length;
-            gpxLL.add([const LatLng(0, 0)]);
-          }
-          if (gpxLL.isEmpty) {
-            gpxLL.add([const LatLng(0, 0)]);
-          }
-          if (gpxLL.elementAt(idx).isNotEmpty) {gpxLL.elementAt(idx).clear();}
-          for (Wpt wpt in rows) {
-            gpxLL.elementAt(idx).add(LatLng(wpt.lat!, wpt.lon!));
-          }
-          setState(() {
-            gpxNum.add(idx + 1);
-            if (idx > 0 && idx >= gpxColors.length) {
-              gpxColors.add(Color.fromARGB(255, Random().nextInt(255), Random().nextInt(255), Random().nextInt(255)));
-            }
-          });
+      loadGPX(gpxFilePath).then((rows) {
+        importGPX(rows);
+      });
+    }
+  }
+
+  void importGPX(List<Wpt> rows) {
+    if (rows.isNotEmpty) {
+      int idx = 0;
+      if (gpxNum.isNotEmpty) {
+        idx = gpxNum.length;
+        gpxLL.add([const LatLng(0, 0)]);
+      }
+      if (gpxLL.isEmpty) {
+        gpxLL.add([const LatLng(0, 0)]);
+      }
+      if (gpxLL.elementAt(idx).isNotEmpty) {gpxLL.elementAt(idx).clear();}
+      for (Wpt wpt in rows) {
+        gpxLL.elementAt(idx).add(LatLng(wpt.lat!, wpt.lon!));
+      }
+      setState(() {
+        gpxNum.add(idx + 1);
+        if (idx > 0 && idx >= gpxColors.length) {
+          gpxColors.add(Color.fromARGB(255, Random().nextInt(255), Random().nextInt(255), Random().nextInt(255)));
         }
       });
     }
   }
 
-  void _decrCurLineNum() {
+  void decrCurLineNum() {
     setState(() {
       if (curLineNum > 0) {
         curLineNum--;
-        if (curLineNum - gpxToCsvOffset >= 0) {
-          gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
-        } else {
-          gpxToCsvLineNum = 0;
-        }
       }
     });
   }
 
-  void _incrCurLineNum() {
+  void incrCurLineNum() {
     setState(() {
       if (curLineNum != maxLines){
         curLineNum++;
-        if (curLineNum - gpxToCsvOffset >= 0) {
-          gpxToCsvLineNum = curLineNum - gpxToCsvOffset;
-        } else {
-          gpxToCsvLineNum = 0;
-        }
       }
     });
   }
 
-  void _analyzeData() {
+  void analyzeData() {
     int i = 0;
     errCount = 0;
     analyzedData.clear();
-    for (var row in csvListData) {
+    for (List<dynamic> row in csvListData) {
       int j = 0;
-      for (var col in row) {
+      for (dynamic col in row) {
         if (col is! String) {
           if ((col < lowerLimits[csvHeaderData[j]] || col > upperLimits[csvHeaderData[j]]) && col != -273.0) {
             if (!(csvHeaderData[j] == "Oil Pressure (kpa)" && (col == 0 || col == 4))) {
               setState(() {
-                analyzedData.add([csvHeaderData[j] + ':', ' $col @ line $i']);
+                // analyzedData.add([csvHeaderData[j] + ':', ' $col @ line $i']);
+                analyzedData.add(NmeaViolation(name: csvHeaderData.elementAt(j), value: col, line: i));
                 errCount++;
               });
             }
@@ -265,9 +233,8 @@ class _ReplayPageState extends State<ReplayPage> {
     }
   }
 
-  Future<void> _savePrefs() async {
+  Future<void> savePrefs() async {
     final SharedPreferences prefs = await _prefs;
-
     setState(() {
       prefs.setBool('darkMode', MyApp.themeNotifier.value == ThemeMode.dark ? true : false);
       prefs.setString("lower", jsonEncode(lowerLimits));
@@ -275,7 +242,7 @@ class _ReplayPageState extends State<ReplayPage> {
     });
   }
 
-  Future<void> _getPrefs() async {
+  Future<void> getPrefs() async {
     final SharedPreferences prefs = await _prefs;
     if (prefs.getBool('darkMode') == null) {return;}
     if (prefs.getString("lower") == null) {return;}
@@ -294,7 +261,14 @@ class _ReplayPageState extends State<ReplayPage> {
   @override
   void initState() {
     super.initState();
-    _getPrefs();
+    _tabController = TabController(length: 4, vsync: this, animationDuration: Durations.short4);
+    getPrefs();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -388,7 +362,7 @@ class _ReplayPageState extends State<ReplayPage> {
                     onPressed: () {
                       MyApp.themeNotifier.value =
                         MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-                      _savePrefs();
+                      savePrefs();
                     },
                   ),
                 ),
@@ -403,7 +377,12 @@ class _ReplayPageState extends State<ReplayPage> {
             iconTheme: Theme.of(context).primaryIconTheme,
             title: Text('NMEATrax Replay', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
             bottom: TabBar(
-              onTap: (value) => setState(() {}),
+              controller: _tabController,
+              onTap: (value) => setState(() {
+                _tabController.animateTo(value);
+                analyzeData();
+                analyzeVisible = true;
+              }),
               indicatorColor: Theme.of(context).colorScheme.secondary,
               tabs: const [
                 Tab(icon: Icon(Icons.directions_boat_sharp, color: Colors.white)),
@@ -417,7 +396,7 @@ class _ReplayPageState extends State<ReplayPage> {
             builder: (context) {
               return BottomAppBar(
                 color: Theme.of(mainContext).colorScheme.surfaceContainerLow,
-                child: switch (DefaultTabController.of(context).index) {
+                child: switch (_tabController.index) {
                   0 => dataAppBar(context),
                   1 => analyzeAppBar(mainContext),
                   2 => mapAppBar(context),
@@ -428,6 +407,7 @@ class _ReplayPageState extends State<ReplayPage> {
             }
           ),
           body: TabBarView(
+            controller: _tabController,
             physics: const NeverScrollableScrollPhysics(),
             children: [
               LayoutBuilder(
@@ -465,7 +445,7 @@ class _ReplayPageState extends State<ReplayPage> {
                             const SizedBox(height: 20),
                             Slider(
                               value: curLineNum.toDouble(),
-                              onChanged: _onSliderChanged,
+                              onChanged: onSliderChanged,
                               label: curLineNum.toString(),
                               max: maxLines.toDouble(),
                               min: 0,
@@ -505,7 +485,16 @@ class _ReplayPageState extends State<ReplayPage> {
                       ),
                     ),
                     const SizedBox(height: 10,),
-                    ListAnalyzedData(analyzedData: analyzedData, mainContext: context),
+                    ListAnalyzedData(
+                      analyzedData: analyzedData,
+                      mainContext: context,
+                      action: (value) {
+                        setState(() {
+                          curLineNum = value;
+                          _tabController.animateTo(0);
+                        });
+                      },
+                    ),
                     const SizedBox(height: 50,),
                   ],
                 ),
@@ -539,16 +528,6 @@ class _ReplayPageState extends State<ReplayPage> {
                           userAgentPackageName: 'com.nmeatrax.app',
                           errorTileCallback: (tile, error, stackTrace) {},
                         ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: linkedFiles ? gpxLL.first.elementAt(gpxToCsvLineNum) : homeCoords,
-                              width: 80,
-                              height: 80,
-                              child: markerVisibility ? const Icon(Icons.directions_ferry) : const Text(""),
-                            ),
-                          ],
-                        ),
                         buildPolylinesLayer(),
                         const RichAttributionWidget(
                           alignment: AttributionAlignment.bottomLeft,
@@ -564,18 +543,6 @@ class _ReplayPageState extends State<ReplayPage> {
                   ),
                   Column(
                     children: [
-                      Visibility(
-                        visible: linkedFiles,
-                        child: Slider(
-                          value: curLineNum.toDouble(),
-                          onChanged: _onSliderChanged,
-                          label: curLineNum.toString(),
-                          max: maxLines.toDouble(),
-                          min: 0,
-                          activeColor: Theme.of(context).colorScheme.primary,
-                          inactiveColor: Theme.of(context).colorScheme.primaryContainer,
-                        ),
-                      ),
                       Align(
                         alignment: Alignment.centerLeft,
                         child: SizedBox(
@@ -583,19 +550,6 @@ class _ReplayPageState extends State<ReplayPage> {
                           child: ListView(
                             scrollDirection: Axis.horizontal,
                             children: [
-                              Visibility(
-                                visible: linkedFiles,
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-                                  child: ElevatedButton(
-                                    style: ButtonStyle(
-                                      backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
-                                    ),
-                                    onPressed: () => setState(() {markerVisibility = !markerVisibility;}), 
-                                    child: Icon(Icons.location_pin, color: Theme.of(context).colorScheme.onPrimary,)
-                                  ),
-                                ),
-                              ),
                               buildElevatedButtonRow(),
                             ],
                           ),
@@ -720,17 +674,17 @@ class _ReplayPageState extends State<ReplayPage> {
           ),
           icon: Icon(Icons.file_open_outlined, color: Theme.of(context).colorScheme.onPrimary,),
           label: Text("CSV", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-          onPressed: () => _getCSV(false),
+          onPressed: () => getCSV(),
         ),
         const Spacer(),
         IconButton(
-          onPressed: _decrCurLineNum,
+          onPressed: decrCurLineNum,
           icon: const Icon(Icons.arrow_circle_left_outlined),
           color: Theme.of(context).colorScheme.primary,
           iconSize: 35,
         ),
         IconButton(
-          onPressed: _incrCurLineNum,
+          onPressed: incrCurLineNum,
           icon: const Icon(Icons.arrow_circle_right_outlined),
           color: Theme.of(context).colorScheme.primary,
           iconSize: 35,
@@ -756,7 +710,7 @@ class _ReplayPageState extends State<ReplayPage> {
             backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
           ),
           onPressed: () {
-            _analyzeData();
+            analyzeData();
             setState(() {analyzeVisible = true;});
           },
           child: Text("Refresh", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
@@ -776,7 +730,7 @@ class _ReplayPageState extends State<ReplayPage> {
           ),
           icon: Icon(Icons.location_on, color: Theme.of(context).colorScheme.onPrimary,),
           label: Text("GPX", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-          onPressed: () => _getGPX(File("null")),
+          onPressed: () => getGPX(File("null")),
         ),
       ],
     );
@@ -790,7 +744,7 @@ class _ReplayPageState extends State<ReplayPage> {
           onPressed: () {
             MyApp.themeNotifier.value =
               MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-            _savePrefs();
+            savePrefs();
           },
           icon: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.surface,) : Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onPrimary,),
         ),
@@ -833,14 +787,10 @@ class _ReplayPageState extends State<ReplayPage> {
             },
             onLongPress: () {
               setState(() {
-                markerVisibility = false;
-                curLineNum = 0;
-                gpxToCsvLineNum = 0;
-                gpxToCsvOffset = 0;
+                // curLineNum = 0;
                 gpxLL.removeAt(index);
                 gpxNum.removeAt(index);
                 if (gpxLL.isEmpty) {
-                  linkedFiles = false;
                   gpxLL.add([const LatLng(0, 0)]);
                 }
               });
@@ -865,10 +815,10 @@ class _ReplayPageState extends State<ReplayPage> {
         setState(() {
           if (upper) {
             upperLimits[upperLimits.keys.elementAt(selectedLimit)] = input;
-            _savePrefs();
+            savePrefs();
           } else {
             lowerLimits[lowerLimits.keys.elementAt(selectedLimit)] = input;
-            _savePrefs();
+            savePrefs();
           }
         });
         //https://stackoverflow.com/a/50683571 for nav.pop
@@ -895,10 +845,10 @@ class _ReplayPageState extends State<ReplayPage> {
             try {
               if (upper) {
                 upperLimits[upperLimits.keys.elementAt(selectedLimit)] = double.parse(value);
-                _savePrefs();
+                savePrefs();
               } else {
                 lowerLimits[lowerLimits.keys.elementAt(selectedLimit)] = double.parse(value);
-                _savePrefs();
+                savePrefs();
               }
             } on Exception {
               // do nothing

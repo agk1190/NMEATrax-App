@@ -9,7 +9,6 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ### To-Do
 - Change scroll limit color
 - Snackbar on connect
-- Limits need to support base units
 
 
 ## [5.0.0] - 2024-08-10
@@ -17,6 +16,7 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ### Added
 - File Manager page
 - Show route when opening csv file
+- Drawer as class
 
 ### Changed
 - Units from NMEATrax are metric. Conversion done locally.

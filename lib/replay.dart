@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+// import 'package:nmeatrax_app/live.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gpx/gpx.dart';
@@ -14,8 +15,6 @@ import 'package:settings_ui/settings_ui.dart';
 
 import 'classes.dart';
 import 'main.dart';
-
-const _appVersion = '5.0.0';
 
 class ReplayPage extends StatefulWidget {
   const ReplayPage({super.key});
@@ -45,43 +44,43 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
 
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
-  var lowerLimits = <String, dynamic>{
+  Map<String, dynamic> lowerLimits = <String, dynamic>{
     'RPM':0.0,
-    'Engine Temp (C)':0.0,
-    'Oil Temp (C)':0.0,
-    'Oil Pressure (kpa)':300.0,
-    'Fuel Rate (L/h)':0.0,
-    'Fuel Level (%)':10.0,
-    'Fuel Efficiency (L/km)':0.0,
-    'Leg Tilt (%)':0.0,
-    'Speed (kn)':0.0,
-    'Heading (*)':0.0,
-    'Depth (ft)':5.0,
-    'Water Temp (C)':2.0,
-    'Battery Voltage (V)':12.0,
-    'Engine Hours (h)':0.0,
+    'Engine Temp':273.15,
+    'Oil Temp':273.15,
+    'Oil Pressure':300.0,
+    'Fuel Rate':0.0,
+    'Fuel Level':10.0,
+    'Fuel Efficiency':0.0,
+    'Leg Tilt':0.0,
+    'Speed':0.0,
+    'Heading':0.0,
+    'Depth':1.0,
+    'Water Temp':275.15,
+    'Battery Voltage':12.0,
+    'Engine Hours':0.0,
     'Latitude':47.0,
     'Longitude':-125.0,
-    'Magnetic Variation (*)':0.0,
+    'Magnetic Variation':0.0,
   };
-  var upperLimits = <String, dynamic>{
+  Map<String, dynamic> upperLimits = <String, dynamic>{
     'RPM':5200.0,
-    'Engine Temp (C)':80.0,
-    'Oil Temp (C)':115.0,
-    'Oil Pressure (kpa)':700.0,
-    'Fuel Rate (L/h)':50.0,
-    'Fuel Level (%)':100.0,
-    'Fuel Efficiency (L/km)':4.0,
-    'Leg Tilt (%)':100.0,
-    'Speed (kn)':30.0,
-    'Heading (*)':360.0,
-    'Depth (ft)':1000.0,
-    'Water Temp (C)':20.0,
-    'Battery Voltage (V)':15.0,
-    'Engine Hours (h)':10000.0,
+    'Engine Temp':353.15,
+    'Oil Temp':388.15,
+    'Oil Pressure':700.0,
+    'Fuel Rate':50.0,
+    'Fuel Level':100.0,
+    'Fuel Efficiency':4.0,
+    'Leg Tilt':100.0,
+    'Speed':15.4333,
+    'Heading':360.0,
+    'Depth':304.8000000012192,
+    'Water Temp':298.15,
+    'Battery Voltage':15.0,
+    'Engine Hours':3600000.0,
     'Latitude':50.0,
     'Longitude':-122.0,
-    'Magnetic Variation (*)':20.0,
+    'Magnetic Variation':20.0,
   };
 
   Future<File> getFilePath(List<String> ext) async {
@@ -123,6 +122,15 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
         if (rows.isNotEmpty) {
           csvListData = rows;
           csvHeaderData = rows[0];
+          List<String> temp = [];
+          for (String header in csvHeaderData) {
+            if (header.contains(' (')) {
+              temp.add(header.split(' (').first);
+            } else {
+              temp.add(header);
+            }
+          }
+          csvHeaderData = temp;
           csvListData.removeAt(0);
           int i = 0;
           int j = 0;
@@ -218,9 +226,8 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
       for (dynamic col in row) {
         if (col is! String) {
           if ((col < lowerLimits[csvHeaderData[j]] || col > upperLimits[csvHeaderData[j]]) && col != -273.0) {
-            if (!(csvHeaderData[j] == "Oil Pressure (kpa)" && (col == 0 || col == 4))) {
+            if (!(csvHeaderData[j] == "Oil Pressure" && (col == 0 || col == 4))) {
               setState(() {
-                // analyzedData.add([csvHeaderData[j] + ':', ' $col @ line $i']);
                 analyzedData.add(NmeaViolation(name: csvHeaderData.elementAt(j), value: col, line: i));
                 errCount++;
               });
@@ -239,6 +246,10 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
       prefs.setBool('darkMode', MyApp.themeNotifier.value == ThemeMode.dark ? true : false);
       prefs.setString("lower", jsonEncode(lowerLimits));
       prefs.setString("upper", jsonEncode(upperLimits));
+      prefs.setBool('isMeters', depthUnit == DepthUnit.meters ? true : false);
+      prefs.setBool('isCelsius', tempUnit == TempUnit.celsius ? true : false);
+      prefs.setBool('isLitre', fuelUnit == FuelUnit.litre ? true : false);
+      prefs.setInt('speedUnit', speedUnit.index);
     });
   }
 
@@ -299,75 +310,50 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
       home: DefaultTabController(
         length: 4,
         child: Scaffold(
-          drawer: Drawer(
-            width: 200,
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            child: ListView(
-              children: <Widget>[
-                DrawerHeader(
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(image: AssetImage('assets/images/nmeatraxLogo.png')),
-                    color: Color(0xFF0050C7),
-                  ),
-                  child: Text('NMEATrax', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                ),
-                ListTile(
-                  textColor: Theme.of(context).colorScheme.onSurface,
-                  iconColor: Theme.of(context).colorScheme.onSurface,
-                  title: const Text('Live'),
-                  leading: const Icon(Icons.bolt),
-                  onTap: () {
-                    Navigator.pushReplacementNamed(context, '/live');
-                  },
-                ),
-                ListTile(
-                  textColor: Theme.of(context).colorScheme.onSurface,
-                  iconColor: Theme.of(context).colorScheme.onSurface,
-                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                  leading: const Icon(Icons.timeline),
-                  onTap: () {
-                    Navigator.pushReplacementNamed(context, '/replay');
-                  },
-                ),
-                ListTile(
-                  textColor: Theme.of(context).colorScheme.onSurface,
-                  iconColor: Theme.of(context).colorScheme.onSurface,
-                  title: Text('Files', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                  leading: const Icon(Icons.edit_document),
-                  onTap: () {
-                    Navigator.pushReplacementNamed(context, '/files');
-                  },
-                ),
-                const Divider(),
-                AboutListTile(
-                  icon: Icon(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    Icons.info,
-                  ),
-                  applicationIcon: const Icon(
-                    Icons.directions_boat,
-                  ),
-                  applicationName: 'NMEATrax',
-                  applicationVersion: _appVersion,
-                  aboutBoxChildren: const [
-                    Text("For use with NMEATrax Vessel Monitoring System")
-                  ],
-                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                ),
-                const Divider(),
-                Center(
-                  child: ElevatedButton(
-                    style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
-                    child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onPrimary,),
-                    onPressed: () {
-                      MyApp.themeNotifier.value =
-                        MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-                      savePrefs();
-                    },
-                  ),
-                ),
-              ],
-            ),
+          drawer: NmeaDrawer(
+            option1Action: () {
+              Navigator.pushReplacementNamed(context, '/live');
+            },
+            option2Action: () {
+              Navigator.pushReplacementNamed(context, '/replay');
+            },
+            option3Action: () {
+              Navigator.pushReplacementNamed(context, '/files');
+            },
+            toggleThemeAction: () {
+              setState(() {
+                MyApp.themeNotifier.value =
+                  MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+                savePrefs();
+              });
+            },
+            depthChanged: (selection) {
+              setState(() {
+                depthUnit = selection.first;
+                savePrefs();
+              });
+            },
+            tempChanged: (selection) {
+              setState(() {
+                tempUnit = selection.first;
+                savePrefs();
+              });
+            },
+            speedChanged: (selection) {
+              setState(() {
+                speedUnit = selection.first;
+                savePrefs();
+              });
+            },
+            fuelChanged: (selection) {
+              setState(() {
+                fuelUnit = selection.first;
+                savePrefs();
+              });
+            },
+            appVersion: MyApp.appVersion,
+            currentThemeMode: MyApp.themeNotifier.value,
+            mainContext: context
           ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           backgroundColor: Theme.of(context).colorScheme.surface,
@@ -624,7 +610,8 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
                           tiles: [
                             SettingsTile.navigation(
                               title: Text(
-                                lowerLimits.values.elementAt(selectedLimit).toString(),
+                                // lowerLimits.values.elementAt(selectedLimit).toString(),
+                                UnitFunctions.returnInPreferredUnit(lowerLimits.keys.elementAt(selectedLimit), lowerLimits.values.elementAt(selectedLimit)).toString(),
                                 style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                               ),
                               onPressed: (lcontext) {
@@ -643,7 +630,8 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
                           tiles: [
                             SettingsTile.navigation(
                               title: Text(
-                                upperLimits.values.elementAt(selectedLimit).toString(),
+                                // upperLimits.values.elementAt(selectedLimit).toString(),
+                                UnitFunctions.returnInPreferredUnit(upperLimits.keys.elementAt(selectedLimit), upperLimits.values.elementAt(selectedLimit)).toString(),
                                 style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                               ),
                               onPressed: (lcontext) {
@@ -814,10 +802,10 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
       onPressed: () {
         setState(() {
           if (upper) {
-            upperLimits[upperLimits.keys.elementAt(selectedLimit)] = input;
+            upperLimits[upperLimits.keys.elementAt(selectedLimit)] = UnitFunctions.convertToBaseUnit(input, upperLimits, selectedLimit);
             savePrefs();
           } else {
-            lowerLimits[lowerLimits.keys.elementAt(selectedLimit)] = input;
+            lowerLimits[lowerLimits.keys.elementAt(selectedLimit)] = UnitFunctions.convertToBaseUnit(input, lowerLimits, selectedLimit);
             savePrefs();
           }
         });
@@ -844,10 +832,10 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
           setState(() {
             try {
               if (upper) {
-                upperLimits[upperLimits.keys.elementAt(selectedLimit)] = double.parse(value);
+                upperLimits[upperLimits.keys.elementAt(selectedLimit)] = UnitFunctions.convertToBaseUnit(double.parse(value), upperLimits, selectedLimit);
                 savePrefs();
               } else {
-                lowerLimits[lowerLimits.keys.elementAt(selectedLimit)] = double.parse(value);
+                lowerLimits[lowerLimits.keys.elementAt(selectedLimit)] = UnitFunctions.convertToBaseUnit(double.parse(value), lowerLimits, selectedLimit);
                 savePrefs();
               }
             } on Exception {

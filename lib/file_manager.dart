@@ -8,8 +8,7 @@ import 'package:csv/csv.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path/path.dart';
 import 'main.dart';
-
-const _appVersion = '5.0.0';
+import 'classes.dart';
 
 class FilePage extends StatefulWidget {
   const FilePage({super.key});
@@ -27,6 +26,10 @@ class _FilePageState extends State<FilePage> {
       final SharedPreferences prefs = await _prefs;
       setState(() {
         prefs.setBool('darkMode', MyApp.themeNotifier.value == ThemeMode.dark ? true : false);
+        prefs.setBool('isMeters', depthUnit == DepthUnit.meters ? true : false);
+        prefs.setBool('isCelsius', tempUnit == TempUnit.celsius ? true : false);
+        prefs.setBool('isLitre', fuelUnit == FuelUnit.litre ? true : false);
+        prefs.setInt('speedUnit', speedUnit.index);
       });
     }
 
@@ -72,76 +75,51 @@ class _FilePageState extends State<FilePage> {
       ),
       title: 'NMEATrax File Manager',
       home: Scaffold(
-        drawer: Drawer(
-            width: 200,
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            child: ListView(
-              children: <Widget>[
-                DrawerHeader(
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(image: AssetImage('assets/images/nmeatraxLogo.png')),
-                    color: Color(0xFF0050C7),
-                  ),
-                  child: Text('NMEATrax', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                ),
-                ListTile(
-                  textColor: Theme.of(context).colorScheme.onSurface,
-                  iconColor: Theme.of(context).colorScheme.onSurface,
-                  title: const Text('Live'),
-                  leading: const Icon(Icons.bolt),
-                  onTap: () {
-                    Navigator.pushReplacementNamed(context, '/live');
-                  },
-                ),
-                ListTile(
-                  textColor: Theme.of(context).colorScheme.onSurface,
-                  iconColor: Theme.of(context).colorScheme.onSurface,
-                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                  leading: const Icon(Icons.timeline),
-                  onTap: () {
-                    Navigator.pushReplacementNamed(context, '/replay');
-                  },
-                ),
-                ListTile(
-                  textColor: Theme.of(context).colorScheme.onSurface,
-                  iconColor: Theme.of(context).colorScheme.onSurface,
-                  title: Text('Files', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                  leading: const Icon(Icons.edit_document),
-                  onTap: () {
-                    Navigator.pushReplacementNamed(context, '/files');
-                  },
-                ),
-                const Divider(),
-                AboutListTile(
-                  icon: Icon(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    Icons.info,
-                  ),
-                  applicationIcon: const Icon(
-                    Icons.directions_boat,
-                  ),
-                  applicationName: 'NMEATrax',
-                  applicationVersion: _appVersion,
-                  aboutBoxChildren: const [
-                    Text("For use with NMEATrax Vessel Monitoring System")
-                  ],
-                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                ),
-                const Divider(),
-                Center(
-                  child: ElevatedButton(
-                    style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
-                    child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onPrimary,),
-                    onPressed: () {
-                      MyApp.themeNotifier.value =
-                        MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-                      saveTheme();
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
+        drawer: NmeaDrawer(
+          option1Action: () {
+            Navigator.pushReplacementNamed(context, '/live');
+          },
+          option2Action: () {
+            Navigator.pushReplacementNamed(context, '/replay');
+          },
+          option3Action: () {
+            Navigator.pushReplacementNamed(context, '/files');
+          },
+          toggleThemeAction: () {
+            setState(() {
+              MyApp.themeNotifier.value =
+                MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+              saveTheme();
+            });
+          },
+          depthChanged: (selection) {
+              setState(() {
+                depthUnit = selection.first;
+                saveTheme();
+              });
+            },
+            tempChanged: (selection) {
+              setState(() {
+                tempUnit = selection.first;
+                saveTheme();
+              });
+            },
+            speedChanged: (selection) {
+              setState(() {
+                speedUnit = selection.first;
+                saveTheme();
+              });
+            },
+            fuelChanged: (selection) {
+              setState(() {
+                fuelUnit = selection.first;
+                saveTheme();
+              });
+            },
+          appVersion: MyApp.appVersion,
+          currentThemeMode: MyApp.themeNotifier.value,
+          mainContext: context
+        ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: AppBar(

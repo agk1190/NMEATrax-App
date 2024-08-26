@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:csv/csv.dart';
 import 'package:settings_ui/settings_ui.dart';
@@ -17,12 +18,6 @@ import 'classes.dart';
 import 'downloads.dart';
 import 'main.dart';
 
-const _appVersion = '5.0.0';
-Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-273", "evcErrorMsg": "-"};
-Map<String, dynamic> ntOptions = {"recInt":0, "recMode":0};
-const Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
-List<String> evcErrorList = List.empty();
-
 class LivePage extends StatefulWidget {
   const LivePage({super.key});
 
@@ -32,22 +27,27 @@ class LivePage extends StatefulWidget {
 
 class _LivePageState extends State<LivePage> {
 
+  Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-273", "evcErrorMsg": "-"};
+  Map<String, dynamic> ntOptions = {"recInt":0, "recMode":0};
+  Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
+  List<String> evcErrorList = List.empty();
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
   late StreamSubscription<String> subscription;
   bool moreSettingsVisible = false;
   IOWebSocketChannel? channel;
   late BuildContext lcontext;
-  bool depthInMeters = false;
-  bool tempInCelsius = true;
+
 
   Future<void> savePrefs() async {
     final SharedPreferences prefs = await _prefs;
     setState(() {
       prefs.setBool('darkMode', MyApp.themeNotifier.value == ThemeMode.dark ? true : false);
       prefs.setString("ip", jsonEncode(connectURL));
-      prefs.setBool('isMeters', depthInMeters);
-      prefs.setBool('isCelsius', tempInCelsius);
+      prefs.setBool('isMeters', depthUnit == DepthUnit.meters ? true : false);
+      prefs.setBool('isCelsius', tempUnit == TempUnit.celsius ? true : false);
+      prefs.setBool('isLitre', fuelUnit == FuelUnit.litre ? true : false);
+      prefs.setInt('speedUnit', speedUnit.index);
     });
   }
 
@@ -57,11 +57,28 @@ class _LivePageState extends State<LivePage> {
     if (prefs.getString("ip") == null) {return;}
     if (prefs.getBool("isMeters") == null) {return;}
     if (prefs.getBool("isCelsius") == null) {return;}
+    if (prefs.getBool("isLitre") == null) {return;}
+    if (prefs.getInt("speedUnit") == null) {return;}
     setState(() {
       prefs.getBool('darkMode')! == true ? MyApp.themeNotifier.value = ThemeMode.dark : MyApp.themeNotifier.value = ThemeMode.light;
       connectURL = jsonDecode(prefs.getString("ip")!);
-      depthInMeters = prefs.getBool('isMeters')!;
-      tempInCelsius = prefs.getBool('isCelsius')!;
+      depthUnit = prefs.getBool('isMeters')! ? DepthUnit.meters : DepthUnit.feet;
+      tempUnit = prefs.getBool('isCelsius')! ? TempUnit.celsius : TempUnit.fahrenheit;
+      fuelUnit = prefs.getBool('isLitre')! ? FuelUnit.litre : FuelUnit.gallon;
+      int su = prefs.getInt('speedUnit')!;
+      switch (su) {
+        case 0:
+          speedUnit = SpeedUnit.km;
+        case 1:
+          speedUnit = SpeedUnit.kn;
+        case 2:
+          speedUnit = SpeedUnit.mi;
+        case 3:
+          speedUnit = SpeedUnit.ms;
+          break;
+        default:
+          speedUnit = SpeedUnit.kn;
+      }
     });
   }
 
@@ -125,6 +142,8 @@ class _LivePageState extends State<LivePage> {
                 i++;
               }
               evcErrorList = nmeaData["evcErrorMsg"].toString().split(', ');
+              if (nmeaData['time'] == '0') {nmeaData['time'] = '-';}
+              if (nmeaData['ehours'] == '0') {nmeaData['ehours'] = '-';}
             });
           }
         });
@@ -193,78 +212,53 @@ class _LivePageState extends State<LivePage> {
       home: DefaultTabController(
         length: 3,
         child: Scaffold(
-          drawer: Drawer(
-            width: 200,
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            child: ListView(
-              children: <Widget>[
-                const DrawerHeader(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(image: AssetImage('assets/images/nmeatraxLogo.png')),
-                    color: Color(0xFF0050C7),
-                  ),
-                  child: Text('NMEATrax'),
-                ),
-                ListTile(
-                  textColor: Theme.of(context).colorScheme.onSurface,
-                  iconColor: Theme.of(context).colorScheme.onSurface,
-                  title: const Text('Live'),
-                  leading: const Icon(Icons.bolt),
-                  onTap: () {
-                    if (channel != null) disconnectWebSocket();
-                    Navigator.pushReplacementNamed(context, '/live');
-                  },
-                ),
-                ListTile(
-                  textColor: Theme.of(context).colorScheme.onSurface,
-                  iconColor: Theme.of(context).colorScheme.onSurface,
-                  title: Text('Replay', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                  leading: const Icon(Icons.timeline),
-                  onTap: () {
-                    if (channel != null) disconnectWebSocket();
-                    Navigator.pushReplacementNamed(context, '/replay');
-                  },
-                ),
-                ListTile(
-                  textColor: Theme.of(context).colorScheme.onSurface,
-                  iconColor: Theme.of(context).colorScheme.onSurface,
-                  title: Text('Files', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                  leading: const Icon(Icons.edit_document),
-                  onTap: () {
-                    if (channel != null) disconnectWebSocket();
-                    Navigator.pushReplacementNamed(context, '/files');
-                  },
-                ),
-                const Divider(),
-                AboutListTile(
-                  icon: Icon(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    Icons.info,
-                  ),
-                  applicationIcon: const Icon(
-                    Icons.directions_boat,
-                  ),
-                  applicationName: 'NMEATrax',
-                  applicationVersion: _appVersion,
-                  aboutBoxChildren: const [
-                    Text("For use with NMEATrax Vessel Monitoring System")
-                  ],
-                  child: Text('About app', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                ),
-                const Divider(),
-                Center(
-                  child: ElevatedButton(
-                    style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(Theme.of(context).colorScheme.primary),),
-                    child: MyApp.themeNotifier.value == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onPrimary,) : Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onPrimary,),
-                    onPressed: () {
-                      MyApp.themeNotifier.value =
-                        MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-                      savePrefs();
-                    },
-                  ),
-                ),
-              ],
-            ),
+          drawer: NmeaDrawer(
+            option1Action: () {
+              if (channel != null) disconnectWebSocket();
+              Navigator.pushReplacementNamed(context, '/live');
+            },
+            option2Action: () {
+              if (channel != null) disconnectWebSocket();
+              Navigator.pushReplacementNamed(context, '/replay');
+            },
+            option3Action: () {
+              if (channel != null) disconnectWebSocket();
+              Navigator.pushReplacementNamed(context, '/files');
+            },
+            depthChanged: (selection) {
+              setState(() {
+                depthUnit = selection.first;
+                savePrefs();
+              });
+            },
+            tempChanged: (selection) {
+              setState(() {
+                tempUnit = selection.first;
+                savePrefs();
+              });
+            },
+            speedChanged: (selection) {
+              setState(() {
+                speedUnit = selection.first;
+                savePrefs();
+              });
+            },
+            fuelChanged: (selection) {
+              setState(() {
+                fuelUnit = selection.first;
+                savePrefs();
+              });
+            },
+            toggleThemeAction: () {
+              setState(() {
+                MyApp.themeNotifier.value =
+                  MyApp.themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+                savePrefs();
+              });
+            },
+            appVersion: MyApp.appVersion,
+            currentThemeMode: MyApp.themeNotifier.value,
+            mainContext: context
           ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           backgroundColor: Theme.of(context).colorScheme.surface,
@@ -302,13 +296,19 @@ class _LivePageState extends State<LivePage> {
               SingleChildScrollView(
                 child: Column(
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        nmeaData.keys.contains("nmeaTraxGenericMsg") ? Text(nmeaData["nmeaTraxGenericMsg"], style: TextStyle(color: Theme.of(context).colorScheme.onSurface)) : const Text(""),
-                        // Text(nmeaData["time"], style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-                        displayTimeStamp(),
-                      ],
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.5,
+                            child: nmeaData.keys.contains("nmeaTraxGenericMsg") ? Text(nmeaData["nmeaTraxGenericMsg"], style: TextStyle(color: Theme.of(context).colorScheme.onSurface)) : const Text("")
+                          ),
+                          // Text(nmeaData["time"], style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+                          displayTimeStamp(),
+                        ],
+                      ),
                     ),
                     Visibility(
                       visible: evcErrorList.isNotEmpty && evcErrorList.length > 1,
@@ -336,8 +336,8 @@ class _LivePageState extends State<LivePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["speed"], title: "Knots", unit: " kn", mainContext: context,)),
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["depth"], ConversionType.depth), title: "Depth", unit: unitFor(ConversionType.depth), mainContext: context,)),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["speed"], ConversionType.speed), title: "Knots", unit: UnitFunctions.unitFor(ConversionType.speed), mainContext: context,)),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["depth"], ConversionType.depth), title: "Depth", unit: UnitFunctions.unitFor(ConversionType.depth), mainContext: context,)),
                       ],
                     ),
                     Row(
@@ -349,29 +349,29 @@ class _LivePageState extends State<LivePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["etemp"], ConversionType.temp), title: "Engine", unit: unitFor(ConversionType.temp), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["etemp"], ConversionType.temp), title: "Engine", unit: UnitFunctions.unitFor(ConversionType.temp), mainContext: context,),),
                         Expanded(child: SizedNMEABox(value: nmeaData["flevel"], title: "Fuel", unit: "%", mainContext: context,),),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["otemp"], ConversionType.temp), title: "Oil", unit: unitFor(ConversionType.temp), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["otemp"], ConversionType.temp), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.temp), mainContext: context,),),
                         Expanded(child: SizedNMEABox(value: nmeaData["opres"], title: "Oil", unit: " kpa", mainContext: context,),),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["fuel_rate"], title: "Fuel Rate", unit: " L/h", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["efficiency"], title: "Efficiency", unit: " L/km", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["fuel_rate"], ConversionType.fuelRate), title: "Fuel Rate", unit: UnitFunctions.unitFor(ConversionType.fuelRate), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["efficiency"], ConversionType.fuelEfficiency), title: "Efficiency", unit: UnitFunctions.unitFor(ConversionType.fuelEfficiency), mainContext: context,),),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Expanded(child: SizedNMEABox(value: nmeaData["leg_tilt"], title: "Leg Tilt", unit: "%", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["wtemp"], ConversionType.temp), title: "Water Temp", unit: unitFor(ConversionType.temp), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["wtemp"], ConversionType.temp), title: "Water Temp", unit: UnitFunctions.unitFor(ConversionType.temp), mainContext: context,),),
                       ],
                     ),
                   ],
@@ -471,16 +471,16 @@ class _LivePageState extends State<LivePage> {
                             //     getOptions();
                             //   },
                             // ),
-                            SettingsTile.switchTile(
-                              title: Text("Depth in Meters?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              initialValue: depthInMeters,
-                              onToggle: (value) => setState(() {depthInMeters = value;}),
-                            ),
-                            SettingsTile.switchTile(
-                              title: Text("Temperature in Celsius?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              initialValue: tempInCelsius,
-                              onToggle: (value) => setState(() {tempInCelsius = value;}),
-                            ),
+                            // SettingsTile.switchTile(
+                            //   title: Text("Depth in Meters?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                            //   initialValue: depthInMeters,
+                            //   onToggle: (value) => setState(() {depthInMeters = value;}),
+                            // ),
+                            // SettingsTile.switchTile(
+                            //   title: Text("Temperature in Celsius?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                            //   initialValue: tempInCelsius,
+                            //   onToggle: (value) => setState(() {tempInCelsius = value;}),
+                            // ),
                             SettingsTile(
                               title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                               value: Text(ntOptions["recInt"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
@@ -649,25 +649,29 @@ class _LivePageState extends State<LivePage> {
     }
   }
 
-  String unitFor(ConversionType type) {
-    switch (type) {
-      case ConversionType.temp:
-        return tempInCelsius ? '\u2103' : '\u2109';
-      case ConversionType.depth:
-        return depthInMeters ? ' m' : ' ft';
-    }
-  }
-
   String returnAfterConversion(String data, ConversionType type) {
     if (data == '-') {return data;}
     double value = double.parse(data);
     switch (type) {
       case ConversionType.temp:
-        value = tempInCelsius ? value + 273.15 : ((value - 273.15) * (9/5) + 32);
-        return value.toString();
+        return round(tempUnit == TempUnit.celsius ? value - 273.15 : ((value - 273.15) * (9/5) + 32), decimals: 2).toString();
       case ConversionType.depth:
-        value = depthInMeters ? value : value * 3.280839895;
-        return value.toString();
+        return round(depthUnit == DepthUnit.meters ? value : value * 3.280839895, decimals: 2).toString();
+      case ConversionType.fuelRate:
+        return round(fuelUnit == FuelUnit.litre ? value : value * 0.26417205234375, decimals: 1).toString();
+      case ConversionType.fuelEfficiency:
+        return round(fuelUnit == FuelUnit.litre ? value : value * 2.35214583, decimals: 3).toString();
+      case ConversionType.speed:
+        switch (speedUnit) {
+          case SpeedUnit.km:
+            return round(value * 3.6, decimals: 2).toString();
+          case SpeedUnit.kn:
+            return round(value * (3600/1852), decimals: 2).toString();
+          case SpeedUnit.mi:
+           return round(value * 2.2369362920544025, decimals: 2).toString();
+          case SpeedUnit.ms:
+            return round(value, decimals: 2).toString();
+        }
     }
   }
 

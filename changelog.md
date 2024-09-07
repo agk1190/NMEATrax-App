@@ -9,6 +9,7 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ### To-Do
 - Change scroll limit color
 - Snackbar on connect
+- Import GPX from CSV
 
 
 ## [5.0.0] - 2024-08-10

@@ -144,6 +144,7 @@ class _LivePageState extends State<LivePage> {
               evcErrorList = nmeaData["evcErrorMsg"].toString().split(', ');
               if (nmeaData['time'] == '0') {nmeaData['time'] = '-';}
               if (nmeaData['ehours'] == '0') {nmeaData['ehours'] = '-';}
+              // if (nmeaData['flevel'] != '-') {nmeaData['flevel'] = double.parse(round(nmeaData['flevel'], decimals: 1);}
             });
           }
         });
@@ -581,6 +582,7 @@ class _LivePageState extends State<LivePage> {
                               SettingsTile.navigation(
                                 title: Text("OTA Update", style: TextStyle(color: Theme.of(context).colorScheme.error),),
                                 onPressed: (context) async {
+                                  await http.get(Uri.parse('http://$connectURL/set?otaUpdate=true'));
                                   if (!await launchUrl(Uri.parse('http://$connectURL/update'))) {
                                     throw Exception('Could not launch http://$connectURL/update');
                                   }
@@ -645,6 +647,11 @@ class _LivePageState extends State<LivePage> {
     if (nmeaData["time"] == '-') {
       return Text('-', style: TextStyle(color: Theme.of(context).colorScheme.onSurface));
     } else {
+      try {
+        int.parse(nmeaData['time']);
+      } catch (e) {
+        return Text('-', style: TextStyle(color: Theme.of(context).colorScheme.onSurface));
+      }
       return Text(DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(int.parse(nmeaData["time"]) * 1000, isUtc: false)));
     }
   }
@@ -664,7 +671,8 @@ class _LivePageState extends State<LivePage> {
       case ConversionType.speed:
         switch (speedUnit) {
           case SpeedUnit.km:
-            return round(value * 3.6, decimals: 2).toString();
+          return (value*3.6).toStringAsFixed(2);
+            // return round(value * 3.6, decimals: 2).toString();
           case SpeedUnit.kn:
             return round(value * (3600/1852), decimals: 2).toString();
           case SpeedUnit.mi:

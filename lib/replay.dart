@@ -116,6 +116,11 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
   }
 
   void getCSV() async {
+    gpxLL.clear();
+    gpxNum.clear();
+    if (gpxLL.isEmpty) {
+      gpxLL.add([const LatLng(0, 0)]);
+    }
     csvFilePath = await getFilePath(['csv']);
     if (csvFilePath.path != "null") {
       loadCSV(csvFilePath).then((rows) {
@@ -142,7 +147,11 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
                   csvListData[i][j] = "-";
                 }
                 if (j == csvHeaderData.indexOf("Time Stamp")) {
-                  csvListData[i][j] = DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(csvListData[i][j] * 1000, isUtc: false));
+                  if (csvListData[i][j] == 0) {
+                    csvListData[i][j] = "-";
+                  } else {
+                    csvListData[i][j] = DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(csvListData[i][j] * 1000, isUtc: false));
+                  }
                 }
               }
               j++;
@@ -170,6 +179,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
 
   void getGPX(File filePath) async {
     gpxFilePath = await getFilePath(['gpx']);
+    if (gpxFilePath.path.contains('.csv')) {return;}
 
     if (gpxFilePath.path != "null") {
       loadGPX(gpxFilePath).then((rows) {

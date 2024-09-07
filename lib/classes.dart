@@ -77,11 +77,11 @@ class UnitFunctions {
   static dynamic returnInPreferredUnit(String key, dynamic value) {
     if (value is String) {return value;}
     if (key.contains('Temp')) {
-      return tempUnit == TempUnit.celsius ? round((value - 273.15), decimals: 0) : round(((value - 273.15) * (9/5) + 32), decimals: 0);
+      return tempUnit == TempUnit.celsius ? round((value - 273.15), decimals: 2) : round(((value - 273.15) * (9/5) + 32), decimals: 2);
     } else if (key.contains('Depth')) {
       return depthUnit == DepthUnit.meters ? round(value, decimals: 2) : round((value * 3.280839895), decimals: 2);
     } else if (key.contains('Rate')) {
-      return (fuelUnit == FuelUnit.litre ? round(value, decimals: 1) : round(value * 0.26417205234375, decimals: 1));
+      return (fuelUnit == FuelUnit.litre ? value : round(value * 0.26417205234375, decimals: 1));
     } else if (key.contains('Efficiency')) {
       return (fuelUnit == FuelUnit.litre ? round(value, decimals: 3) : round(2.35214583 / value, decimals: 3));
     } else if (key.contains('Hours')) {
@@ -381,15 +381,15 @@ class NmeaDrawer extends StatelessWidget {
                     ),
                   ),
                   showSelectedIcon: false,
-                  segments: const <ButtonSegment<DepthUnit>>[
+                  segments: <ButtonSegment<DepthUnit>>[
                     ButtonSegment(
                       value: DepthUnit.feet,
-                      label: Text('ft'),
+                      label: Text('ft', style: TextStyle(color: depthUnit == DepthUnit.feet ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
                       tooltip: 'Feet'
                     ),
                     ButtonSegment(
                       value: DepthUnit.meters,
-                      label: Text('m'),
+                      label: Text('m', style: TextStyle(color: depthUnit == DepthUnit.meters ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
                       tooltip: 'Meters'
                     ),
                   ], 
@@ -411,14 +411,14 @@ class NmeaDrawer extends StatelessWidget {
                     ),
                   ),
                   showSelectedIcon: false,
-                  segments: const <ButtonSegment<TempUnit>>[
+                  segments: <ButtonSegment<TempUnit>>[
                     ButtonSegment(
                       value: TempUnit.celsius,
-                      label: Text('\u2103'),
+                      label: Text('\u2103', style: TextStyle(color: tempUnit == TempUnit.celsius ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
                     ),
                     ButtonSegment(
                       value: TempUnit.fahrenheit,
-                      label: Text('\u2109'),
+                      label: Text('\u2109', style: TextStyle(color: tempUnit == TempUnit.fahrenheit ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
                     ),
                   ], 
                   selected: <TempUnit>{tempUnit},
@@ -439,14 +439,14 @@ class NmeaDrawer extends StatelessWidget {
                     ),
                   ),
                   showSelectedIcon: false,
-                  segments: const <ButtonSegment<FuelUnit>>[
+                  segments: <ButtonSegment<FuelUnit>>[
                     ButtonSegment(
                       value: FuelUnit.litre,
-                      label: Text('Litre'),
+                      label: Text('Litre', style: TextStyle(color: fuelUnit == FuelUnit.litre ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
                     ),
                     ButtonSegment(
                       value: FuelUnit.gallon,
-                      label: Text('Gallon'),
+                      label: Text('Gallon', style: TextStyle(color: fuelUnit == FuelUnit.gallon ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
                     ),
                   ], 
                   selected: <FuelUnit>{fuelUnit},
@@ -467,22 +467,22 @@ class NmeaDrawer extends StatelessWidget {
                     ),
                   ),
                   showSelectedIcon: false,
-                  segments: const <ButtonSegment<SpeedUnit>>[
+                  segments: <ButtonSegment<SpeedUnit>>[
                     ButtonSegment(
                       value: SpeedUnit.km,
-                      label: Text('km'),
+                      label: Text('km', style: TextStyle(color: speedUnit == SpeedUnit.km ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
                     ),
                     ButtonSegment(
                       value: SpeedUnit.kn,
-                      label: Text('kn'),
+                      label: Text('kn', style: TextStyle(color: speedUnit == SpeedUnit.kn ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
                     ),
                     ButtonSegment(
                       value: SpeedUnit.mi,
-                      label: Text('mi'),
+                      label: Text('mi', style: TextStyle(color: speedUnit == SpeedUnit.mi ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
                     ),
                     ButtonSegment(
                       value: SpeedUnit.ms,
-                      label: Text('m/s'),
+                      label: Text('m/s', style: TextStyle(color: speedUnit == SpeedUnit.ms ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
                     ),
                   ], 
                   selected: <SpeedUnit>{speedUnit},

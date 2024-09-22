@@ -11,6 +11,7 @@ class UnitFunctions {
     String result;
     switch (type) {
       case ConversionType.temp:
+      case ConversionType.wTemp:
         result = tempUnit == TempUnit.celsius ? '\u2103' : '\u2109';
       case ConversionType.depth:
         result = depthUnit == DepthUnit.meters ? 'm' : 'ft';
@@ -505,7 +506,7 @@ class NmeaViolation {
   NmeaViolation({required this.name, required this.value, required this.line});
 }
 
-enum ConversionType {depth, temp, speed, fuelRate, fuelEfficiency}
+enum ConversionType {depth, temp, wTemp, speed, fuelRate, fuelEfficiency}
 
 enum DepthUnit {meters, feet}
 

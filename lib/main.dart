@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   // https://www.kindacode.com/article/flutter-ways-to-make-a-dark-light-mode-toggle/ - dark mode toggle
-  static final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
+  static final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
   static const appVersion = '5.0.0';
 
   // This widget is the root of your application.

@@ -7,17 +7,16 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - yyyy-mm-dd
  
 ### To-Do
-- Change scroll limit color
-- Snackbar on connect
-- Import GPX from CSV
 
 
-## [5.0.0] - 2024-08-10
+## [5.0.0] - 2024-09-22
 
 ### Added
 - File Manager page
 - Show route when opening csv file
 - Drawer as class
+- Reconnection to websocket
+- Import GPX from CSV
 
 ### Changed
 - Units from NMEATrax are metric. Conversion done locally.

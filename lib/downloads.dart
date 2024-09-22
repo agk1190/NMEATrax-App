@@ -52,8 +52,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Voyage Recordings'),
+        title: Text('Voyage Recordings', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
         backgroundColor: Theme.of(context).colorScheme.primary,
+        iconTheme: Theme.of(context).primaryIconTheme,
       ),
       body: RefreshIndicator(
         onRefresh: getFilesList,
@@ -79,32 +80,32 @@ class _DownloadsPageState extends State<DownloadsPage> {
                               title: const Text("Email Progress"),
                               content: Text(emailData),
                               actions: [
-                                // LinearProgressIndicator(),
-                                emailBtnVis ? 
-                                ElevatedButton(
-                                  style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(
-                                    emailBtnVis ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.secondary
-                                  ),),
-                                  onPressed: () async {
-                                    setState(() {
-                                      emailData = "";
-                                      emailBtnVis = false;
-                                    });
-                                    final validIP = await Ping(connectURL, count: 1).stream.first;
-                                    if (validIP.response != null) {
-                                      channel = IOWebSocketChannel.connect(Uri.parse('ws://$connectURL/emws'));
-                                      channel!.stream.listen((message) {
-                                        setState(() {
-                                          emailData += message;
-                                          emailData += "\r\n";
-                                        });
+                                Visibility(
+                                  visible: emailBtnVis,
+                                  child: ElevatedButton(
+                                    style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(
+                                      emailBtnVis ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.secondary
+                                    ),),
+                                    onPressed: () async {
+                                      setState(() {
+                                        emailData = "";
+                                        emailBtnVis = false;
                                       });
-                                      http.post(Uri.parse("http://$connectURL/set?email=true"));
-                                    }
-                                  },
-                                  child: Text("Send Email", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                                )
-                                : const Text("Sending..."),
+                                      final validIP = await Ping(connectURL, count: 1).stream.first;
+                                      if (validIP.response != null) {
+                                        channel = IOWebSocketChannel.connect(Uri.parse('ws://$connectURL/emws'));
+                                        channel!.stream.listen((message) {
+                                          setState(() {
+                                            emailData += message;
+                                            emailData += "\r\n";
+                                          });
+                                        });
+                                        http.post(Uri.parse("http://$connectURL/set?email=true"));
+                                      }
+                                    },
+                                    child: Text("Send Email", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                                  ),
+                                ),
                                 ElevatedButton(
                                   onPressed: () {
                                     emailBtnVis = true;

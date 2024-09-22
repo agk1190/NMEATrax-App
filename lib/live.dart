@@ -4,14 +4,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:csv/csv.dart';
 import 'package:settings_ui/settings_ui.dart';
 import 'package:http/http.dart' as http;
 import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:web_socket_channel/io.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:dart_ping/dart_ping.dart';
 
 import 'classes.dart';
@@ -35,9 +34,12 @@ class _LivePageState extends State<LivePage> {
   final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
   late StreamSubscription<String> subscription;
   bool moreSettingsVisible = false;
-  IOWebSocketChannel? channel;
+  WebSocketChannel? channel;
   late BuildContext lcontext;
-
+  DateTime lastDataReceived = DateTime.now();
+  Timer? webSocketTimer;
+  Timer? reconnectTimer;
+  bool reconnecting = false;
 
   Future<void> savePrefs() async {
     final SharedPreferences prefs = await _prefs;
@@ -118,17 +120,36 @@ class _LivePageState extends State<LivePage> {
     }
   }
 
-  // Function to connect or disconnect the WebSocket
+  // Function to connect the WebSocket
   void connectWebSocket() async {
     if (channel == null) {
       final validIP = await Ping(connectURL, count: 1).stream.first;
-      if (validIP.response != null) {
-        channel = IOWebSocketChannel.connect(Uri.parse('ws://$connectURL/ws'));
+      if (validIP.summary == null && validIP.response != null) {
+        
+        channel = WebSocketChannel.connect(Uri.parse('ws://$connectURL/ws'));
+        
+        try {
+          await channel?.ready;
+        } on SocketException {
+          setState(() {
+            channel = null;
+            nmeaData['rpm'] = 'No Websocket';
+          });
+          return;
+        } on WebSocketChannelException {
+          setState(() {
+            channel = null;
+            nmeaData['rpm'] = 'No Websocket';
+          });
+          return;
+        }
+        
         channel!.stream.listen((message) {
           int i = 0;
           if (message.toString().substring(2, 5) != "rpm") {
           } else {
             setState(() {
+              lastDataReceived = DateTime.now();  // Update the last data received time
               nmeaData = jsonDecode(message);
               for (String element in nmeaData.values) {
                 try {
@@ -144,7 +165,6 @@ class _LivePageState extends State<LivePage> {
               evcErrorList = nmeaData["evcErrorMsg"].toString().split(', ');
               if (nmeaData['time'] == '0') {nmeaData['time'] = '-';}
               if (nmeaData['ehours'] == '0') {nmeaData['ehours'] = '-';}
-              // if (nmeaData['flevel'] != '-') {nmeaData['flevel'] = double.parse(round(nmeaData['flevel'], decimals: 1);}
             });
           }
         });
@@ -152,6 +172,13 @@ class _LivePageState extends State<LivePage> {
           getOptions();
           if (Platform.isAndroid) {KeepScreenOn.turnOn();}
           savePrefs();
+          startHeartbeat();
+          reconnecting = false;
+        });
+      } else {
+        setState(() {
+          channel = null;
+          nmeaData['rpm'] = 'Bad IP';
         });
       }
     }
@@ -167,8 +194,73 @@ class _LivePageState extends State<LivePage> {
         if (Platform.isAndroid) {KeepScreenOn.turnOff();}
         nmeaData.updateAll((key, value) => value = "-");
         evcErrorList = List.empty();
+        webSocketTimer?.cancel();
+        reconnectTimer?.cancel();
       });
     }
+  }
+
+  // Function to reconnect the WebSocket
+  void reconnectWebSocket() {
+    int reconnectAttempts = 0;
+    webSocketTimer?.cancel();
+    disconnectWebSocket();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Reconnecting...', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const LinearProgressIndicator(),
+              Text('Last message at ${lastDataReceived.hour > 12 ? lastDataReceived.hour-12 : lastDataReceived.hour}:${lastDataReceived.minute.toString().padLeft(2, '0')} ${lastDataReceived.hour > 11 ? 'PM' : 'AM'}')
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              style: ButtonStyle(backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)),
+              onPressed: () {
+                reconnectTimer!.cancel();
+                webSocketTimer!.cancel();
+                Navigator.of(context).pop();
+                nmeaData['rpm'] = '-';
+              }, 
+              child: Text("Cancel", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),)
+            )
+          ],
+        );
+      },
+    );
+    reconnectTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      reconnectAttempts++;
+      connectWebSocket();
+      setState(() {});
+      if (channel != null || reconnectAttempts > 24) {
+        setState(() {
+          if (Navigator.canPop(context)) {
+            Navigator.of(context).pop();
+          }
+          reconnectTimer!.cancel();
+          nmeaData['rpm'] = '-';
+        });
+      }
+    },);
+  }
+
+  // Check if data is being received within the expected time frame
+  void startHeartbeat() {
+    webSocketTimer?.cancel();  // Cancel any existing heartbeat timer
+    webSocketTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      final now = DateTime.now();
+      final durationSinceLastData = now.difference(lastDataReceived);
+
+      // Check if more than 2 seconds have passed without data
+      if (durationSinceLastData.inSeconds >= 2 && !reconnecting) {
+        reconnecting = true;
+        reconnectWebSocket();
+      }
+    });
   }
 
   @override
@@ -282,9 +374,9 @@ class _LivePageState extends State<LivePage> {
                 ) else const Text(""),
               ],
             ),
-            bottom: TabBar(
-              indicatorColor: Theme.of(context).colorScheme.secondary,
-              tabs: const [
+            bottom: const TabBar(
+              indicatorColor: Colors.white,
+              tabs: [
                 Tab(icon: Icon(Icons.dashboard, color: Colors.white)),
                 Tab(icon: Icon(Icons.list, color: Colors.white)),
                 Tab(icon: Icon(Icons.settings, color: Colors.white)),
@@ -298,15 +390,10 @@ class _LivePageState extends State<LivePage> {
                 child: Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+                      padding: const EdgeInsets.fromLTRB(8, 0, 12, 0),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          SizedBox(
-                            width: MediaQuery.of(context).size.width * 0.5,
-                            child: nmeaData.keys.contains("nmeaTraxGenericMsg") ? Text(nmeaData["nmeaTraxGenericMsg"], style: TextStyle(color: Theme.of(context).colorScheme.onSurface)) : const Text("")
-                          ),
-                          // Text(nmeaData["time"], style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                           displayTimeStamp(),
                         ],
                       ),
@@ -350,14 +437,14 @@ class _LivePageState extends State<LivePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["etemp"], ConversionType.temp), title: "Engine", unit: UnitFunctions.unitFor(ConversionType.temp), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["etemp"], ConversionType.temp), title: "Engine", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),),
                         Expanded(child: SizedNMEABox(value: nmeaData["flevel"], title: "Fuel", unit: "%", mainContext: context,),),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["otemp"], ConversionType.temp), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.temp), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["otemp"], ConversionType.temp), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),),
                         Expanded(child: SizedNMEABox(value: nmeaData["opres"], title: "Oil", unit: " kpa", mainContext: context,),),
                       ],
                     ),
@@ -372,7 +459,7 @@ class _LivePageState extends State<LivePage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Expanded(child: SizedNMEABox(value: nmeaData["leg_tilt"], title: "Leg Tilt", unit: "%", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["wtemp"], ConversionType.temp), title: "Water Temp", unit: UnitFunctions.unitFor(ConversionType.temp), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["wtemp"], ConversionType.wTemp), title: "Water Temp", unit: UnitFunctions.unitFor(ConversionType.wTemp, leadingSpace: false), mainContext: context,),),
                       ],
                     ),
                   ],
@@ -427,18 +514,21 @@ class _LivePageState extends State<LivePage> {
                           ),
                         ),
                         DropdownMenu(
-                          // menuStyle: MenuStyle(
-                          //   backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceVariant)
-                          // ),
+                          menuStyle: MenuStyle(
+                            backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surface),
+                            surfaceTintColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceContainerHighest),
+                          ),
+                          textStyle: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            backgroundColor: Theme.of(context).colorScheme.surface,
+                          ),
                           initialSelection: recModeEnum[ntOptions["recMode"]],
                           enableSearch: false,
                           dropdownMenuEntries: recModeOptions.map<DropdownMenuEntry<String>>((String value) {
                             return DropdownMenuEntry<String>(
                               value: value,
                               label: value,
-                              // style: ButtonStyle(
-                              //   backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceVariant)
-                              // ),
+                              style: ButtonStyle(foregroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.onSurfaceVariant))
                             );
                           }).toList(),
                           onSelected: (value) {
@@ -622,6 +712,14 @@ class _LivePageState extends State<LivePage> {
                         child: Text('Voyage Recordings', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onPrimary),),
                       ),
                     ),
+                    const SizedBox(height: 15,),
+                    Visibility(
+                      visible: nmeaData['buildDate'] != null,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Text("Firmware built on ${ntOptions["buildDate"]}", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                      ),
+                    ),
                   ]
                 ),
               ),
@@ -633,6 +731,7 @@ class _LivePageState extends State<LivePage> {
                 disconnectWebSocket();
               } else {
                 showConnectDialog(context, "IP Address");
+                nmeaData['rpm'] = '-';
               }
             },
             label: channel != null ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
@@ -652,7 +751,7 @@ class _LivePageState extends State<LivePage> {
       } catch (e) {
         return Text('-', style: TextStyle(color: Theme.of(context).colorScheme.onSurface));
       }
-      return Text(DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(int.parse(nmeaData["time"]) * 1000, isUtc: false)));
+      return Text(DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(int.parse(nmeaData["time"]) * 1000, isUtc: false)), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),);
     }
   }
 
@@ -661,24 +760,26 @@ class _LivePageState extends State<LivePage> {
     double value = double.parse(data);
     switch (type) {
       case ConversionType.temp:
-        return round(tempUnit == TempUnit.celsius ? value - 273.15 : ((value - 273.15) * (9/5) + 32), decimals: 2).toString();
+        return (tempUnit == TempUnit.celsius ? value - 273.15 : ((value - 273.15) * (9/5) + 32)).toStringAsFixed(0);
+      case ConversionType.wTemp:
+        return (tempUnit == TempUnit.celsius ? value - 273.15 : ((value - 273.15) * (9/5) + 32)).toStringAsFixed(2);
       case ConversionType.depth:
-        return round(depthUnit == DepthUnit.meters ? value : value * 3.280839895, decimals: 2).toString();
+        return (depthUnit == DepthUnit.meters ? value : value * 3.280839895).toStringAsFixed(2);
       case ConversionType.fuelRate:
-        return round(fuelUnit == FuelUnit.litre ? value : value * 0.26417205234375, decimals: 1).toString();
+        return (fuelUnit == FuelUnit.litre ? value : value * 0.26417205234375).toStringAsFixed(1);
       case ConversionType.fuelEfficiency:
-        return round(fuelUnit == FuelUnit.litre ? value : value * 2.35214583, decimals: 3).toString();
+        return (fuelUnit == FuelUnit.litre ? value : value * 2.35214583).toStringAsFixed(3);
       case ConversionType.speed:
         switch (speedUnit) {
           case SpeedUnit.km:
-          return (value*3.6).toStringAsFixed(2);
+            return (value*3.6).toStringAsFixed(2);
             // return round(value * 3.6, decimals: 2).toString();
           case SpeedUnit.kn:
-            return round(value * (3600/1852), decimals: 2).toString();
+            return (value * (3600/1852)).toStringAsFixed(2);
           case SpeedUnit.mi:
-           return round(value * 2.2369362920544025, decimals: 2).toString();
+           return (value * 2.2369362920544025).toStringAsFixed(2);
           case SpeedUnit.ms:
-            return round(value, decimals: 2).toString();
+            return (value).toStringAsFixed(2);
         }
     }
   }
@@ -696,7 +797,6 @@ class _LivePageState extends State<LivePage> {
         setState(() {
           connectURL = input;
           connectWebSocket();
-          if (channel != null) {savePrefs();}
         });
         //https://stackoverflow.com/a/50683571 for nav.pop
         Navigator.of(context, rootNavigator: true).pop();
@@ -722,7 +822,6 @@ class _LivePageState extends State<LivePage> {
           setState(() {
             connectURL = input;
             connectWebSocket();
-            if (channel != null) {savePrefs();}
           });
           Navigator.of(context, rootNavigator: true).pop();
         },

@@ -39,6 +39,15 @@ class _FilePageState extends State<FilePage> {
       for (PlatformFile file in result.files) {
         setState(() {
           csvFiles.add(CsvFile(file: File(file.path!), selected: false));
+          if (csvFiles.any((element) => element.selected == true)) {
+            if (csvFiles.any((element) => element.selected == false)) {
+              selectAll = null;
+            } else {
+              selectAll = true;
+            }
+          } else {
+            selectAll = false;
+          }
         });
       }
     }
@@ -123,167 +132,170 @@ class _FilePageState extends State<FilePage> {
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: AppBar(
-          systemOverlayStyle: SystemUiOverlayStyle(systemNavigationBarColor: Theme.of(context).colorScheme.surface),
+          systemOverlayStyle: SystemUiOverlayStyle(systemNavigationBarColor: Theme.of(context).colorScheme.surfaceContainer),
           backgroundColor: Theme.of(context).colorScheme.primary,
           iconTheme: Theme.of(context).primaryIconTheme,
           title: Text('NMEATrax File Manager', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
         ),
         bottomNavigationBar: Builder(
-          builder: (context) {
+          builder: (lcontext) {
             return BottomAppBar(
-              color: Theme.of(context).colorScheme.surfaceContainerLow,
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton(
-                      style: ButtonStyle(
-                        backgroundColor: allowedToCombine(2) ? WidgetStatePropertyAll(Theme.of(context).colorScheme.primary) : WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceDim)
-                      ),
-                      onPressed: allowedToCombine(2) ? () {
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            String filename = "combined";
-                            return AlertDialog(
-                              backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
-                              title: Text('Combine CSV Files', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              content: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text("Filename for the combined file...", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                                  TextField(
-                                    keyboardType: TextInputType.text,
-                                    autofocus: true,
-                                    autocorrect: false,
-                                    onChanged: (value) => filename = value,
+              color: Theme.of(context).colorScheme.surfaceContainer,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor: allowedToCombine(2) ? WidgetStatePropertyAll(Theme.of(context).colorScheme.primary) : WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceDim)
+                        ),
+                        onPressed: allowedToCombine(2) ? () {
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              String filename = "combined";
+                              return AlertDialog(
+                                backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+                                title: Text('Combine CSV Files', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                content: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text("Filename for the combined file...", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                    TextField(
+                                      keyboardType: TextInputType.text,
+                                      autofocus: true,
+                                      autocorrect: false,
+                                      onChanged: (value) => filename = value,
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  ElevatedButton(
+                                    style: ButtonStyle(
+                                      backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
+                                    ),
+                                    onPressed: () async {
+                                      Navigator.of(context, rootNavigator: true).pop();
+                                      combineCSV(filename);
+                                      // String resultingFile = await combineCSV(filename);
+                                    },
+                                    child: Text('Combine', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
                                   ),
                                 ],
-                              ),
-                              actions: [
-                                ElevatedButton(
-                                  style: ButtonStyle(
-                                    backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
-                                  ),
-                                  onPressed: () async {
-                                    Navigator.of(context, rootNavigator: true).pop();
-                                    combineCSV(filename);
-                                    // String resultingFile = await combineCSV(filename);
-                                  },
-                                  child: Text('Combine', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      } : null,
-                      child: Text('Combine', 
-                        style: allowedToCombine(2) ? TextStyle(color: Theme.of(context).colorScheme.onPrimary) : TextStyle(color: Theme.of(context).colorScheme.surfaceBright),
+                              );
+                            },
+                          );
+                        } : null,
+                        child: Text('Combine', 
+                          style: allowedToCombine(2) ? TextStyle(color: Theme.of(context).colorScheme.onPrimary) : TextStyle(color: Theme.of(context).colorScheme.surfaceBright),
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton(
-                      style: ButtonStyle(
-                        backgroundColor: allowedToCombine(1) ? WidgetStatePropertyAll(Theme.of(context).colorScheme.primary) : WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceDim),
-                      ),
-                      onPressed: allowedToCombine(1) ? () {
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            String filename = "gpx";
-                            return AlertDialog(
-                              backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
-                              title: Text('Make GPX File', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              content: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text("Filename for the GPX file...", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                                  TextFormField(
-                                    initialValue: filename,
-                                    keyboardType: TextInputType.text,
-                                    autofocus: true,
-                                    autocorrect: false,
-                                    onChanged: (value) => filename = value,
+                    Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor: allowedToCombine(1) ? WidgetStatePropertyAll(Theme.of(context).colorScheme.primary) : WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceDim),
+                        ),
+                        onPressed: allowedToCombine(1) ? () {
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              String filename = "gpx";
+                              return AlertDialog(
+                                backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+                                title: Text('Make GPX File', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                content: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text("Filename for the GPX file...", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                    TextFormField(
+                                      initialValue: filename,
+                                      keyboardType: TextInputType.text,
+                                      autofocus: true,
+                                      autocorrect: false,
+                                      onChanged: (value) => filename = value,
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  ElevatedButton(
+                                    style: ButtonStyle(
+                                      backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
+                                    ),
+                                    onPressed: () async {
+                                      if (await makeGPX(filename)) {
+                                        if (context.mounted) {Navigator.of(context, rootNavigator: true).pop();}
+                                      }                                    
+                                    },
+                                    child: Text('Create', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
                                   ),
                                 ],
-                              ),
-                              actions: [
-                                ElevatedButton(
-                                  style: ButtonStyle(
-                                    backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
-                                  ),
-                                  onPressed: () async {
-                                    if (await makeGPX(filename)) {
-                                      if (context.mounted) {Navigator.of(context, rootNavigator: true).pop();}
-                                    }                                    
-                                  },
-                                  child: Text('Create', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      } : null, 
-                      child: Text('Make GPX', 
-                        style: allowedToCombine(1) ? TextStyle(color: Theme.of(context).colorScheme.onPrimary) : TextStyle(color: Theme.of(context).colorScheme.surfaceBright),
+                              );
+                            },
+                          );
+                        } : null, 
+                        child: Text('Make GPX', 
+                          style: allowedToCombine(1) ? TextStyle(color: Theme.of(context).colorScheme.onPrimary) : TextStyle(color: Theme.of(context).colorScheme.surfaceBright),
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton(
-                      style: ButtonStyle(
-                        backgroundColor: allowedToCombine(1) ? WidgetStatePropertyAll(Theme.of(context).colorScheme.primary) : WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceDim),
-                      ),
-                      onPressed: allowedToCombine(1) ? () {
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            String filename = "kml";
-                            return AlertDialog(
-                              backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
-                              title: Text('Make KML File', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              content: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text("Filename for the KML file...", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                                  TextFormField(
-                                    initialValue: filename,
-                                    keyboardType: TextInputType.text,
-                                    autofocus: true,
-                                    autocorrect: false,
-                                    onChanged: (value) => filename = value,
+                    Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor: allowedToCombine(1) ? WidgetStatePropertyAll(Theme.of(context).colorScheme.primary) : WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceDim),
+                        ),
+                        onPressed: allowedToCombine(1) ? () {
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              String filename = "kml";
+                              return AlertDialog(
+                                backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+                                title: Text('Make KML File', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                content: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text("Filename for the KML file...", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                    TextFormField(
+                                      initialValue: filename,
+                                      keyboardType: TextInputType.text,
+                                      autofocus: true,
+                                      autocorrect: false,
+                                      onChanged: (value) => filename = value,
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  ElevatedButton(
+                                    style: ButtonStyle(
+                                      backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
+                                    ),
+                                    onPressed: () async {
+                                      if (await makeKML(filename)) {
+                                        if (context.mounted) {Navigator.of(context, rootNavigator: true).pop();}
+                                      }                                    
+                                    },
+                                    child: Text('Create', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
                                   ),
                                 ],
-                              ),
-                              actions: [
-                                ElevatedButton(
-                                  style: ButtonStyle(
-                                    backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
-                                  ),
-                                  onPressed: () async {
-                                    if (await makeKML(filename)) {
-                                      if (context.mounted) {Navigator.of(context, rootNavigator: true).pop();}
-                                    }                                    
-                                  },
-                                  child: Text('Create', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      } : null, 
-                      child: Text('Make KML', 
-                        style: allowedToCombine(1) ? TextStyle(color: Theme.of(context).colorScheme.onPrimary) : TextStyle(color: Theme.of(context).colorScheme.surfaceBright),
+                              );
+                            },
+                          );
+                        } : null, 
+                        child: Text('Make KML', 
+                          style: allowedToCombine(1) ? TextStyle(color: Theme.of(context).colorScheme.onPrimary) : TextStyle(color: Theme.of(context).colorScheme.surfaceBright),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           }
@@ -321,13 +333,22 @@ class _FilePageState extends State<FilePage> {
                 },
               ),
               shrinkWrap: true,
-              itemBuilder: (context, index) {
+              itemBuilder: (lcontext, index) {
                 return Padding(
                   key: Key('$index'),
-                  padding: const EdgeInsets.fromLTRB(8, 4, 20, 4),
+                  padding: const EdgeInsets.fromLTRB(0, 4, 0, 4),
                   child: CheckboxListTile(
                     title: Text(basenameWithoutExtension(csvFiles.elementAt(index).file.path), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                    tileColor: Theme.of(context).colorScheme.surfaceContainer,
                     value: csvFiles.elementAt(index).selected,
+                    secondary: IconButton(
+                      icon: Icon(Icons.playlist_remove_rounded, color: Theme.of(context).colorScheme.onSurface,),
+                      onPressed: () {
+                        setState(() {
+                          csvFiles.removeAt(index);
+                        });
+                      },
+                    ),
                     onChanged: (value) {
                       setState(() {
                         csvFiles.elementAt(index).selected = value!;

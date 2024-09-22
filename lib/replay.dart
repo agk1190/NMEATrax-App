@@ -177,6 +177,25 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
     }
   }
 
+  void getGPXfromCSV() async {
+    csvFilePath = await getFilePath(['csv']);
+    if (csvFilePath.path != "null") {
+      loadCSV(csvFilePath).then((rows) {
+        if (rows.isNotEmpty) {
+          List<Wpt> waypoints = [];
+          final headersRow = rows.first;
+          rows.removeAt(0);
+          for (var row in rows) {
+            if (row.elementAt(headersRow.indexOf("Latitude")) != -273) {
+              waypoints.add(Wpt(lat: row.elementAt(headersRow.indexOf("Latitude")), lon: row.elementAt(headersRow.indexOf("Longitude"))));
+            }
+          }
+          if (waypoints.isNotEmpty) {importGPX(waypoints);}
+        }
+      });
+    }
+  }
+
   void getGPX(File filePath) async {
     gpxFilePath = await getFilePath(['gpx']);
     if (gpxFilePath.path.contains('.csv')) {return;}
@@ -368,7 +387,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           backgroundColor: Theme.of(context).colorScheme.surface,
           appBar: AppBar(
-            systemOverlayStyle: SystemUiOverlayStyle(systemNavigationBarColor: Theme.of(context).colorScheme.surface),
+            systemOverlayStyle: SystemUiOverlayStyle(systemNavigationBarColor: Theme.of(context).colorScheme.surfaceContainer),
             backgroundColor: Theme.of(context).colorScheme.primary,
             iconTheme: Theme.of(context).primaryIconTheme,
             title: Text('NMEATrax Replay', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
@@ -379,7 +398,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
                 analyzeData();
                 analyzeVisible = true;
               }),
-              indicatorColor: Theme.of(context).colorScheme.secondary,
+              indicatorColor: Colors.white,
               tabs: const [
                 Tab(icon: Icon(Icons.directions_boat_sharp, color: Colors.white)),
                 Tab(icon: Icon(Icons.analytics, color: Colors.white)),
@@ -391,7 +410,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
           bottomNavigationBar: Builder(
             builder: (context) {
               return BottomAppBar(
-                color: Theme.of(mainContext).colorScheme.surfaceContainerLow,
+                color: Theme.of(mainContext).colorScheme.surfaceContainer,
                 child: switch (_tabController.index) {
                   0 => dataAppBar(context),
                   1 => analyzeAppBar(mainContext),
@@ -727,8 +746,19 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
             backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
           ),
           icon: Icon(Icons.location_on, color: Theme.of(context).colorScheme.onPrimary,),
-          label: Text("GPX", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-          onPressed: () => getGPX(File("null")),
+          label: Text("CSV", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+          onPressed: () => getGPXfromCSV(),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: ElevatedButton.icon(
+            style: ButtonStyle(
+              backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
+            ),
+            icon: Icon(Icons.location_on, color: Theme.of(context).colorScheme.onPrimary,),
+            label: Text("GPX", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            onPressed: () => getGPX(File("null")),
+          ),
         ),
       ],
     );

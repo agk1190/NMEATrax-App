@@ -7,6 +7,14 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - yyyy-mm-dd
  
 ### To-Do
+- move unit selection to pop-up
+- add psi unit
+
+
+## [6.0.0] - 2024-12-06
+
+### Added
+- Basics of event based mode
 
 
 ## [5.0.0] - 2024-09-22

@@ -26,7 +26,7 @@ class LivePage extends StatefulWidget {
 
 class _LivePageState extends State<LivePage> {
 
-  Map<String, dynamic> nmeaData = {"rpm": "-273", "etemp": "-273", "otemp": "-273", "opres": "-273", "fuel_rate": "-273", "flevel": "-273", "efficiency": "-273", "leg_tilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wtemp": "-273", "battV": "-273", "ehours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "mag_var": "-273", "time": "-273", "evcErrorMsg": "-"};
+  Map<String, dynamic> nmeaData = {"rpm": "-273", "eTemp": "-273", "oTemp": "-273", "oPres": "-273", "fuelRate": "-273", "fLevel": "-273", "efficiency": "-273", "legTilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wTemp": "-273", "battV": "-273", "eHours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "magVar": "-273", "time": "-273", "evcErrorMsg": "-"};
   Map<String, dynamic> ntOptions = {"recInt":0, "recMode":0};
   Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
   List<String> evcErrorList = List.empty();
@@ -40,6 +40,12 @@ class _LivePageState extends State<LivePage> {
   Timer? webSocketTimer;
   Timer? reconnectTimer;
   bool reconnecting = false;
+  EngineData engineData = EngineData(id: 0);
+  GpsData gpsData = GpsData(id: 0);
+  FluidLevel fluidLevel = FluidLevel(id: 0);
+  TransmissionData transmissionData = TransmissionData(id: 0);
+  DepthData depthData = DepthData(id: 0);
+  TemperatureData temperatureData = TemperatureData(id: 0);
 
   Future<void> savePrefs() async {
     final SharedPreferences prefs = await _prefs;
@@ -145,6 +151,44 @@ class _LivePageState extends State<LivePage> {
         }
         
         channel!.stream.listen((message) {
+          print(message);
+          // Map<String, dynamic> testData = jsonDecode(message);
+          // Map<String, dynamic> data = testData.values.last;
+          String msgId = jsonDecode(message).values.first;
+          Map<String, dynamic> data = jsonDecode(message).values.last;
+          // print(data['rpm'] is int ? data['rpm'] as int : 0);
+          // print(data['tilt'] is int ? data['tilt'] as int : 0);
+          // nmeaData['rpm'] = (data['rpm'] is int ? data['rpm'] as int : '-').toString();
+          // nmeaData['legTilt'] = (data['tilt'] is int ? data['tilt'] as int : '-').toString();
+
+          switch (msgId) {
+            case '127488':
+            case '127489':
+              engineData = engineData.updateFromJson(data);
+              break;
+            case '127258':
+            case '129026':
+            case '129029':
+              gpsData = gpsData.updateFromJson(data);
+              break;
+            case '127505':
+              fluidLevel = fluidLevel.updateFromJson(data);
+              break;
+            case '127493':
+              transmissionData = transmissionData.updateFromJson(data);
+              break;
+            case '130312':
+              temperatureData = temperatureData.updateFromJson(data);
+              break;
+            case '128267':
+              depthData = depthData.updateFromJson(data);
+              break;
+            default:
+          }
+          
+          setState(() {});
+          
+          return;
           int i = 0;
           if (message.toString().substring(2, 5) != "rpm") {
           } else {
@@ -164,7 +208,7 @@ class _LivePageState extends State<LivePage> {
               }
               evcErrorList = nmeaData["evcErrorMsg"].toString().split(', ');
               if (nmeaData['time'] == '0') {nmeaData['time'] = '-';}
-              if (nmeaData['ehours'] == '0') {nmeaData['ehours'] = '-';}
+              if (nmeaData['eHours'] == '0') {nmeaData['eHours'] = '-';}
             });
           }
         });
@@ -172,7 +216,7 @@ class _LivePageState extends State<LivePage> {
           getOptions();
           if (Platform.isAndroid) {KeepScreenOn.turnOn();}
           savePrefs();
-          startHeartbeat();
+          // startHeartbeat();
           reconnecting = false;
         });
       } else {
@@ -424,42 +468,42 @@ class _LivePageState extends State<LivePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["speed"], ConversionType.speed), title: "Knots", unit: UnitFunctions.unitFor(ConversionType.speed), mainContext: context,)),
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["depth"], ConversionType.depth), title: "Depth", unit: UnitFunctions.unitFor(ConversionType.depth), mainContext: context,)),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(gpsData.speedOverGround, ConversionType.speed), title: "Knots", unit: UnitFunctions.unitFor(ConversionType.speed), mainContext: context,)),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(depthData.depth, ConversionType.depth), title: "Depth", unit: UnitFunctions.unitFor(ConversionType.depth), mainContext: context,)),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["rpm"], title: "RPM", unit: "", fontSize: 48, mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.rpm, ConversionType.none), title: "RPM", unit: "", fontSize: 48, mainContext: context,),),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["etemp"], ConversionType.temp), title: "Engine", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["flevel"], title: "Fuel", unit: "%", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.coolantTemp, ConversionType.temp), title: "Engine", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(fluidLevel.level, ConversionType.none), title: "Fuel", unit: "%", mainContext: context,),),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["otemp"], ConversionType.temp), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: nmeaData["opres"], title: "Oil", unit: " kpa", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.oilTemp, ConversionType.temp), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.oilPres, ConversionType.pressure), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.pressure), mainContext: context,),),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["fuel_rate"], ConversionType.fuelRate), title: "Fuel Rate", unit: UnitFunctions.unitFor(ConversionType.fuelRate), mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["efficiency"], ConversionType.fuelEfficiency), title: "Efficiency", unit: UnitFunctions.unitFor(ConversionType.fuelEfficiency), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.fuelRate, ConversionType.fuelRate), title: "Fuel Rate", unit: UnitFunctions.unitFor(ConversionType.fuelRate), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.efficieny, ConversionType.fuelEfficiency), title: "Efficiency", unit: UnitFunctions.unitFor(ConversionType.fuelEfficiency), mainContext: context,),),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(child: SizedNMEABox(value: nmeaData["leg_tilt"], title: "Leg Tilt", unit: "%", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(nmeaData["wtemp"], ConversionType.wTemp), title: "Water Temp", unit: UnitFunctions.unitFor(ConversionType.wTemp, leadingSpace: false), mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.legTilt, ConversionType.none), title: "Leg Tilt", unit: "%", mainContext: context,),),
+                        Expanded(child: SizedNMEABox(value: returnAfterConversion(temperatureData.actualTemp, ConversionType.wTemp), title: "Water Temp", unit: UnitFunctions.unitFor(ConversionType.wTemp, leadingSpace: false), mainContext: context,),),
                       ],
                     ),
                   ],
@@ -743,22 +787,32 @@ class _LivePageState extends State<LivePage> {
   }
 
   Text displayTimeStamp() {
-    if (nmeaData["time"] == '-') {
+    if (gpsData.unixTime == null) {
       return Text('-', style: TextStyle(color: Theme.of(context).colorScheme.onSurface));
     } else {
-      try {
-        int.parse(nmeaData['time']);
-      } catch (e) {
-        return Text('-', style: TextStyle(color: Theme.of(context).colorScheme.onSurface));
-      }
-      return Text(DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(int.parse(nmeaData["time"]) * 1000, isUtc: false)), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),);
+      // try {
+      //   int.parse(nmeaData['time']);
+      // } catch (e) {
+      //   return Text('-', style: TextStyle(color: Theme.of(context).colorScheme.onSurface));
+      // }
+      return Text(DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(gpsData.unixTime! * 1000, isUtc: false)), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),);
     }
   }
 
-  String returnAfterConversion(String data, ConversionType type) {
-    if (data == '-') {return data;}
-    double value = double.parse(data);
+  String returnAfterConversion(dynamic data, ConversionType type) {
+    if (data == -273) {return '-';}
+    // double value = double.parse(data);
+    if (data == null) {return '-';}
+    double value;
+    if (data is int) {
+      value = data.toDouble();
+    } else {
+      value = data;
+    }
+    
     switch (type) {
+      case ConversionType.none:
+        return value.toStringAsFixed(0);
       case ConversionType.temp:
         return (tempUnit == TempUnit.celsius ? value - 273.15 : ((value - 273.15) * (9/5) + 32)).toStringAsFixed(0);
       case ConversionType.wTemp:
@@ -769,6 +823,15 @@ class _LivePageState extends State<LivePage> {
         return (fuelUnit == FuelUnit.litre ? value : value * 0.26417205234375).toStringAsFixed(1);
       case ConversionType.fuelEfficiency:
         return (fuelUnit == FuelUnit.litre ? value : value * 2.35214583).toStringAsFixed(3);
+      case ConversionType.pressure:
+        switch (pressureUnit) {
+          case PressureUnit.psi:
+            return (value * 0.1450377377).toStringAsFixed(2);
+          case PressureUnit.kpa:
+            return value.toStringAsFixed(0);
+          case PressureUnit.inHg:
+            return (value * 0.296133971).toStringAsFixed(2);
+        }
       case ConversionType.speed:
         switch (speedUnit) {
           case SpeedUnit.km:

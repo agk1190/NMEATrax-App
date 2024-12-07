@@ -5,11 +5,14 @@ DepthUnit depthUnit = DepthUnit.feet;
 TempUnit tempUnit = TempUnit.celsius;
 SpeedUnit speedUnit = SpeedUnit.kn;
 FuelUnit fuelUnit = FuelUnit.litre;
+PressureUnit pressureUnit = PressureUnit.kpa;
 
 class UnitFunctions {
   static String unitFor(ConversionType type, {bool leadingSpace = true}) {
     String result;
     switch (type) {
+      case ConversionType.none:
+        result = '';
       case ConversionType.temp:
       case ConversionType.wTemp:
         result = tempUnit == TempUnit.celsius ? '\u2103' : '\u2109';
@@ -19,6 +22,15 @@ class UnitFunctions {
         result = fuelUnit == FuelUnit.litre ? 'L/h' : 'gph';
       case ConversionType.fuelEfficiency:
         result = fuelUnit == FuelUnit.litre ? 'L/km' : 'mpg';
+      case ConversionType.pressure:
+        switch (pressureUnit) {
+          case PressureUnit.psi:
+            result = 'psi';
+          case PressureUnit.kpa:
+            result = 'kpa';
+          case PressureUnit.inHg:
+            result = 'inHg';
+        }
       case ConversionType.speed:
         switch (speedUnit) {
           case SpeedUnit.km:
@@ -506,7 +518,166 @@ class NmeaViolation {
   NmeaViolation({required this.name, required this.value, required this.line});
 }
 
-enum ConversionType {depth, temp, wTemp, speed, fuelRate, fuelEfficiency}
+class EngineData {
+  int id = 0;
+  int? rpm;
+  double? boostPres;
+  int? legTilt;
+  double? oilTemp;
+  double? oilPres;
+  double? coolantTemp;
+  double? coolantPres;
+  double? battV;
+  double? fuelRate;
+  double? fuelPres;
+  double? efficieny;
+  int? eHours;
+  double? engineLoad;
+  double? engineTorque;
+
+  EngineData({this.id = 0, this.rpm, this.boostPres, this.legTilt, this.oilTemp, this.oilPres, this.coolantTemp, this.coolantPres, this.battV, this.fuelRate, this.fuelPres, this.efficieny, this.eHours, this.engineLoad, this.engineTorque});
+
+  // Factory constructor for creating an instance from JSON   // ChatGPT
+  factory EngineData.fromJson(Map<String, dynamic> json) {
+    return EngineData(
+      rpm: json['rpm'] as int?, // Use nullable types
+      boostPres: json['boostPres'] as double?,
+      legTilt: json['legTilt'] as int?,
+      oilTemp: json['oTemp'] as double?,
+      oilPres: json['oPres'] as double?,
+      coolantTemp: json['eTemp'] as double?,
+      coolantPres: json['ePres'] as double?,
+      battV: json['battV'] as double?,
+      fuelRate: json['fuelRate'] as double?,
+      fuelPres: json['fuelPres'] as double?,
+      efficieny: json['efficiency'] as double?,
+      eHours: json['eHours'] as int?,
+      engineLoad: json['eLoad'] as double?,
+      engineTorque: json['eTorque'] as double?,
+    );
+  }
+
+  EngineData updateFromJson(Map<String, dynamic> json) {
+    return EngineData(
+      rpm: json['rpm'] ?? rpm,
+      boostPres: json['boostPres'] ?? boostPres,
+      legTilt: json['legTilt'] ?? legTilt,
+      oilTemp: json['oTemp'] ?? oilTemp,
+      oilPres: json['oPres'] ?? oilPres,
+      coolantTemp: json['eTemp'] ?? coolantTemp,
+      coolantPres: json['ePres'] ?? coolantPres,
+      battV: json['battV'] ?? battV,
+      fuelRate: json['fuelRate'] ?? fuelRate,
+      fuelPres: json['fuelPres'] ?? fuelPres,
+      efficieny: json['efficiency'] ?? efficieny,
+      eHours: json['eHours'] ?? eHours,
+      engineLoad: json['eLoad'] ?? engineLoad,
+      engineTorque: json['eTorque'] ?? engineTorque,
+    );
+  }
+
+  // Method to convert an instance to JSON    // ChatGPT
+  // Map<String, dynamic> toJson() {
+  //   return {
+  //     if (rpm != null) 'rpm': rpm, // Include only non-null fields
+  //     if (temp != null) 'temp': temp,
+  //     if (pres != null) 'pres': pres,
+  //   };
+  // }
+}
+
+class GpsData {
+  int id = 0;
+  int? unixTime;
+  double? latitude;
+  double? longitude;
+  double? speedOverGround;
+  int? courseOverGround;
+  double? magneticVariation;
+
+  GpsData({this.id = 0, this.unixTime, this.latitude, this.longitude, this.speedOverGround, this.courseOverGround, this.magneticVariation});
+
+  GpsData updateFromJson(Map<String, dynamic> json) {
+    return GpsData(
+      unixTime: json['unixTime'] ?? unixTime,
+      latitude: json['lat'] ?? latitude,
+      longitude: json['lon'] ?? longitude,
+      speedOverGround: json['sog'] ?? speedOverGround,
+      courseOverGround: json['cog'] ?? courseOverGround,
+      magneticVariation: json['magVar'] ?? magneticVariation,
+    );
+  }
+}
+
+class FluidLevel {
+  int id = 0;
+  double? fluidType;
+  double? level;
+  double? capacity;
+
+  FluidLevel({this.id = 0, this.fluidType, this.level, this.capacity});
+
+  FluidLevel updateFromJson(Map<String, dynamic> json) {
+    return FluidLevel(
+      fluidType: json['fluidType'] ?? fluidType,
+      level: json['level'] ?? level,
+      capacity: json['capacity'] ?? capacity,
+    );
+  }
+}
+
+class TransmissionData{
+  int id = 0;
+  TransmissionGear? gear;
+  double? oilTemp;
+  double? oilPressure;
+
+  TransmissionData({this.id = 0, this.gear, this.oilTemp, this.oilPressure});
+
+  TransmissionData updateFromJson(Map<String, dynamic> json) {
+    return TransmissionData(
+      gear: json['gear'] ?? gear,
+      oilTemp: json['oTemp'] ?? oilTemp,
+      oilPressure: json['oPres'] ?? oilPressure,
+    );
+  }
+}
+
+class DepthData{
+  int id = 0;
+  double? depth;
+  double? offset;
+
+  DepthData({this.id = 0, this.depth, this.offset});
+
+  DepthData updateFromJson(Map<String, dynamic> json) {
+    return DepthData(
+      depth: json['depth'] ?? depth,
+      offset: json['offset'] ?? offset,
+    );
+  }
+}
+
+class TemperatureData{
+  int id = 0;
+  int? tempInstance;
+  int? tempSource;
+  double? actualTemp;
+  double? setTemp;
+
+  TemperatureData({this.id = 0, this.tempInstance, this.tempSource, this.actualTemp, this.setTemp});
+
+  TemperatureData updateFromJson(Map<String, dynamic> json) {
+    return TemperatureData(
+      tempInstance: json['tempInstance'] ?? tempInstance,
+      tempSource: json['tempSource'] ?? tempSource,
+      actualTemp: json['actualTemp'] ?? actualTemp,
+      setTemp: json['setTemp'] ?? setTemp,
+    );
+  }
+}
+
+enum ConversionType {none, depth, temp, wTemp, speed, fuelRate, fuelEfficiency, pressure}
 
 enum DepthUnit {meters, feet}
 
@@ -515,3 +686,45 @@ enum TempUnit {celsius, fahrenheit}
 enum SpeedUnit {ms, kn, km, mi}
 
 enum FuelUnit {litre, gallon}
+
+enum PressureUnit {psi, kpa, inHg}
+
+enum FluidType {
+  fuel,
+  water,
+  grayWater,
+  liveWell,
+  oil,
+  blackWater,
+  fuelGasoline,
+  error,
+  unavailable
+}
+
+enum TransmissionGear {
+  forward,
+  neutral,
+  reverse,
+  unknown,
+}
+
+enum EnviroDataType {temp, depth}
+
+enum TempSource {
+  seaTemp,
+  outsideTemp,
+  insideTemp,
+  engineRoomTemp,
+  mainCabinTemp,
+  liveWellTemp,
+  baitWellTemp,
+  refridgerationTemp,
+  heatingSystemTemp,
+  dewPointTemp,
+  apparentWindChillTemp,
+  theoreticalWindChillTemp,
+  heatIndexTemp,
+  freezerTemp,
+  exhaustGasTemp,
+  shaftSealTemp,
+}

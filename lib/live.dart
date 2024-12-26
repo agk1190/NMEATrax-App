@@ -24,7 +24,7 @@ class LivePage extends StatefulWidget {
   State<LivePage> createState() => _LivePageState();
 }
 
-class _LivePageState extends State<LivePage> {
+class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin {
 
   // Map<String, dynamic> nmeaData = {"rpm": "-273", "eTemp": "-273", "oTemp": "-273", "oPres": "-273", "fuelRate": "-273", "fLevel": "-273", "efficiency": "-273", "legTilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wTemp": "-273", "battV": "-273", "eHours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "magVar": "-273", "time": "-273", "evcErrorMsg": "-"};
   Map<String, dynamic> ntOptions = {"recInt":0, "recMode":0, "buildDate":""};
@@ -47,6 +47,7 @@ class _LivePageState extends State<LivePage> {
   DepthData depthData = DepthData(id: 0);
   TemperatureData temperatureData = TemperatureData(id: 0);
   String? webSocketStatus;
+  late TabController _tabController;
 
   Future<void> savePrefs() async {
     final SharedPreferences prefs = await _prefs;
@@ -183,10 +184,12 @@ class _LivePageState extends State<LivePage> {
               break;
             default:
           }
-          
-          setState(() {
-            lastDataReceived = DateTime.now();
-          });
+
+          lastDataReceived = DateTime.now();
+
+          if (_tabController.index != 2) {
+            setState(() {});
+          }
           
         });
         setState(() {
@@ -297,7 +300,14 @@ class _LivePageState extends State<LivePage> {
   void initState() {
     getPrefs();
     super.initState();
+    _tabController = TabController(length: 3, vsync: this, animationDuration: Durations.short4);
     setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -396,9 +406,13 @@ class _LivePageState extends State<LivePage> {
                 ) else const Text(""),
               ],
             ),
-            bottom: const TabBar(
+            bottom: TabBar(
+              controller: _tabController,
+              onTap: (value) => setState(() {
+                _tabController.animateTo(value);
+              }),
               indicatorColor: Colors.white,
-              tabs: [
+              tabs: const [
                 Tab(icon: Icon(Icons.dashboard, color: Colors.white)),
                 Tab(icon: Icon(Icons.navigation_rounded, color: Colors.white)),
                 Tab(icon: Icon(Icons.settings, color: Colors.white)),
@@ -406,6 +420,7 @@ class _LivePageState extends State<LivePage> {
             ),
           ),
           body: TabBarView(
+            controller: _tabController,
             physics: const NeverScrollableScrollPhysics(),
             children: [
               SingleChildScrollView(

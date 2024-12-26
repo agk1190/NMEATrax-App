@@ -52,7 +52,13 @@ class _DownloadsPageState extends State<DownloadsPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: Text('Voyage Recordings', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+        title: Row(
+          children: [
+            Text('Voyage Recordings', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            Spacer(),
+            IconButton(onPressed: getFilesList, icon: Icon(Icons.refresh, color: Theme.of(context).colorScheme.onPrimary,)),
+          ],
+        ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: Theme.of(context).primaryIconTheme,
       ),
@@ -61,8 +67,12 @@ class _DownloadsPageState extends State<DownloadsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            const Text("Tap on the file you wish to download"),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: const Text("Tap on the file you wish to download"),
+            ),
             OverflowBar(
+              spacing: 8,
               alignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(

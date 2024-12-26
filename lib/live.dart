@@ -26,10 +26,10 @@ class LivePage extends StatefulWidget {
 
 class _LivePageState extends State<LivePage> {
 
-  Map<String, dynamic> nmeaData = {"rpm": "-273", "eTemp": "-273", "oTemp": "-273", "oPres": "-273", "fuelRate": "-273", "fLevel": "-273", "efficiency": "-273", "legTilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wTemp": "-273", "battV": "-273", "eHours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "magVar": "-273", "time": "-273", "evcErrorMsg": "-"};
-  Map<String, dynamic> ntOptions = {"recInt":0, "recMode":0};
+  // Map<String, dynamic> nmeaData = {"rpm": "-273", "eTemp": "-273", "oTemp": "-273", "oPres": "-273", "fuelRate": "-273", "fLevel": "-273", "efficiency": "-273", "legTilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wTemp": "-273", "battV": "-273", "eHours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "magVar": "-273", "time": "-273", "evcErrorMsg": "-"};
+  Map<String, dynamic> ntOptions = {"recInt":0, "recMode":0, "buildDate":""};
   Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
-  List<String> evcErrorList = List.empty();
+  // List<String> evcErrorList = List.empty();
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
   late StreamSubscription<String> subscription;
@@ -46,6 +46,7 @@ class _LivePageState extends State<LivePage> {
   TransmissionData transmissionData = TransmissionData(id: 0);
   DepthData depthData = DepthData(id: 0);
   TemperatureData temperatureData = TemperatureData(id: 0);
+  String? webSocketStatus;
 
   Future<void> savePrefs() async {
     final SharedPreferences prefs = await _prefs;
@@ -139,27 +140,21 @@ class _LivePageState extends State<LivePage> {
         } on SocketException {
           setState(() {
             channel = null;
-            nmeaData['rpm'] = 'No Websocket';
+            webSocketStatus = 'No Websocket';
           });
           return;
         } on WebSocketChannelException {
           setState(() {
             channel = null;
-            nmeaData['rpm'] = 'No Websocket';
+            webSocketStatus = 'No Websocket';
           });
           return;
         }
         
         channel!.stream.listen((message) {
-          print(message);
-          // Map<String, dynamic> testData = jsonDecode(message);
-          // Map<String, dynamic> data = testData.values.last;
+          // print(message);
           String msgId = jsonDecode(message).values.first;
           Map<String, dynamic> data = jsonDecode(message).values.last;
-          // print(data['rpm'] is int ? data['rpm'] as int : 0);
-          // print(data['tilt'] is int ? data['tilt'] as int : 0);
-          // nmeaData['rpm'] = (data['rpm'] is int ? data['rpm'] as int : '-').toString();
-          // nmeaData['legTilt'] = (data['tilt'] is int ? data['tilt'] as int : '-').toString();
 
           switch (msgId) {
             case '127488':
@@ -183,34 +178,16 @@ class _LivePageState extends State<LivePage> {
             case '128267':
               depthData = depthData.updateFromJson(data);
               break;
+            case '161616':
+              engineData = engineData.updateErrorsFromJson(data);
+              break;
             default:
           }
           
-          setState(() {});
+          setState(() {
+            lastDataReceived = DateTime.now();
+          });
           
-          return;
-          int i = 0;
-          if (message.toString().substring(2, 5) != "rpm") {
-          } else {
-            setState(() {
-              lastDataReceived = DateTime.now();  // Update the last data received time
-              nmeaData = jsonDecode(message);
-              for (String element in nmeaData.values) {
-                try {
-                  if (element.substring(0, 4) == "-273") {
-                    String key = nmeaData.keys.elementAt(i);
-                    nmeaData[key] = '-';
-                  }
-                } on RangeError {
-                  // do nothing
-                }
-                i++;
-              }
-              evcErrorList = nmeaData["evcErrorMsg"].toString().split(', ');
-              if (nmeaData['time'] == '0') {nmeaData['time'] = '-';}
-              if (nmeaData['eHours'] == '0') {nmeaData['eHours'] = '-';}
-            });
-          }
         });
         setState(() {
           getOptions();
@@ -222,7 +199,6 @@ class _LivePageState extends State<LivePage> {
       } else {
         setState(() {
           channel = null;
-          nmeaData['rpm'] = 'Bad IP';
         });
       }
     }
@@ -236,10 +212,11 @@ class _LivePageState extends State<LivePage> {
       channel = null;
       setState(() {
         if (Platform.isAndroid) {KeepScreenOn.turnOff();}
-        nmeaData.updateAll((key, value) => value = "-");
-        evcErrorList = List.empty();
+        // nmeaData.updateAll((key, value) => value = "-");
+        // evcErrorList = List.empty();
         webSocketTimer?.cancel();
         reconnectTimer?.cancel();
+        clearData();
       });
     }
   }
@@ -268,7 +245,7 @@ class _LivePageState extends State<LivePage> {
                 reconnectTimer!.cancel();
                 webSocketTimer!.cancel();
                 Navigator.of(context).pop();
-                nmeaData['rpm'] = '-';
+                clearData();
               }, 
               child: Text("Cancel", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),)
             )
@@ -286,7 +263,7 @@ class _LivePageState extends State<LivePage> {
             Navigator.of(context).pop();
           }
           reconnectTimer!.cancel();
-          nmeaData['rpm'] = '-';
+          clearData();
         });
       }
     },);
@@ -307,18 +284,19 @@ class _LivePageState extends State<LivePage> {
     });
   }
 
+  void clearData() {
+    engineData = EngineData(id: 0);
+    gpsData = GpsData(id: 0);
+    fluidLevel = FluidLevel(id: 0);
+    transmissionData = TransmissionData(id: 0);
+    depthData = DepthData(id: 0);
+    temperatureData = TemperatureData(id: 0);
+  }
+
   @override
   void initState() {
     getPrefs();
     super.initState();
-    int i = 0;
-    for (var element in nmeaData.values) {
-      if (element == "-273" || element == "-273.0" || element == "-273.00") {
-        var key = nmeaData.keys.elementAt(i);
-        nmeaData[key] = '-';
-      }
-      i++;
-    }
     setState(() {});
   }
 
@@ -422,7 +400,7 @@ class _LivePageState extends State<LivePage> {
               indicatorColor: Colors.white,
               tabs: [
                 Tab(icon: Icon(Icons.dashboard, color: Colors.white)),
-                Tab(icon: Icon(Icons.list, color: Colors.white)),
+                Tab(icon: Icon(Icons.navigation_rounded, color: Colors.white)),
                 Tab(icon: Icon(Icons.settings, color: Colors.white)),
               ],
             ),
@@ -443,91 +421,66 @@ class _LivePageState extends State<LivePage> {
                       ),
                     ),
                     Visibility(
-                      visible: evcErrorList.isNotEmpty && evcErrorList.length > 1,
-                      child: SizedBox(
-                        height: 50,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          shrinkWrap: true,
-                          itemCount: evcErrorList.length,
-                          itemBuilder: (lcontext, index) {
-                            return Padding(
-                              padding: const EdgeInsets.fromLTRB(8, 8, 2, 8),
-                              child: Chip(
-                                elevation: 4,
-                                label: Text(evcErrorList.elementAt(index)),
-                                backgroundColor: Theme.of(context).colorScheme.surface,
-                                labelStyle: const TextStyle(color: Colors.red),
-                                side: const BorderSide(color: Colors.red),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+                      visible: engineData.errors != null && engineData.errors!.isNotEmpty,
+                      child: engineStatusChips(),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(gpsData.speedOverGround, ConversionType.speed), title: "Knots", unit: UnitFunctions.unitFor(ConversionType.speed), mainContext: context,)),
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(depthData.depth, ConversionType.depth), title: "Depth", unit: UnitFunctions.unitFor(ConversionType.depth), mainContext: context,)),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.rpm, ConversionType.none), title: "RPM", unit: "", fontSize: 48, mainContext: context,),),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.coolantTemp, ConversionType.temp), title: "Engine", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(fluidLevel.level, ConversionType.none), title: "Fuel", unit: "%", mainContext: context,),),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.oilTemp, ConversionType.temp), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.oilPres, ConversionType.pressure), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.pressure), mainContext: context,),),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.fuelRate, ConversionType.fuelRate), title: "Fuel Rate", unit: UnitFunctions.unitFor(ConversionType.fuelRate), mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.efficieny, ConversionType.fuelEfficiency), title: "Efficiency", unit: UnitFunctions.unitFor(ConversionType.fuelEfficiency), mainContext: context,),),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(engineData.legTilt, ConversionType.none), title: "Leg Tilt", unit: "%", mainContext: context,),),
-                        Expanded(child: SizedNMEABox(value: returnAfterConversion(temperatureData.actualTemp, ConversionType.wTemp), title: "Water Temp", unit: UnitFunctions.unitFor(ConversionType.wTemp, leadingSpace: false), mainContext: context,),),
-                      ],
-                    ),
+                    NMEAdataRow(mainContext: context, boxes: [
+                      SizedNMEABox(value: returnAfterConversion(gpsData.speedOverGround, ConversionType.speed), title: "Speed", unit: UnitFunctions.unitFor(ConversionType.speed), mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(depthData.depth, ConversionType.depth), title: "Depth", unit: UnitFunctions.unitFor(ConversionType.depth), mainContext: context,),
+                    ]),
+                    NMEAdataRow(mainContext: context, boxes: [
+                      SizedNMEABox(value: returnAfterConversion(engineData.rpm, ConversionType.none), title: "RPM", unit: "", fontSize: 48, mainContext: context,),
+                    ]),
+                    NMEAdataRow(mainContext: context, boxes: [
+                      SizedNMEABox(value: returnAfterConversion(engineData.coolantTemp, ConversionType.temp), title: "Engine", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(fluidLevel.level, ConversionType.none), title: "Fuel", unit: "%", mainContext: context,),
+                    ]),
+                    NMEAdataRow(mainContext: context, boxes: [
+                      SizedNMEABox(value: returnAfterConversion(engineData.oilTemp, ConversionType.temp), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(engineData.oilPres, ConversionType.pressure), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.pressure), mainContext: context,),
+                    ]),
+                    NMEAdataRow(mainContext: context, boxes: [
+                      SizedNMEABox(value: returnAfterConversion(engineData.fuelRate, ConversionType.fuelRate), title: "Fuel Rate", unit: UnitFunctions.unitFor(ConversionType.fuelRate), mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(engineData.efficieny, ConversionType.fuelEfficiency), title: "Efficiency", unit: UnitFunctions.unitFor(ConversionType.fuelEfficiency), mainContext: context,),
+                    ]),
+                    NMEAdataRow(mainContext: context, boxes: [
+                      SizedNMEABox(value: returnAfterConversion(engineData.legTilt, ConversionType.none), title: "Leg Tilt", unit: "%", mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(temperatureData.actualTemp, ConversionType.wTemp), title: "Water Temp", unit: UnitFunctions.unitFor(ConversionType.wTemp, leadingSpace: false), mainContext: context,),
+                    ]),
                   ],
                 ),
               ),
               SingleChildScrollView(
-                child: ListView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  itemCount: nmeaData.keys.length,
-                  itemBuilder: (BuildContext lcontext, int index) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
-                      ),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 0, 12, 0),
                       child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Expanded(child: Text(nmeaData.keys.elementAt(index), textAlign: TextAlign.right, style: TextStyle(color: Theme.of(context).colorScheme.onSurface))),
-                            Expanded(child: Text(" ${nmeaData.values.elementAt(index)}", textAlign: TextAlign.left, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),))
-                          ],
-                        ),
-                    );
-                  },
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          displayTimeStamp(),
+                        ],
+                      ),
+                    ),
+                    NMEAdataRow(mainContext: context, boxes: [
+                      SizedNMEABox(value: returnAfterConversion(gpsData.latitude, ConversionType.none), title: "Latitude", unit: "°", mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(gpsData.longitude, ConversionType.none), title: "Longitude", unit: "°", mainContext: context,),
+                    ]),
+                    NMEAdataRow(mainContext: context, boxes: [
+                      SizedNMEABox(value: returnAfterConversion(transmissionData.gear, ConversionType.none), title: "Gear", unit: "", mainContext: context),
+                    ]),
+                    NMEAdataRow(mainContext: context, boxes: [
+                      SizedNMEABox(value: returnAfterConversion(gpsData.speedOverGround, ConversionType.speed), title: "Speed", unit: UnitFunctions.unitFor(ConversionType.speed), mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(gpsData.courseOverGround, ConversionType.none), title: "Course", unit: "°", mainContext: context,),
+                    ]),
+                    NMEAdataRow(mainContext: context, boxes: [
+                      SizedNMEABox(value: returnAfterConversion(engineData.voltage, ConversionType.none), title: "Voltage", unit: " V", mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(gpsData.magneticVariation, ConversionType.none), title: "Magnetic Variation", unit: "°", mainContext: context,),
+                    ]),
+                    NMEAdataRow(mainContext: context, boxes: [
+                      SizedNMEABox(value: returnAfterConversion(engineData.hours, ConversionType.none), title: "Engine Hours", unit: " h", mainContext: context,),
+                    ]),
+                  ],
                 ),
               ),
               SingleChildScrollView(
@@ -758,7 +711,7 @@ class _LivePageState extends State<LivePage> {
                     ),
                     const SizedBox(height: 15,),
                     Visibility(
-                      visible: nmeaData['buildDate'] != null,
+                      visible: ntOptions['buildDate'] != null,
                       child: Padding(
                         padding: const EdgeInsets.all(8),
                         child: Text("Firmware built on ${ntOptions["buildDate"]}", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
@@ -775,7 +728,6 @@ class _LivePageState extends State<LivePage> {
                 disconnectWebSocket();
               } else {
                 showConnectDialog(context, "IP Address");
-                nmeaData['rpm'] = '-';
               }
             },
             label: channel != null ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
@@ -786,22 +738,60 @@ class _LivePageState extends State<LivePage> {
     );
   }
 
+  engineStatusChips() {
+    // if (engineData.errors != null) {
+    //   return Padding(
+    //     padding: const EdgeInsets.all(8.0),
+    //     child: Wrap(
+    //       spacing: 8.0,
+    //       children: engineData.errors!.map((error) {
+    //         return Chip(
+    //           label: Text(error),
+    //           backgroundColor: Theme.of(context).colorScheme.surface,
+    //           labelStyle: const TextStyle(color: Colors.red),
+    //           side: const BorderSide(color: Colors.red),
+    //         );
+    //       }).toList(),
+    //     ),
+    //   );
+    // } else {
+    //   return const Text('');
+    // }
+    if (engineData.errors != null) {
+    return SizedBox(  
+      height: 50,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        shrinkWrap: true,
+        itemCount: engineData.errors!.length,
+        itemBuilder: (lcontext, index) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 2, 8),
+            child: Chip(
+              elevation: 4,
+              label: Text(engineData.errors!.elementAt(index)),
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              labelStyle: const TextStyle(color: Colors.red),
+              side: const BorderSide(color: Colors.red),
+            ),
+          );
+        },
+      ));
+    } else {
+      return const Text('');
+    }
+  }
+
   Text displayTimeStamp() {
     if (gpsData.unixTime == null) {
       return Text('-', style: TextStyle(color: Theme.of(context).colorScheme.onSurface));
     } else {
-      // try {
-      //   int.parse(nmeaData['time']);
-      // } catch (e) {
-      //   return Text('-', style: TextStyle(color: Theme.of(context).colorScheme.onSurface));
-      // }
       return Text(DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(gpsData.unixTime! * 1000, isUtc: false)), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),);
     }
   }
 
   String returnAfterConversion(dynamic data, ConversionType type) {
     if (data == -273) {return '-';}
-    // double value = double.parse(data);
     if (data == null) {return '-';}
     double value;
     if (data is int) {
@@ -836,7 +826,6 @@ class _LivePageState extends State<LivePage> {
         switch (speedUnit) {
           case SpeedUnit.km:
             return (value*3.6).toStringAsFixed(2);
-            // return round(value * 3.6, decimals: 2).toString();
           case SpeedUnit.kn:
             return (value * (3600/1852)).toStringAsFixed(2);
           case SpeedUnit.mi:

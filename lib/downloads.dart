@@ -62,7 +62,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             const Text("Tap on the file you wish to download"),
-            ButtonBar(
+            OverflowBar(
               alignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(

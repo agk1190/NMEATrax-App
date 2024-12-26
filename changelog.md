@@ -16,6 +16,9 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ### Added
 - Basics of event based mode
 
+### Changed
+- Updated both dashboard pages
+
 
 ## [5.0.0] - 2024-09-22
 

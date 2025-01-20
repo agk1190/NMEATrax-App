@@ -23,16 +23,44 @@ class DownloadsPage extends StatefulWidget {
 class _DownloadsPageState extends State<DownloadsPage> {
   
   Future<void> getFilesList() async {
-    final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
-
-    if (dlList.statusCode == 200) {
-      List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
-      downloadList = converted.elementAt(0);
-      downloadList.removeAt(downloadList.length - 1);
-      setState(() {});
-    } else {
-      throw Exception('Failed to get download list');
+    try {
+      final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
+      
+      if (dlList.statusCode == 200) {
+        List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
+        downloadList = converted.elementAt(0);
+        downloadList.removeAt(downloadList.length - 1);
+        setState(() {});
+      } else {
+        throw Exception('Failed to get download list');
+      }
+    } on Exception{
+      if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Error. Could not connect to NMEATrax.", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+        duration: const Duration(seconds: 5),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+      ));}
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    getFilesList();
+  }
+
+  // Function to connect to the WebSocket
+  void connectWebSocket() async {
+    if (channel == null) {
+      // If WebSocket is not connected, connect to the WebSocket
+      channel = IOWebSocketChannel.connect(Uri.parse('ws://$connectURL/emws'));
+      channel!.stream.listen((message) {
+        setState(() {
+          emailData += message;
+          emailData += "\r\n";
+        });
+      });
+}
   }
 
   // Function to disconnect the WebSocket

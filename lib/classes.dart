@@ -725,7 +725,7 @@ class FluidLevel {
 
 class TransmissionData{
   int id = 0;
-  TransmissionGear? gear;
+  String? gear;
   double? oilTemp;
   double? oilPressure;
 
@@ -774,6 +774,34 @@ class TemperatureData{
   }
 }
 
+class NmeaDevice {
+  int id = 0;
+  bool connected = false;
+  String? firmware;
+  String? hardware;
+  int? recMode;
+  int? recInterval;
+  bool? isLocalAP;
+  String? wifiSSID;
+  String? wifiPass;
+  String? buildDate;
+
+  NmeaDevice({this.id = 0, this.connected = false, this.firmware, this.hardware, this.recMode, this.recInterval, this.isLocalAP, this.wifiSSID, this.wifiPass, this.buildDate});
+
+  NmeaDevice updateFromJson(Map<String, dynamic> json) {
+    return NmeaDevice(
+      firmware: json['firmware'] ?? firmware,
+      hardware: json['hardware'] ?? hardware,
+      recMode: json['recMode'] ?? recMode,
+      recInterval: json['recInt'] ?? recInterval,
+      isLocalAP: json['wifiMode'] ?? isLocalAP,
+      wifiSSID: json['wifiSSID'] ?? wifiSSID,
+      wifiPass: json['wifiPass'] ?? wifiPass,
+      buildDate: json['buildDate'] ?? buildDate,
+    );
+  }
+}
+
 enum ConversionType {none, depth, temp, wTemp, speed, fuelRate, fuelEfficiency, pressure}
 
 enum DepthUnit {meters, feet}
@@ -798,12 +826,12 @@ enum FluidType {
   unavailable
 }
 
-enum TransmissionGear {
-  forward,
-  neutral,
-  reverse,
-  unknown,
-}
+// enum TransmissionGear {
+//   forward,
+//   neutral,
+//   reverse,
+//   unknown,
+// }
 
 enum EnviroDataType {temp, depth}
 

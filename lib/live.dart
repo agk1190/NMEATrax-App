@@ -26,16 +26,16 @@ class LivePage extends StatefulWidget {
 
 class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin {
 
-  // Map<String, dynamic> nmeaData = {"rpm": "-273", "eTemp": "-273", "oTemp": "-273", "oPres": "-273", "fuelRate": "-273", "fLevel": "-273", "efficiency": "-273", "legTilt": "-273", "speed": "-273", "heading": "-273", "depth": "-273", "wTemp": "-273", "battV": "-273", "eHours": "-273", "gear": "-", "lat": "-273", "lon": "-273", "magVar": "-273", "time": "-273", "evcErrorMsg": "-"};
-  Map<String, dynamic> ntOptions = {"recInt":0, "recMode":0, "buildDate":""};
+  // Map<String, dynamic> ntOptions = {"recInt":0, "recMode":0, "wifiMode":0, "wifiSSID":"", "wifiPass":"", "buildDate":""};
   Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
-  // List<String> evcErrorList = List.empty();
-  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+  Map<bool, String> wifiModeEnum = {false:"Client", true:"Host"};
   final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
-  late StreamSubscription<String> subscription;
+  final List<String> wifiModeOptions = <String>['Client', 'Host'];
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+  // late StreamSubscription<String> subscription;
   bool moreSettingsVisible = false;
   WebSocketChannel? channel;
-  late BuildContext lcontext;
+  // late BuildContext lcontext;
   DateTime lastDataReceived = DateTime.now();
   Timer? webSocketTimer;
   Timer? reconnectTimer;
@@ -47,6 +47,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   DepthData depthData = DepthData(id: 0);
   TemperatureData temperatureData = TemperatureData(id: 0);
   String? webSocketStatus;
+  NmeaDevice nmeaDevice = NmeaDevice();
   late TabController _tabController;
 
   Future<void> savePrefs() async {
@@ -98,7 +99,8 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       response = await http.get(Uri.parse('http://$connectURL/get'));
 
       if (response.statusCode == 200) {
-        ntOptions = jsonDecode(response.body);
+        // ntOptions = jsonDecode(response.body);
+        nmeaDevice = nmeaDevice.updateFromJson(jsonDecode(response.body));
         setState(() {});
       } else {
         throw Exception('Failed to get options');
@@ -115,16 +117,19 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
         throw Exception('Failed to get download list');
       }
     } on Exception {
-      // do nothing
+      //
     }
   }
 
   Future<void> setOptions(String kvPair) async {
-    final response = await http.post(Uri.parse('http://$connectURL/set?$kvPair'));
-    // print(response.statusCode);
-    if (response.statusCode == 200) {
-      getOptions();
-      setState(() {});
+    try {
+      final response = await http.post(Uri.parse('http://$connectURL/set?$kvPair'));
+      if (response.statusCode == 200) {
+        getOptions();
+        setState(() {});
+      }
+    } on Exception {
+      //
     }
   }
 
@@ -152,37 +157,76 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
           return;
         }
         
-        channel!.stream.listen((message) {
+        Map<String, DateTime> lastDataTime = {};
+        channel!.stream.listen((message) async {
           // print(message);
-          String msgId = jsonDecode(message).values.first;
-          Map<String, dynamic> data = jsonDecode(message).values.last;
+          String msgId = '';
+          Map<String, dynamic> data = {};
+          try {
+            msgId = jsonDecode(message).values.first;
+            data = jsonDecode(message).values.last;
+          } on Exception {
+            return;
+          }
 
           switch (msgId) {
             case '127488':
             case '127489':
               engineData = engineData.updateFromJson(data);
+              lastDataTime['engine'] = DateTime.now();
               break;
             case '127258':
             case '129026':
             case '129029':
               gpsData = gpsData.updateFromJson(data);
+              lastDataTime['gps'] = DateTime.now();
               break;
             case '127505':
               fluidLevel = fluidLevel.updateFromJson(data);
+              lastDataTime['fluid'] = DateTime.now();
               break;
             case '127493':
               transmissionData = transmissionData.updateFromJson(data);
+              lastDataTime['transmission'] = DateTime.now();
               break;
             case '130312':
               temperatureData = temperatureData.updateFromJson(data);
+              lastDataTime['temperature'] = DateTime.now();
               break;
             case '128267':
               depthData = depthData.updateFromJson(data);
+              lastDataTime['depth'] = DateTime.now();
               break;
             case '161616':
               engineData = engineData.updateErrorsFromJson(data);
               break;
             default:
+          }
+
+          for (MapEntry<String, DateTime> data in lastDataTime.entries) {
+            if (DateTime.now().difference(data.value).inSeconds > 5) {
+              switch (data.key) {
+                case 'engine':
+                  engineData = EngineData(id: 0);
+                  break;
+                case 'gps':
+                  gpsData = GpsData(id: 0);
+                  break;
+                case 'fluid':
+                  fluidLevel = FluidLevel(id: 0);
+                  break;
+                case 'transmission':
+                  transmissionData = TransmissionData(id: 0);
+                  break;
+                case 'temperature':
+                  temperatureData = TemperatureData(id: 0);
+                  break;
+                case 'depth':
+                  depthData = DepthData(id: 0);
+                  break;
+                default:
+              }
+            }
           }
 
           lastDataReceived = DateTime.now();
@@ -220,6 +264,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
         webSocketTimer?.cancel();
         reconnectTimer?.cancel();
         clearData();
+        nmeaDevice = NmeaDevice();
       });
     }
   }
@@ -392,10 +437,12 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
             backgroundColor: Theme.of(context).colorScheme.primary,
             iconTheme: Theme.of(context).primaryIconTheme,
             title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('NMEATrax Live', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                if (ntOptions["recMode"] == 0) const Expanded(
+                Flexible(flex: 2, child: Text('NMEATrax Live', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),)),
+                if (nmeaDevice.recMode == 0) const Flexible(
+                  flex: 1,
                   child: Text(
                     "  Recording Off!",
                     style: TextStyle(
@@ -478,19 +525,19 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                       ),
                     ),
                     NMEAdataRow(mainContext: context, boxes: [
-                      SizedNMEABox(value: returnAfterConversion(gpsData.latitude, ConversionType.none), title: "Latitude", unit: "°", mainContext: context,),
-                      SizedNMEABox(value: returnAfterConversion(gpsData.longitude, ConversionType.none), title: "Longitude", unit: "°", mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(gpsData.latitude, ConversionType.none, 6), title: "Latitude", unit: "°", mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(gpsData.longitude, ConversionType.none, 6), title: "Longitude", unit: "°", mainContext: context,),
                     ]),
                     NMEAdataRow(mainContext: context, boxes: [
-                      SizedNMEABox(value: returnAfterConversion(transmissionData.gear, ConversionType.none), title: "Gear", unit: "", mainContext: context),
+                      SizedNMEABox(value: transmissionData.gear ?? '-', title: "Gear", unit: "", fontSize: 32, mainContext: context),
                     ]),
                     NMEAdataRow(mainContext: context, boxes: [
                       SizedNMEABox(value: returnAfterConversion(gpsData.speedOverGround, ConversionType.speed), title: "Speed", unit: UnitFunctions.unitFor(ConversionType.speed), mainContext: context,),
                       SizedNMEABox(value: returnAfterConversion(gpsData.courseOverGround, ConversionType.none), title: "Course", unit: "°", mainContext: context,),
                     ]),
                     NMEAdataRow(mainContext: context, boxes: [
-                      SizedNMEABox(value: returnAfterConversion(engineData.voltage, ConversionType.none), title: "Voltage", unit: " V", mainContext: context,),
-                      SizedNMEABox(value: returnAfterConversion(gpsData.magneticVariation, ConversionType.none), title: "Magnetic Variation", unit: "°", mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(engineData.voltage, ConversionType.none, 2), title: "Voltage", unit: " V", mainContext: context,),
+                      SizedNMEABox(value: returnAfterConversion(gpsData.magneticVariation, ConversionType.none, 2), title: "Magnetic Variation", unit: "°", mainContext: context,),
                     ]),
                     NMEAdataRow(mainContext: context, boxes: [
                       SizedNMEABox(value: returnAfterConversion(engineData.hours, ConversionType.none), title: "Engine Hours", unit: " h", mainContext: context,),
@@ -501,102 +548,235 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
               SingleChildScrollView(
                 child: Column(
                   children: [
-                    Padding(
+                    Padding(    // heading
                       padding: const EdgeInsets.fromLTRB(0,8,0,24),
                       child: Text(
                         "NMEATrax Settings",
                         style: TextStyle(
                           fontWeight: FontWeight.bold, 
                           fontSize: 22,
-                          decoration: TextDecoration.underline,
+                          // decoration: TextDecoration.underline,
                           color: Theme.of(context).colorScheme.onSurface,
                           letterSpacing: 0.75,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 15,),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        Text(
-                          "Recording Mode",
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 18,
+                    Padding(    // Voyage Recordings Button
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
+                        ),
+                        onPressed: () {
+                          getOptions();
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const DownloadsPage()));
+                        },
+                        child: Text('Voyage Recordings', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onPrimary),),
+                      ),
+                    ),
+                    // Row(     // Recording Mode
+                    //   mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    //   children: [
+                    //     Text(
+                    //       "Recording Mode",
+                    //       style: TextStyle(
+                    //         color: Theme.of(context).colorScheme.onSurface,
+                    //         fontSize: 18,
+                    //       ),
+                    //     ),
+                    //     DropdownMenu(
+                    //       menuStyle: MenuStyle(
+                    //         backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surface),
+                    //         surfaceTintColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceContainerHighest),
+                    //       ),
+                    //       textStyle: TextStyle(
+                    //         color: Theme.of(context).colorScheme.onSurface,
+                    //         backgroundColor: Theme.of(context).colorScheme.surface,
+                    //       ),
+                    //       initialSelection: recModeEnum[ntOptions["recMode"]],
+                    //       enableSearch: false,
+                    //       dropdownMenuEntries: recModeOptions.map<DropdownMenuEntry<String>>((String value) {
+                    //         return DropdownMenuEntry<String>(
+                    //           value: value,
+                    //           label: value,
+                    //           style: ButtonStyle(foregroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.onSurfaceVariant))
+                    //         );
+                    //       }).toList(),
+                    //       onSelected: (value) {
+                    //         setOptions("recMode=${recModeEnum.keys.firstWhere((element) => recModeEnum[element] == value)}");
+                    //       },
+                    //     ),
+                    //   ],
+                    // ),
+                    Padding(    // Recording Mode
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceContainerLow),
+                        ),
+                        onPressed: () {
+                          showDialog(
+                            context: context, 
+                            builder: (context) {
+                              return AlertDialog(
+                                backgroundColor: Theme.of(context).colorScheme.surface,
+                                title: Text("Set Recording Mode", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: recModeOptions.map((String value) {
+                                    return RadioListTile(
+                                      title: Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                      value: value,
+                                      groupValue: recModeEnum[nmeaDevice.recMode],
+                                      onChanged: (String? value) {
+                                        setOptions("recMode=${recModeEnum.keys.firstWhere((element) => recModeEnum[element] == value)}");
+                                        Navigator.of(context).pop();
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  "Recording Mode: ",
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                nmeaDevice.recMode != null ? "${recModeEnum[nmeaDevice.recMode]}" : '-',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        DropdownMenu(
-                          menuStyle: MenuStyle(
-                            backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surface),
-                            surfaceTintColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceContainerHighest),
-                          ),
-                          textStyle: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            backgroundColor: Theme.of(context).colorScheme.surface,
-                          ),
-                          initialSelection: recModeEnum[ntOptions["recMode"]],
-                          enableSearch: false,
-                          dropdownMenuEntries: recModeOptions.map<DropdownMenuEntry<String>>((String value) {
-                            return DropdownMenuEntry<String>(
-                              value: value,
-                              label: value,
-                              style: ButtonStyle(foregroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.onSurfaceVariant))
-                            );
-                          }).toList(),
-                          onSelected: (value) {
-                            setOptions("recMode=${recModeEnum.keys.firstWhere((element) => recModeEnum[element] == value)}");
-                          },
+                      ),
+                    ),
+                    Padding(    // Recording Interval
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceContainerLow),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 15,),
-                    SettingsList(
-                      physics: const NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      brightness: MyApp.themeNotifier.value == ThemeMode.light ? Brightness.light : Brightness.dark,
-                      darkTheme: SettingsThemeData(
-                        settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                        settingsListBackground: Theme.of(context).colorScheme.surface,
-                        titleTextColor: Theme.of(context).colorScheme.onSurface,
+                        onPressed: () {
+                          showInputDialog(context, "Set Recording Interval", nmeaDevice.recInterval, "recInt");
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                flex: 2,
+                                child: Text(
+                                  "Recording Interval: ",
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                              Flexible(
+                                child: Text(
+                                  nmeaDevice.recInterval != null ? "${nmeaDevice.recInterval} seconds" : '-',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      lightTheme: SettingsThemeData(
-                        settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                        settingsListBackground: Theme.of(context).colorScheme.surface,
-                        titleTextColor: Theme.of(context).colorScheme.onSurface,
-                      ),
-                      platform: DevicePlatform.android,
-                      sections: [
-                        SettingsSection(
-                          tiles: [
-                            // SettingsTile.navigation(
-                            //   title: Text("Update", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                            //   onPressed: (context) {
-                            //     getOptions();
-                            //   },
-                            // ),
-                            // SettingsTile.switchTile(
-                            //   title: Text("Depth in Meters?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                            //   initialValue: depthInMeters,
-                            //   onToggle: (value) => setState(() {depthInMeters = value;}),
-                            // ),
-                            // SettingsTile.switchTile(
-                            //   title: Text("Temperature in Celsius?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                            //   initialValue: tempInCelsius,
-                            //   onToggle: (value) => setState(() {tempInCelsius = value;}),
-                            // ),
-                            SettingsTile(
-                              title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              value: Text(ntOptions["recInt"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              onPressed: (lContext) {
-                                showInputDialog(context, "Recording Interval", ntOptions["recInt"], "recInt");
-                              },
-                            ),
-                          ],
-                        )
-                      ],
                     ),
-                    const SizedBox(height: 15,),
-                    Visibility(
+                    // SettingsList(    // Settings List
+                    //   physics: const NeverScrollableScrollPhysics(),
+                    //   shrinkWrap: true,
+                    //   brightness: MyApp.themeNotifier.value == ThemeMode.light ? Brightness.light : Brightness.dark,
+                    //   darkTheme: SettingsThemeData(
+                    //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
+                    //     settingsListBackground: Theme.of(context).colorScheme.surface,
+                    //     titleTextColor: Theme.of(context).colorScheme.onSurface,
+                    //   ),
+                    //   lightTheme: SettingsThemeData(
+                    //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
+                    //     settingsListBackground: Theme.of(context).colorScheme.surface,
+                    //     titleTextColor: Theme.of(context).colorScheme.onSurface,
+                    //   ),
+                    //   platform: DevicePlatform.android,
+                    //   sections: [
+                    //     SettingsSection(
+                    //       tiles: [
+                    //         SettingsTile(
+                    //           title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                    //           value: Text(ntOptions["recInt"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                    //           onPressed: (lContext) {
+                    //             showInputDialog(context, "Recording Interval", ntOptions["recInt"], "recInt");
+                    //           },
+                    //         ),
+                    //       ],
+                    //     )
+                    //   ],
+                    // ),
+                    // const SizedBox(height: 15,),
+                    Padding(    // WiFi Mode
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceContainerLow),
+                        ),
+                        onPressed: () {
+                          wiFiSettingsDialog(lcontext);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  "WiFi Mode: ",
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                              Flexible(
+                                child: Text(
+                                  wifiModeEnum[nmeaDevice.isLocalAP] ?? '-',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Visibility(   // More Settings
                       visible: moreSettingsVisible,
                       child: SettingsList(
                         physics: const NeverScrollableScrollPhysics(),
@@ -615,72 +795,72 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                         sections: [
                           SettingsSection(
                             tiles: [
-                              SettingsTile.navigation(
-                                title: Text("WiFi Settings", style: TextStyle(color: Theme.of(context).colorScheme.error),),
-                                onPressed: (context) async {
-                                  // await http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true'));
-                                  showDialog(
-                                    context: lcontext,
-                                    builder: (context) {
-                                      String wifiSSID = '';
-                                      String wifiPASS = '';
-                                      return AlertDialog(
-                                        title: Text('WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                                        backgroundColor: Theme.of(context).colorScheme.surface,
-                                        actionsAlignment: MainAxisAlignment.spaceBetween,
-                                        content: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text('SSID', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                                            TextField(
-                                              autocorrect: false,
-                                              autofocus: true,
-                                              onChanged: (value) => wifiSSID,
-                                            ),
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 16),
-                                              child: Text('Password', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                                            ),
-                                            TextField(
-                                              autocorrect: false,
-                                              onChanged: (value) => wifiPASS,
-                                            ),
-                                          ],
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            style: ButtonStyle(
-                                              backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.error)
-                                            ),
-                                            onPressed: () => http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true')),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(8.0),
-                                              child: Text('Erase WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onError),),
-                                            )
-                                          ),
-                                          TextButton(
-                                            style: ButtonStyle(
-                                              backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
-                                            ),
-                                            onPressed: () async {
-                                              await http.get(Uri.parse('http://$connectURL/set?AP_SSID=$wifiSSID'));
-                                              await http.get(Uri.parse('http://$connectURL/set?AP_PASS=$wifiPASS'));
-                                              Future.delayed(Durations.extralong4, () {
-                                                http.get(Uri.parse('http://$connectURL/set?reboot=true'));
-                                              },);
-                                            },
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(8.0),
-                                              child: Text('Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                                            )
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
+                              // SettingsTile.navigation(
+                              //   title: Text("WiFi Settings", style: TextStyle(color: Theme.of(context).colorScheme.error),),
+                              //   onPressed: (context) async {
+                              //     // await http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true'));
+                              //     showDialog(
+                              //       context: lcontext,
+                              //       builder: (context) {
+                              //         String wifiSSID = '';
+                              //         String wifiPASS = '';
+                              //         return AlertDialog(
+                              //           title: Text('WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              //           backgroundColor: Theme.of(context).colorScheme.surface,
+                              //           actionsAlignment: MainAxisAlignment.spaceBetween,
+                              //           content: Column(
+                              //             crossAxisAlignment: CrossAxisAlignment.start,
+                              //             mainAxisSize: MainAxisSize.min,
+                              //             children: [
+                              //               Text('SSID', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              //               TextField(
+                              //                 autocorrect: false,
+                              //                 autofocus: true,
+                              //                 onChanged: (value) => wifiSSID,
+                              //               ),
+                              //               Padding(
+                              //                 padding: const EdgeInsets.only(top: 16),
+                              //                 child: Text('Password', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              //               ),
+                              //               TextField(
+                              //                 autocorrect: false,
+                              //                 onChanged: (value) => wifiPASS,
+                              //               ),
+                              //             ],
+                              //           ),
+                              //           actions: [
+                              //             TextButton(
+                              //               style: ButtonStyle(
+                              //                 backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.error)
+                              //               ),
+                              //               onPressed: () => http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true')),
+                              //               child: Padding(
+                              //                 padding: const EdgeInsets.all(8.0),
+                              //                 child: Text('Erase WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onError),),
+                              //               )
+                              //             ),
+                              //             TextButton(
+                              //               style: ButtonStyle(
+                              //                 backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
+                              //               ),
+                              //               onPressed: () async {
+                              //                 await http.get(Uri.parse('http://$connectURL/set?AP_SSID=$wifiSSID'));
+                              //                 await http.get(Uri.parse('http://$connectURL/set?AP_PASS=$wifiPASS'));
+                              //                 Future.delayed(Durations.extralong4, () {
+                              //                   http.get(Uri.parse('http://$connectURL/set?reboot=true'));
+                              //                 },);
+                              //               },
+                              //               child: Padding(
+                              //                 padding: const EdgeInsets.all(8.0),
+                              //                 child: Text('Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                              //               )
+                              //             ),
+                              //           ],
+                              //         );
+                              //       },
+                              //     );
+                              //   },
+                              // ),
                               SettingsTile.navigation(
                                 title: Text("OTA Update", style: TextStyle(color: Theme.of(context).colorScheme.error),),
                                 onPressed: (context) async {
@@ -701,35 +881,27 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                         ],
                       ),
                     ),
-                    Padding(
+                    Padding(    // More Settings Button
                       padding: const EdgeInsets.all(8.0),
-                      child: ElevatedButton(
+                      child: ElevatedButton.icon(
                         style: ButtonStyle(
                           backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
                         ),
                         onPressed: () {setState(() {moreSettingsVisible = !moreSettingsVisible;});},
-                        child: moreSettingsVisible ? Text('Less Settings', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimary),) : Text('More Settings', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimary),),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: ElevatedButton(
-                        style: ButtonStyle(
-                          backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
+                        icon: Icon(
+                          moreSettingsVisible ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
-                        onPressed: () {
-                          getOptions();
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const DownloadsPage()));
-                        },
-                        child: Text('Voyage Recordings', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onPrimary),),
+                        label: moreSettingsVisible
+                          ? Text('Less Settings', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimary))
+                          : Text('More Settings', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimary)),
                       ),
                     ),
-                    const SizedBox(height: 15,),
                     Visibility(
-                      visible: ntOptions['buildDate'] != null,
+                      visible: nmeaDevice.buildDate != null && nmeaDevice.buildDate != '',
                       child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Text("Firmware built on ${ntOptions["buildDate"]}", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                        padding: const EdgeInsets.fromLTRB(0, 25, 0, 8),
+                        child: Text("Firmware built on ${nmeaDevice.buildDate}", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                       ),
                     ),
                   ]
@@ -750,6 +922,257 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
           ),
         ),
       ),
+    );
+  }
+
+  Future<dynamic> wiFiSettingsDialog(BuildContext lcontext) {
+    String wifiSSID = nmeaDevice.wifiSSID ?? '';
+    String wifiPASS = nmeaDevice.wifiPass ?? '';
+    String? newWifiModeValue = wifiModeEnum[nmeaDevice.isLocalAP];
+    int fieldsChanged = 0;
+    return showDialog(
+      context: lcontext,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (aContext, setState) {
+            return AlertDialog(
+              title: Text('WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              actionsAlignment: MainAxisAlignment.spaceBetween,
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('WiFi Mode', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            newApPrompt(context);
+                            setOptions("newAP=true");
+                          }, 
+                          child: Text(
+                            "New AP", 
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.normal,
+                              decoration: TextDecoration.underline,
+                              decorationColor: Colors.blue,
+                            ),
+                          )
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: wifiModeOptions.map((String value) {
+                      return RadioListTile(
+                        title: Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                        value: value,
+                        groupValue: newWifiModeValue,
+                        onChanged: (String? value) {
+                          setState(() {
+                            newWifiModeValue = value;
+                            fieldsChanged += 1;
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Text('SSID', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                  ),
+                  TextFormField(
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_\-]')),
+                      LengthLimitingTextInputFormatter(12),
+                    ],
+                    initialValue: nmeaDevice.wifiSSID,
+                    autocorrect: false,
+                    onChanged: (value) {
+                      wifiSSID = value;
+                      fieldsChanged += 2;
+                    },
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Text('Password', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                  ),
+                  TextFormField(
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(15),
+                    ],
+                    initialValue: nmeaDevice.wifiPass,
+                    autocorrect: false,
+                    onChanged: (value) {
+                      wifiPASS = value;
+                      fieldsChanged += 4;
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                ElevatedButton(
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStatePropertyAll(Colors.red)
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    eraseWifiPrompt(context);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text('Reset', style: TextStyle(color: Colors.black),),
+                  )
+                ),
+                ElevatedButton(
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
+                  ),
+                  onPressed: () {
+                    if (wifiSSID.length < 2 || wifiPASS.length < 4 || newWifiModeValue == null) {
+                      invalidWifiInputPopup(context);
+                      return;
+                    }
+                    setOptions("wifiSSID=$wifiSSID");
+                    setOptions("wifiPass=$wifiPASS");
+                    setOptions("wifiMode=${wifiModeEnum.keys.firstWhere((element) => wifiModeEnum[element] == newWifiModeValue)}");
+                    if (fieldsChanged != 0) {
+                      Navigator.of(context).pop();
+                      rebootRequiredPrompt(context);
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text('Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                  )
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+  }
+
+  Future<dynamic> rebootRequiredPrompt(BuildContext context) {
+    return showDialog(
+      context: context, 
+      builder: (context) {
+        return AlertDialog(
+          actionsAlignment: MainAxisAlignment.spaceBetween,
+          title: Text('Reboot Required', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+          content: Text('A reboot is required to apply the changes', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              }, 
+              child: Text("Later", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+            ),
+            ElevatedButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
+              ),
+              onPressed: () {
+                setOptions("reboot=true");
+                Navigator.of(context).pop();
+              },
+              child: Text("Reboot", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<dynamic> newApPrompt(BuildContext context) {
+    return showDialog(
+      context: context, 
+      builder: (context) {
+        return AlertDialog(
+          title: Text('WiFi Manager', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+          content: Text("Please go to $connectURL in your web browser to reconfigure the Access Point to connect to.", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  }, 
+                  child: Text("Close", style: TextStyle(color: Theme.of(context).colorScheme.primary),),
+                ),
+                ElevatedButton(
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
+                  ),
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    if (!await launchUrl(Uri.parse('http://$connectURL'))) {
+                      throw Exception('Could not launch http://$connectURL');
+                    }
+                  },
+                  child: Text("Go", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<dynamic> invalidWifiInputPopup(BuildContext context) {
+    return showDialog(
+      context: context, 
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Invalid Input', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+          content: Text("Please enter a valid SSID, Password and select a WiFi Mode", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+          actions: [
+            ElevatedButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              }, 
+              child: Text("OK", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<dynamic> eraseWifiPrompt(BuildContext context) {
+    return showDialog(
+      context: context, 
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Are you sure?', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+          content: Text("Are you sure you want to erase all WiFi settings and reboot?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+          actions: [
+            ElevatedButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStatePropertyAll(Colors.red)
+              ),
+              onPressed: () {
+                setOptions("eraseWiFi=true");
+                Navigator.of(context).pop();
+              }, 
+              child: Text("Confirm", style: TextStyle(color: Colors.black),),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -805,7 +1228,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     }
   }
 
-  String returnAfterConversion(dynamic data, ConversionType type) {
+  String returnAfterConversion(dynamic data, ConversionType type, [int decimalPlaces=0]) {
     if (data == -273) {return '-';}
     if (data == null) {return '-';}
     double value;
@@ -817,7 +1240,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     
     switch (type) {
       case ConversionType.none:
-        return value.toStringAsFixed(0);
+        return value.toStringAsFixed(decimalPlaces);
       case ConversionType.temp:
         return (tempUnit == TempUnit.celsius ? value - 273.15 : ((value - 273.15) * (9/5) + 32)).toStringAsFixed(0);
       case ConversionType.wTemp:

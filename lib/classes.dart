@@ -784,9 +784,10 @@ class NmeaDevice {
   bool? isLocalAP;
   String? wifiSSID;
   String? wifiPass;
+  String? wifiCredentials;
   String? buildDate;
 
-  NmeaDevice({this.id = 0, this.connected = false, this.firmware, this.hardware, this.recMode, this.recInterval, this.isLocalAP, this.wifiSSID, this.wifiPass, this.buildDate});
+  NmeaDevice({this.id = 0, this.connected = false, this.firmware, this.hardware, this.recMode, this.recInterval, this.isLocalAP, this.wifiSSID, this.wifiPass, this.wifiCredentials, this.buildDate});
 
   NmeaDevice updateFromJson(Map<String, dynamic> json) {
     return NmeaDevice(
@@ -797,6 +798,7 @@ class NmeaDevice {
       isLocalAP: json['wifiMode'] ?? isLocalAP,
       wifiSSID: json['wifiSSID'] ?? wifiSSID,
       wifiPass: json['wifiPass'] ?? wifiPass,
+      wifiCredentials: json['wifiCred'] ?? wifiCredentials,
       buildDate: json['buildDate'] ?? buildDate,
     );
   }

@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:csv/csv.dart';
-import 'package:settings_ui/settings_ui.dart';
-import 'package:http/http.dart' as http;
+// import 'package:csv/csv.dart';
+// import 'package:settings_ui/settings_ui.dart';
+// import 'package:http/http.dart' as http;
 import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -16,6 +16,8 @@ import 'package:dart_ping/dart_ping.dart';
 import 'classes.dart';
 import 'downloads.dart';
 import 'main.dart';
+import 'wifi.dart';
+import 'communications.dart';
 
 class LivePage extends StatefulWidget {
   const LivePage({super.key});
@@ -47,7 +49,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   DepthData depthData = DepthData(id: 0);
   TemperatureData temperatureData = TemperatureData(id: 0);
   String? webSocketStatus;
-  NmeaDevice nmeaDevice = NmeaDevice();
+  // NmeaDevice nmeaDevice = NmeaDevice();
   late TabController _tabController;
 
   Future<void> savePrefs() async {
@@ -93,45 +95,45 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     });
   }
 
-  Future<void> getOptions() async {
-    dynamic response;
-    try {
-      response = await http.get(Uri.parse('http://$connectURL/get'));
-
-      if (response.statusCode == 200) {
-        // ntOptions = jsonDecode(response.body);
-        nmeaDevice = nmeaDevice.updateFromJson(jsonDecode(response.body));
-        setState(() {});
-      } else {
-        throw Exception('Failed to get options');
-      }
-
-      final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
-
-      if (dlList.statusCode == 200) {
-        List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
-        if (converted.isEmpty) {return;}
-        downloadList = converted.elementAt(0);
-        downloadList.removeAt(downloadList.length - 1);
-      } else {
-        throw Exception('Failed to get download list');
-      }
-    } on Exception {
-      //
-    }
-  }
-
-  Future<void> setOptions(String kvPair) async {
-    try {
-      final response = await http.post(Uri.parse('http://$connectURL/set?$kvPair'));
-      if (response.statusCode == 200) {
-        getOptions();
-        setState(() {});
-      }
-    } on Exception {
-      //
-    }
-  }
+  // Future<void> getOptions() async {
+  //   dynamic response;
+  //   try {
+  //     response = await http.get(Uri.parse('http://$connectURL/get'));
+  //
+  //     if (response.statusCode == 200) {
+  //       // ntOptions = jsonDecode(response.body);
+  //       nmeaDevice = nmeaDevice.updateFromJson(jsonDecode(response.body));
+  //       setState(() {});
+  //     } else {
+  //       throw Exception('Failed to get options');
+  //     }
+  //
+  //     final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
+  //
+  //     if (dlList.statusCode == 200) {
+  //       List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
+  //       if (converted.isEmpty) {return;}
+  //       downloadList = converted.elementAt(0);
+  //       downloadList.removeAt(downloadList.length - 1);
+  //     } else {
+  //       throw Exception('Failed to get download list');
+  //     }
+  //   } on Exception {
+  //     //
+  //   }
+  // }
+  //
+  // Future<void> setOptions(String kvPair) async {
+  //   try {
+  //     final response = await http.post(Uri.parse('http://$connectURL/set?$kvPair'));
+  //     if (response.statusCode == 200) {
+  //       getOptions();
+  //       setState(() {});
+  //     }
+  //   } on Exception {
+  //     //
+  //   }
+  // }
 
   // Function to connect the WebSocket
   void connectWebSocket() async {
@@ -778,107 +780,172 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                     ),
                     Visibility(   // More Settings
                       visible: moreSettingsVisible,
-                      child: SettingsList(
-                        physics: const NeverScrollableScrollPhysics(),
-                        shrinkWrap: true,
-                        darkTheme: SettingsThemeData(
-                          settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                          settingsListBackground: Theme.of(context).colorScheme.surface,
-                          titleTextColor: Theme.of(context).colorScheme.onSurface,
+                      // child: SettingsList(
+                      //   physics: const NeverScrollableScrollPhysics(),
+                      //   shrinkWrap: true,
+                      //   darkTheme: SettingsThemeData(
+                      //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
+                      //     settingsListBackground: Theme.of(context).colorScheme.surface,
+                      //     titleTextColor: Theme.of(context).colorScheme.onSurface,
+                      //   ),
+                      //   lightTheme: SettingsThemeData(
+                      //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
+                      //     settingsListBackground: Theme.of(context).colorScheme.surface,
+                      //     titleTextColor: Theme.of(context).colorScheme.onSurface,
+                      //   ),
+                      //   platform: DevicePlatform.android,
+                      //   sections: [
+                      //     SettingsSection(
+                      //       tiles: [
+                      //         // SettingsTile.navigation(
+                      //         //   title: Text("WiFi Settings", style: TextStyle(color: Theme.of(context).colorScheme.error),),
+                      //         //   onPressed: (context) async {
+                      //         //     // await http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true'));
+                      //         //     showDialog(
+                      //         //       context: lcontext,
+                      //         //       builder: (context) {
+                      //         //         String wifiSSID = '';
+                      //         //         String wifiPASS = '';
+                      //         //         return AlertDialog(
+                      //         //           title: Text('WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                      //         //           backgroundColor: Theme.of(context).colorScheme.surface,
+                      //         //           actionsAlignment: MainAxisAlignment.spaceBetween,
+                      //         //           content: Column(
+                      //         //             crossAxisAlignment: CrossAxisAlignment.start,
+                      //         //             mainAxisSize: MainAxisSize.min,
+                      //         //             children: [
+                      //         //               Text('SSID', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                      //         //               TextField(
+                      //         //                 autocorrect: false,
+                      //         //                 autofocus: true,
+                      //         //                 onChanged: (value) => wifiSSID,
+                      //         //               ),
+                      //         //               Padding(
+                      //         //                 padding: const EdgeInsets.only(top: 16),
+                      //         //                 child: Text('Password', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                      //         //               ),
+                      //         //               TextField(
+                      //         //                 autocorrect: false,
+                      //         //                 onChanged: (value) => wifiPASS,
+                      //         //               ),
+                      //         //             ],
+                      //         //           ),
+                      //         //           actions: [
+                      //         //             TextButton(
+                      //         //               style: ButtonStyle(
+                      //         //                 backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.error)
+                      //         //               ),
+                      //         //               onPressed: () => http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true')),
+                      //         //               child: Padding(
+                      //         //                 padding: const EdgeInsets.all(8.0),
+                      //         //                 child: Text('Erase WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onError),),
+                      //         //               )
+                      //         //             ),
+                      //         //             TextButton(
+                      //         //               style: ButtonStyle(
+                      //         //                 backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
+                      //         //               ),
+                      //         //               onPressed: () async {
+                      //         //                 await http.get(Uri.parse('http://$connectURL/set?AP_SSID=$wifiSSID'));
+                      //         //                 await http.get(Uri.parse('http://$connectURL/set?AP_PASS=$wifiPASS'));
+                      //         //                 Future.delayed(Durations.extralong4, () {
+                      //         //                   http.get(Uri.parse('http://$connectURL/set?reboot=true'));
+                      //         //                 },);
+                      //         //               },
+                      //         //               child: Padding(
+                      //         //                 padding: const EdgeInsets.all(8.0),
+                      //         //                 child: Text('Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                      //         //               )
+                      //         //             ),
+                      //         //           ],
+                      //         //         );
+                      //         //       },
+                      //         //     );
+                      //         //   },
+                      //         // ),
+                      //         SettingsTile.navigation(
+                      //           title: Text("OTA Update", style: TextStyle(color: Theme.of(context).colorScheme.error),),
+                      //           onPressed: (context) async {
+                      //             await http.get(Uri.parse('http://$connectURL/set?otaUpdate=true'));
+                      //             if (!await launchUrl(Uri.parse('http://$connectURL/update'))) {
+                      //               throw Exception('Could not launch http://$connectURL/update');
+                      //             }
+                      //           },
+                      //         ),
+                      //         SettingsTile.navigation(
+                      //           title: Text("Reboot", style: TextStyle(color: Theme.of(context).colorScheme.error),),
+                      //           onPressed: (context) async {
+                      //             await http.get(Uri.parse('http://$connectURL/set?reboot=true'));
+                      //           },
+                      //         ),
+                      //       ],
+                      //     )
+                      //   ],
+                      // ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          children: [
+                            ListTile(
+                              trailing: Icon(Icons.arrow_forward_ios, color: Theme.of(context).colorScheme.onSurface,),
+                              title: Text("WiFi Settings", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              onTap: () {
+                                Navigator.push(context, MaterialPageRoute(builder: (context) => const WifiPage()));
+                              },
+                            ),
+                            ListTile(
+                              trailing: Icon(Icons.arrow_forward_ios, color: Theme.of(context).colorScheme.onSurface,),
+                              title: Text("Firmware Update", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) {
+                                    return AlertDialog(
+                                      title: Text("Start Firmware Update?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                      content: ElevatedButton(
+                                        style: ButtonStyle(
+                                          backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
+                                        ),
+                                        onPressed: () async {
+                                          Navigator.of(context).pop();
+                                          setOptions('otaUpdate=true');
+                                          if (!await launchUrl(Uri.parse('http://$connectURL/update'))) {
+                                            throw Exception('Could not launch http://$connectURL/update');
+                                          }
+                                        },
+                                        child: Text('Start', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                            ListTile(
+                              trailing: Icon(Icons.arrow_forward_ios, color: Theme.of(context).colorScheme.onSurface,),
+                              title: Text("Reboot", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) {
+                                    return AlertDialog(
+                                      title: Text("Reboot NMEATrax?", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                      content: ElevatedButton(
+                                        style: ButtonStyle(
+                                          backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
+                                        ),
+                                        onPressed: () async {
+                                          setOptions('reboot=true');
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Text('Reboot', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ],
                         ),
-                        lightTheme: SettingsThemeData(
-                          settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                          settingsListBackground: Theme.of(context).colorScheme.surface,
-                          titleTextColor: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        platform: DevicePlatform.android,
-                        sections: [
-                          SettingsSection(
-                            tiles: [
-                              // SettingsTile.navigation(
-                              //   title: Text("WiFi Settings", style: TextStyle(color: Theme.of(context).colorScheme.error),),
-                              //   onPressed: (context) async {
-                              //     // await http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true'));
-                              //     showDialog(
-                              //       context: lcontext,
-                              //       builder: (context) {
-                              //         String wifiSSID = '';
-                              //         String wifiPASS = '';
-                              //         return AlertDialog(
-                              //           title: Text('WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              //           backgroundColor: Theme.of(context).colorScheme.surface,
-                              //           actionsAlignment: MainAxisAlignment.spaceBetween,
-                              //           content: Column(
-                              //             crossAxisAlignment: CrossAxisAlignment.start,
-                              //             mainAxisSize: MainAxisSize.min,
-                              //             children: [
-                              //               Text('SSID', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              //               TextField(
-                              //                 autocorrect: false,
-                              //                 autofocus: true,
-                              //                 onChanged: (value) => wifiSSID,
-                              //               ),
-                              //               Padding(
-                              //                 padding: const EdgeInsets.only(top: 16),
-                              //                 child: Text('Password', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                              //               ),
-                              //               TextField(
-                              //                 autocorrect: false,
-                              //                 onChanged: (value) => wifiPASS,
-                              //               ),
-                              //             ],
-                              //           ),
-                              //           actions: [
-                              //             TextButton(
-                              //               style: ButtonStyle(
-                              //                 backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.error)
-                              //               ),
-                              //               onPressed: () => http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true')),
-                              //               child: Padding(
-                              //                 padding: const EdgeInsets.all(8.0),
-                              //                 child: Text('Erase WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onError),),
-                              //               )
-                              //             ),
-                              //             TextButton(
-                              //               style: ButtonStyle(
-                              //                 backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
-                              //               ),
-                              //               onPressed: () async {
-                              //                 await http.get(Uri.parse('http://$connectURL/set?AP_SSID=$wifiSSID'));
-                              //                 await http.get(Uri.parse('http://$connectURL/set?AP_PASS=$wifiPASS'));
-                              //                 Future.delayed(Durations.extralong4, () {
-                              //                   http.get(Uri.parse('http://$connectURL/set?reboot=true'));
-                              //                 },);
-                              //               },
-                              //               child: Padding(
-                              //                 padding: const EdgeInsets.all(8.0),
-                              //                 child: Text('Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                              //               )
-                              //             ),
-                              //           ],
-                              //         );
-                              //       },
-                              //     );
-                              //   },
-                              // ),
-                              SettingsTile.navigation(
-                                title: Text("OTA Update", style: TextStyle(color: Theme.of(context).colorScheme.error),),
-                                onPressed: (context) async {
-                                  await http.get(Uri.parse('http://$connectURL/set?otaUpdate=true'));
-                                  if (!await launchUrl(Uri.parse('http://$connectURL/update'))) {
-                                    throw Exception('Could not launch http://$connectURL/update');
-                                  }
-                                },
-                              ),
-                              SettingsTile.navigation(
-                                title: Text("Reboot", style: TextStyle(color: Theme.of(context).colorScheme.error),),
-                                onPressed: (context) async {
-                                  await http.get(Uri.parse('http://$connectURL/set?reboot=true'));
-                                },
-                              ),
-                            ],
-                          )
-                        ],
                       ),
                     ),
                     Padding(    // More Settings Button

@@ -798,7 +798,7 @@ class NmeaDevice {
       isLocalAP: json['wifiMode'] ?? isLocalAP,
       wifiSSID: json['wifiSSID'] ?? wifiSSID,
       wifiPass: json['wifiPass'] ?? wifiPass,
-      wifiCredentials: json['wifiCred'] ?? wifiCredentials,
+      wifiCredentials: json['wifiCredentials'] ?? wifiCredentials,
       buildDate: json['buildDate'] ?? buildDate,
     );
   }

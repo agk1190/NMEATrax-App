@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'communications.dart';
 
 class WifiPage extends StatefulWidget {
@@ -10,20 +10,20 @@ class WifiPage extends StatefulWidget {
 }
 
 class _WifiPageState extends State<WifiPage> {
-  final TextEditingController _ssidController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final List<Map<String, String>> _wifiList = [];
+  final TextEditingController ssidController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final List<Map<String, String>> wifiList = [];
 
   void _addWifi() {
-    final ssid = _ssidController.text.trim();
-    final password = _passwordController.text.trim();
+    String ssid = ssidController.text.trim();
+    String password = passwordController.text.trim();
 
     if (ssid.isNotEmpty && password.isNotEmpty) {
       setState(() {
-        _wifiList.add({'ssid': ssid, 'password': password});
+        wifiList.add({'ssid': ssid, 'password': password});
       });
-      _ssidController.clear();
-      _passwordController.clear();
+      ssidController.clear();
+      passwordController.clear();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Please enter both SSID and Password')),
@@ -33,24 +33,37 @@ class _WifiPageState extends State<WifiPage> {
 
   void _removeWifi(int index) {
     setState(() {
-      _wifiList.removeAt(index);
+      wifiList.removeAt(index);
     });
   }
 
-  void _confirm() {
-    final jsonArray = jsonEncode(_wifiList);
-    // Use the JSON array as needed
-    print(jsonArray); // For demonstration purposes
-    setOptions('wifiCred=$jsonArray');
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(content: Text('JSON Array: $jsonArray')),
-    // );
+  Future<void> _confirm() async {
+    await setOptions('clrWifiCred');
+    for (Map<String, String> wifiPair in wifiList) {
+      Map<String, String> wifiCredPair = {};
+      wifiCredPair['ssid'] = '"${wifiPair['ssid']}"';
+      wifiCredPair['password'] = '"${wifiPair['password']}"';
+      await setOptions('setWifiCred=$wifiCredPair');
+    }
   }
 
-    @override
+  void _getWifi() async {
+    await getOptions();
+    setState(() {
+      wifiList.clear();
+      if (nmeaDevice.wifiCredentials != null && nmeaDevice.wifiCredentials != "null") {
+        List<dynamic> ssidList = jsonDecode(nmeaDevice.wifiCredentials!);
+        for (var wifiPair in ssidList) {
+          wifiList.add(Map<String, String>.from(wifiPair));
+        }
+      }
+    });
+  }
+
+  @override
   void initState() {
     super.initState();
-    // _wifiList = 
+    _getWifi();
   }
 
   @override
@@ -64,21 +77,21 @@ class _WifiPageState extends State<WifiPage> {
         child: Column(
           children: [
             TextField(
-              controller: _ssidController,
+              controller: ssidController,
               decoration: InputDecoration(labelText: 'SSID'),
             ),
             TextField(
-              controller: _passwordController,
+              controller: passwordController,
               decoration: InputDecoration(labelText: 'Password'),
               obscureText: true,
             ),
             SizedBox(height: 16),
             ElevatedButton(
               style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.all(Theme.of(context).primaryColor),
+                backgroundColor: WidgetStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
               ),
               onPressed: _addWifi,
-              child: Text('Add'),
+              child: Text('Add', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
             ),
             SizedBox(height: 16),
             Expanded(
@@ -86,21 +99,28 @@ class _WifiPageState extends State<WifiPage> {
                 onReorder: (oldIndex, newIndex) {
                   setState(() {
                     if (newIndex > oldIndex) newIndex -= 1;
-                    final item = _wifiList.removeAt(oldIndex);
-                    _wifiList.insert(newIndex, item);
+                    final item = wifiList.removeAt(oldIndex);
+                    wifiList.insert(newIndex, item);
                   });
                 },
                 children: [
-                  for (int i = 0; i < _wifiList.length; i++)
-                    ListTile(
+                  for (int i = 0; i < wifiList.length; i++)
+                    Padding(
                       key: ValueKey(i),
-                      title: Text(_wifiList[i]['ssid'] ?? ''),
-                      subtitle: Text(_wifiList[i]['password'] ?? ''),
-                      trailing: IconButton(
-                        icon: Icon(Icons.delete),
-                        onPressed: () => _removeWifi(i),
+                      padding: const EdgeInsets.all(4.0),
+                      child: ListTile(
+                        key: ValueKey(i),
+                        title: Text(wifiList[i]['ssid'] ?? ''),
+                        subtitle: Text(wifiList[i]['password'] ?? ''),
+                        trailing: Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () => _removeWifi(i),
+                          ),
+                        ),
+                        tileColor: Theme.of(context).colorScheme.surfaceContainerLow,
                       ),
-                      tileColor: Theme.of(context).colorScheme.surfaceContainerLow,
                     ),
                 ],
               ),
@@ -108,10 +128,19 @@ class _WifiPageState extends State<WifiPage> {
             SizedBox(height: 16),
             ElevatedButton(
               style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.all(Theme.of(context).primaryColor),
+                backgroundColor: WidgetStateProperty.all<Color>(Theme.of(context).colorScheme.primary),
               ),
-              onPressed: _confirm,
-              child: Text('Confirm'),
+              onPressed: () async {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('WiFi credentials saved', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceBright,
+                  )
+                );
+                await _confirm();
+                _getWifi();
+              },
+              child: Text('Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
             ),
           ],
         ),

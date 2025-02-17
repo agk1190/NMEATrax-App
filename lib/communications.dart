@@ -12,7 +12,7 @@ Future<void> getOptions() async {
     response = await http.get(Uri.parse('http://$connectURL/get'));
 
     if (response.statusCode == 200) {
-      print(response.body);
+      // print(response.body);
       nmeaDevice = nmeaDevice.updateFromJson(jsonDecode(response.body));
       // setState(() {});
     } else {

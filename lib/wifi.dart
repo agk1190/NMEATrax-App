@@ -83,7 +83,7 @@ class _WifiPageState extends State<WifiPage> {
             TextField(
               controller: passwordController,
               decoration: InputDecoration(labelText: 'Password'),
-              obscureText: true,
+              obscureText: false,
             ),
             SizedBox(height: 16),
             ElevatedButton(

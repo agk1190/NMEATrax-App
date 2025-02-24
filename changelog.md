@@ -19,6 +19,7 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 - Added NmeaDevice class
 
 ### Changed
+- Moved back to SSE
 - Updated both dashboard pages
 - Updated options page
 - Updated WiFi dialog

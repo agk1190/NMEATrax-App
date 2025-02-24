@@ -776,7 +776,7 @@ class TemperatureData{
 
 class NmeaDevice {
   int id = 0;
-  bool connected = false;
+  bool connected;
   String? firmware;
   String? hardware;
   int? recMode;
@@ -791,6 +791,7 @@ class NmeaDevice {
 
   NmeaDevice updateFromJson(Map<String, dynamic> json) {
     return NmeaDevice(
+      connected: connected,
       firmware: json['firmware'] ?? firmware,
       hardware: json['hardware'] ?? hardware,
       recMode: json['recMode'] ?? recMode,

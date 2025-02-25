@@ -97,7 +97,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       if (validIP.summary == null && validIP.response != null) {
         EventFlux.instance.connect(
           EventFluxConnectionType.get,
-          'http://$connectURL/nmeadata',
+          'http://$connectURL/NMEATrax',
           onSuccessCallback: (EventFluxResponse? response) {
             nmeaDevice.connected = true;
             setState(() {
@@ -169,14 +169,18 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       case '000000':
         // heartbeat message
         break;
+      case 'email':
+        // emailMessages.add(nmeaData['msg']);
+        emailMessagesNotifier.value = List.from(emailMessagesNotifier.value)..add(nmeaData['msg']);
+        break;
       default:
     }
 
     lastDataReceived = DateTime.now();
 
-    if (_tabController.index != 2) {
+    // if (_tabController.index != 2) {
       setState(() {});
-    }
+    // }
   }
 
   // Disconnect from nmea data stream

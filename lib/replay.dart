@@ -380,6 +380,18 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
                 savePrefs();
               });
             },
+            pressureChanged: (selection) {
+              setState(() {
+                pressureUnit = selection.first;
+                savePrefs();
+              });
+            },
+            useDepthOffsetChanged: (selection) {
+              setState(() {
+                useDepthOffset = selection!;
+                savePrefs();
+              });
+            },
             appVersion: MyApp.appVersion,
             currentThemeMode: MyApp.themeNotifier.value,
             mainContext: context

@@ -7,8 +7,6 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - yyyy-mm-dd
  
 ### To-Do
-- move unit selection to pop-up
-- add psi unit
 - remove SettingsTile
 
 
@@ -17,6 +15,8 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ### Added
 - Basics of event based mode
 - Added NmeaDevice class
+- Added pressure units
+- Moved unit selection to pop-up
 
 ### Changed
 - Moved back to SSE

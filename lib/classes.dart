@@ -6,6 +6,7 @@ TempUnit tempUnit = TempUnit.celsius;
 SpeedUnit speedUnit = SpeedUnit.kn;
 FuelUnit fuelUnit = FuelUnit.litre;
 PressureUnit pressureUnit = PressureUnit.kpa;
+bool useDepthOffset = false;
 
 class UnitFunctions {
   static String unitFor(ConversionType type, {bool leadingSpace = true}) {
@@ -30,6 +31,8 @@ class UnitFunctions {
             result = 'kpa';
           case PressureUnit.inHg:
             result = 'inHg';
+          case PressureUnit.bar:
+            result = 'bar';
         }
       case ConversionType.speed:
         switch (speedUnit) {
@@ -320,6 +323,8 @@ class NmeaDrawer extends StatelessWidget {
     required this.tempChanged,
     required this.speedChanged,
     required this.fuelChanged,
+    required this.pressureChanged,
+    required this.useDepthOffsetChanged,
     required this.toggleThemeAction,
     required this.appVersion,
     required this.currentThemeMode,
@@ -333,6 +338,8 @@ class NmeaDrawer extends StatelessWidget {
   final Function(Set<TempUnit> selection) tempChanged;
   final Function(Set<SpeedUnit> selection) speedChanged;
   final Function(Set<FuelUnit> selection) fuelChanged;
+  final Function(Set<PressureUnit> selection) pressureChanged;
+  final Function(bool? selection) useDepthOffsetChanged;
   final Function() toggleThemeAction;
   final String appVersion;
   final ThemeMode currentThemeMode;
@@ -341,7 +348,7 @@ class NmeaDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      width: 250,
+      width: 200,
       backgroundColor: Theme.of(mainContext).colorScheme.surface,
       child: ListView(
         children: <Widget>[
@@ -374,6 +381,65 @@ class NmeaDrawer extends StatelessWidget {
             onTap: option3Action
           ),
           const Divider(),
+          ListTile(
+            textColor: Theme.of(mainContext).colorScheme.onSurface,
+            iconColor: Theme.of(mainContext).colorScheme.onSurface,
+            title: Text('Units', style: TextStyle(color: Theme.of(mainContext).colorScheme.onSurface),),
+            leading: const Icon(Icons.settings),
+            onTap: () {
+              Navigator.of(context).pop();
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => UnitSelectionDialog(
+              //       depthChanged: (selection) {
+              //         depthChanged(selection);
+              //       },
+              //       tempChanged: (selection) {
+              //         tempChanged(selection);
+              //       },
+              //       speedChanged: (selection) {
+              //         speedChanged(selection);
+              //       },
+              //       fuelChanged: (selection) {
+              //         fuelChanged(selection);
+              //       },
+              //       pressureChanged: (selection) {
+              //         pressureChanged(selection);
+              //       },
+              //       useDepthOffsetChanged: (selection) {
+              //         useDepthOffsetChanged(selection);
+              //       },
+              //       mainContext: mainContext,
+              //     ),
+              //   ),
+              // );
+              showDialog(context: context, builder: (context) {
+                return UnitSelectionDialog(
+                  depthChanged: (selection) {
+                    depthChanged(selection);
+                  },
+                  tempChanged: (selection) {
+                    tempChanged(selection);
+                  },
+                  speedChanged: (selection) {
+                    speedChanged(selection);
+                  },
+                  fuelChanged: (selection) {
+                    fuelChanged(selection);
+                  },
+                  pressureChanged: (selection) {
+                    pressureChanged(selection);
+                  },
+                  useDepthOffsetChanged: (selection) {
+                    useDepthOffsetChanged(selection);
+                  },
+                  mainContext: mainContext,
+                );
+              },);
+            },
+          ),
+          const Divider(),
           AboutListTile(
             icon: Icon(
               color: Theme.of(mainContext).colorScheme.onSurface,
@@ -401,132 +467,480 @@ class NmeaDrawer extends StatelessWidget {
                   child: currentThemeMode == ThemeMode.light ? Icon(Icons.dark_mode, color: Theme.of(mainContext).colorScheme.onPrimary,) : Icon(Icons.light_mode, color: Theme.of(mainContext).colorScheme.onPrimary,),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: SegmentedButton(
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                      (Set<WidgetState> states) {
-                          if (states.contains(WidgetState.selected)){
-                            return Theme.of(mainContext).colorScheme.primary;
-                          }
-                          return Theme.of(mainContext).colorScheme.surface;
-                        },
-                    ),
-                  ),
-                  showSelectedIcon: false,
-                  segments: <ButtonSegment<DepthUnit>>[
-                    ButtonSegment(
-                      value: DepthUnit.feet,
-                      label: Text('ft', style: TextStyle(color: depthUnit == DepthUnit.feet ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
-                      tooltip: 'Feet'
-                    ),
-                    ButtonSegment(
-                      value: DepthUnit.meters,
-                      label: Text('m', style: TextStyle(color: depthUnit == DepthUnit.meters ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
-                      tooltip: 'Meters'
-                    ),
-                  ], 
-                  selected: <DepthUnit>{depthUnit},
-                  onSelectionChanged: depthChanged,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: SegmentedButton(
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                      (Set<WidgetState> states) {
-                          if (states.contains(WidgetState.selected)){
-                            return Theme.of(mainContext).colorScheme.primary;
-                          }
-                          return Theme.of(mainContext).colorScheme.surface;
-                        },
-                    ),
-                  ),
-                  showSelectedIcon: false,
-                  segments: <ButtonSegment<TempUnit>>[
-                    ButtonSegment(
-                      value: TempUnit.celsius,
-                      label: Text('\u2103', style: TextStyle(color: tempUnit == TempUnit.celsius ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
-                    ),
-                    ButtonSegment(
-                      value: TempUnit.fahrenheit,
-                      label: Text('\u2109', style: TextStyle(color: tempUnit == TempUnit.fahrenheit ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
-                    ),
-                  ], 
-                  selected: <TempUnit>{tempUnit},
-                  onSelectionChanged: tempChanged,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: SegmentedButton(
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                      (Set<WidgetState> states) {
-                          if (states.contains(WidgetState.selected)){
-                            return Theme.of(mainContext).colorScheme.primary;
-                          }
-                          return Theme.of(mainContext).colorScheme.surface;
-                        },
-                    ),
-                  ),
-                  showSelectedIcon: false,
-                  segments: <ButtonSegment<FuelUnit>>[
-                    ButtonSegment(
-                      value: FuelUnit.litre,
-                      label: Text('Litre', style: TextStyle(color: fuelUnit == FuelUnit.litre ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
-                    ),
-                    ButtonSegment(
-                      value: FuelUnit.gallon,
-                      label: Text('Gallon', style: TextStyle(color: fuelUnit == FuelUnit.gallon ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
-                    ),
-                  ], 
-                  selected: <FuelUnit>{fuelUnit},
-                  onSelectionChanged: fuelChanged,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: SegmentedButton(
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                      (Set<WidgetState> states) {
-                          if (states.contains(WidgetState.selected)){
-                            return Theme.of(mainContext).colorScheme.primary;
-                          }
-                          return Theme.of(mainContext).colorScheme.surface;
-                        },
-                    ),
-                  ),
-                  showSelectedIcon: false,
-                  segments: <ButtonSegment<SpeedUnit>>[
-                    ButtonSegment(
-                      value: SpeedUnit.km,
-                      label: Text('km', style: TextStyle(color: speedUnit == SpeedUnit.km ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
-                    ),
-                    ButtonSegment(
-                      value: SpeedUnit.kn,
-                      label: Text('kn', style: TextStyle(color: speedUnit == SpeedUnit.kn ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
-                    ),
-                    ButtonSegment(
-                      value: SpeedUnit.mi,
-                      label: Text('mi', style: TextStyle(color: speedUnit == SpeedUnit.mi ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
-                    ),
-                    ButtonSegment(
-                      value: SpeedUnit.ms,
-                      label: Text('m/s', style: TextStyle(color: speedUnit == SpeedUnit.ms ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
-                    ),
-                  ], 
-                  selected: <SpeedUnit>{speedUnit},
-                  onSelectionChanged: speedChanged,
-                ),
-              ),
+              // Padding(
+              //   padding: const EdgeInsets.all(8.0),
+              //   child: SegmentedButton(
+              //     style: ButtonStyle(
+              //       backgroundColor: WidgetStateProperty.resolveWith<Color>(
+              //         (Set<WidgetState> states) {
+              //             if (states.contains(WidgetState.selected)){
+              //               return Theme.of(mainContext).colorScheme.primary;
+              //             }
+              //             return Theme.of(mainContext).colorScheme.surface;
+              //           },
+              //       ),
+              //     ),
+              //     showSelectedIcon: false,
+              //     segments: <ButtonSegment<DepthUnit>>[
+              //       ButtonSegment(
+              //         value: DepthUnit.feet,
+              //         label: Text('ft', style: TextStyle(color: depthUnit == DepthUnit.feet ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
+              //         tooltip: 'Feet'
+              //       ),
+              //       ButtonSegment(
+              //         value: DepthUnit.meters,
+              //         label: Text('m', style: TextStyle(color: depthUnit == DepthUnit.meters ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
+              //         tooltip: 'Meters'
+              //       ),
+              //     ], 
+              //     selected: <DepthUnit>{depthUnit},
+              //     onSelectionChanged: depthChanged,
+              //   ),
+              // ),
+              // Padding(
+              //   padding: const EdgeInsets.all(8.0),
+              //   child: SegmentedButton(
+              //     style: ButtonStyle(
+              //       backgroundColor: WidgetStateProperty.resolveWith<Color>(
+              //         (Set<WidgetState> states) {
+              //             if (states.contains(WidgetState.selected)){
+              //               return Theme.of(mainContext).colorScheme.primary;
+              //             }
+              //             return Theme.of(mainContext).colorScheme.surface;
+              //           },
+              //       ),
+              //     ),
+              //     showSelectedIcon: false,
+              //     segments: <ButtonSegment<TempUnit>>[
+              //       ButtonSegment(
+              //         value: TempUnit.celsius,
+              //         label: Text('\u2103', style: TextStyle(color: tempUnit == TempUnit.celsius ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
+              //       ),
+              //       ButtonSegment(
+              //         value: TempUnit.fahrenheit,
+              //         label: Text('\u2109', style: TextStyle(color: tempUnit == TempUnit.fahrenheit ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
+              //       ),
+              //     ], 
+              //     selected: <TempUnit>{tempUnit},
+              //     onSelectionChanged: tempChanged,
+              //   ),
+              // ),
+              // Padding(
+              //   padding: const EdgeInsets.all(8.0),
+              //   child: SegmentedButton(
+              //     style: ButtonStyle(
+              //       backgroundColor: WidgetStateProperty.resolveWith<Color>(
+              //         (Set<WidgetState> states) {
+              //             if (states.contains(WidgetState.selected)){
+              //               return Theme.of(mainContext).colorScheme.primary;
+              //             }
+              //             return Theme.of(mainContext).colorScheme.surface;
+              //           },
+              //       ),
+              //     ),
+              //     showSelectedIcon: false,
+              //     segments: <ButtonSegment<FuelUnit>>[
+              //       ButtonSegment(
+              //         value: FuelUnit.litre,
+              //         label: Text('Litre', style: TextStyle(color: fuelUnit == FuelUnit.litre ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
+              //       ),
+              //       ButtonSegment(
+              //         value: FuelUnit.gallon,
+              //         label: Text('Gallon', style: TextStyle(color: fuelUnit == FuelUnit.gallon ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
+              //       ),
+              //     ], 
+              //     selected: <FuelUnit>{fuelUnit},
+              //     onSelectionChanged: fuelChanged,
+              //   ),
+              // ),
+              // Padding(
+              //   padding: const EdgeInsets.all(8.0),
+              //   child: SegmentedButton(
+              //     style: ButtonStyle(
+              //       backgroundColor: WidgetStateProperty.resolveWith<Color>(
+              //         (Set<WidgetState> states) {
+              //             if (states.contains(WidgetState.selected)){
+              //               return Theme.of(mainContext).colorScheme.primary;
+              //             }
+              //             return Theme.of(mainContext).colorScheme.surface;
+              //           },
+              //       ),
+              //     ),
+              //     showSelectedIcon: false,
+              //     segments: <ButtonSegment<SpeedUnit>>[
+              //       ButtonSegment(
+              //         value: SpeedUnit.km,
+              //         label: Text('km', style: TextStyle(color: speedUnit == SpeedUnit.km ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
+              //       ),
+              //       ButtonSegment(
+              //         value: SpeedUnit.kn,
+              //         label: Text('kn', style: TextStyle(color: speedUnit == SpeedUnit.kn ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
+              //       ),
+              //       ButtonSegment(
+              //         value: SpeedUnit.mi,
+              //         label: Text('mi', style: TextStyle(color: speedUnit == SpeedUnit.mi ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
+              //       ),
+              //       ButtonSegment(
+              //         value: SpeedUnit.ms,
+              //         label: Text('m/s', style: TextStyle(color: speedUnit == SpeedUnit.ms ? Theme.of(mainContext).colorScheme.onPrimary : Theme.of(mainContext).colorScheme.onSurface),),
+              //       ),
+              //     ], 
+              //     selected: <SpeedUnit>{speedUnit},
+              //     onSelectionChanged: speedChanged,
+              //   ),
+              // ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+class UnitSelectionDialog extends StatelessWidget {
+  final Function(Set<DepthUnit> selection) depthChanged;
+  final Function(Set<TempUnit> selection) tempChanged;
+  final Function(Set<SpeedUnit> selection) speedChanged;
+  final Function(Set<FuelUnit> selection) fuelChanged;
+  final Function(Set<PressureUnit> selection) pressureChanged;
+  final Function(bool? selection) useDepthOffsetChanged;
+  final dynamic mainContext;
+
+  const UnitSelectionDialog({
+    super.key,
+    required this.depthChanged,
+    required this.tempChanged,
+    required this.speedChanged,
+    required this.fuelChanged,
+    required this.pressureChanged,
+    required this.useDepthOffsetChanged,
+    required this.mainContext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return AlertDialog(
+          title: const Text('Select Units'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Card(
+                    color: Theme.of(context).colorScheme.surfaceContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SegmentedButton<DepthUnit>(
+                            style: ButtonStyle(
+                              backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                                (Set<WidgetState> states) {
+                                  if (states.contains(WidgetState.selected)) {
+                                    return Theme.of(mainContext).colorScheme.primary;
+                                  }
+                                  return Theme.of(mainContext).colorScheme.surface;
+                                },
+                              ),
+                            ),
+                            showSelectedIcon: false,
+                            segments: <ButtonSegment<DepthUnit>>[
+                              ButtonSegment(
+                                value: DepthUnit.feet,
+                                label: Text(
+                                  'ft',
+                                  style: TextStyle(
+                                    color: depthUnit == DepthUnit.feet
+                                        ? Theme.of(mainContext).colorScheme.onPrimary
+                                        : Theme.of(mainContext).colorScheme.onSurface,
+                                  ),
+                                ),
+                                tooltip: 'Feet',
+                              ),
+                              ButtonSegment(
+                                value: DepthUnit.meters,
+                                label: Text(
+                                  'm',
+                                  style: TextStyle(
+                                    color: depthUnit == DepthUnit.meters
+                                        ? Theme.of(mainContext).colorScheme.onPrimary
+                                        : Theme.of(mainContext).colorScheme.onSurface,
+                                  ),
+                                ),
+                                tooltip: 'Meters',
+                              ),
+                            ],
+                            selected: <DepthUnit>{depthUnit},
+                            onSelectionChanged: (p0) {
+                              setState(() {
+                                depthChanged(p0);
+                              });
+                            },
+                          ),
+                          SizedBox(width: 10,),
+                          CheckboxListTile(
+                            title: Text('Use offset', style: TextStyle(color: Theme.of(mainContext).colorScheme.onSurface),),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            value: useDepthOffset,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                useDepthOffsetChanged(value);
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: SegmentedButton<TempUnit>(
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return Theme.of(mainContext).colorScheme.primary;
+                          }
+                          return Theme.of(mainContext).colorScheme.surface;
+                        },
+                      ),
+                    ),
+                    showSelectedIcon: false,
+                    segments: <ButtonSegment<TempUnit>>[
+                      ButtonSegment(
+                        value: TempUnit.celsius,
+                        label: Text(
+                          '\u2103',
+                          style: TextStyle(
+                            color: tempUnit == TempUnit.celsius
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: TempUnit.fahrenheit,
+                        label: Text(
+                          '\u2109',
+                          style: TextStyle(
+                            color: tempUnit == TempUnit.fahrenheit
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                    selected: <TempUnit>{tempUnit},
+                    onSelectionChanged: (p0) {
+                      setState(() {
+                        tempChanged(p0);
+                      });
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: SegmentedButton<FuelUnit>(
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return Theme.of(mainContext).colorScheme.primary;
+                          }
+                          return Theme.of(mainContext).colorScheme.surface;
+                        },
+                      ),
+                    ),
+                    showSelectedIcon: false,
+                    segments: <ButtonSegment<FuelUnit>>[
+                      ButtonSegment(
+                        value: FuelUnit.litre,
+                        label: Text(
+                          'Litre',
+                          style: TextStyle(
+                            color: fuelUnit == FuelUnit.litre
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: FuelUnit.gallon,
+                        label: Text(
+                          'Gallon',
+                          style: TextStyle(
+                            color: fuelUnit == FuelUnit.gallon
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                    selected: <FuelUnit>{fuelUnit},
+                    onSelectionChanged: (p0) {
+                      setState(() {
+                        fuelChanged(p0);
+                      });
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: SegmentedButton<SpeedUnit>(
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return Theme.of(mainContext).colorScheme.primary;
+                          }
+                          return Theme.of(mainContext).colorScheme.surface;
+                        },
+                      ),
+                    ),
+                    showSelectedIcon: false,
+                    segments: <ButtonSegment<SpeedUnit>>[
+                      ButtonSegment(
+                        value: SpeedUnit.km,
+                        label: Text(
+                          'km',
+                          style: TextStyle(
+                            color: speedUnit == SpeedUnit.km
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: SpeedUnit.kn,
+                        label: Text(
+                          'kn',
+                          style: TextStyle(
+                            color: speedUnit == SpeedUnit.kn
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: SpeedUnit.mi,
+                        label: Text(
+                          'mi',
+                          style: TextStyle(
+                            color: speedUnit == SpeedUnit.mi
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: SpeedUnit.ms,
+                        label: Text(
+                          'm/s',
+                          style: TextStyle(
+                            color: speedUnit == SpeedUnit.ms
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                    selected: <SpeedUnit>{speedUnit},
+                    onSelectionChanged: (p0) {
+                      setState(() {
+                        speedChanged(p0);
+                      });
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: SegmentedButton<PressureUnit>(
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return Theme.of(mainContext).colorScheme.primary;
+                          }
+                          return Theme.of(mainContext).colorScheme.surface;
+                        },
+                      ),
+                    ),
+                    showSelectedIcon: false,
+                    segments: <ButtonSegment<PressureUnit>>[
+                      ButtonSegment(
+                        value: PressureUnit.psi,
+                        label: Text(
+                          'psi',
+                          style: TextStyle(
+                            color: pressureUnit == PressureUnit.psi
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: PressureUnit.kpa,
+                        label: Text(
+                          'kpa',
+                          style: TextStyle(
+                            color: pressureUnit == PressureUnit.kpa
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: PressureUnit.bar,
+                        label: Text(
+                          'bar',
+                          style: TextStyle(
+                            color: pressureUnit == PressureUnit.bar
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: PressureUnit.inHg,
+                        label: Text(
+                          'inHg',
+                          style: TextStyle(
+                            color: pressureUnit == PressureUnit.inHg
+                                ? Theme.of(mainContext).colorScheme.onPrimary
+                                : Theme.of(mainContext).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                    selected: <PressureUnit>{pressureUnit},
+                    onSelectionChanged: (p0) {
+                      setState(() {
+                        pressureChanged(p0);
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all<Color>(Theme.of(mainContext).colorScheme.primary),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Done', style: TextStyle(color: Theme.of(mainContext).colorScheme.onPrimary),),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -815,7 +1229,7 @@ enum SpeedUnit {ms, kn, km, mi}
 
 enum FuelUnit {litre, gallon}
 
-enum PressureUnit {psi, kpa, inHg}
+enum PressureUnit {psi, kpa, inHg, bar}
 
 enum FluidType {
   fuel,
@@ -828,13 +1242,6 @@ enum FluidType {
   error,
   unavailable
 }
-
-// enum TransmissionGear {
-//   forward,
-//   neutral,
-//   reverse,
-//   unknown,
-// }
 
 enum EnviroDataType {temp, depth}
 

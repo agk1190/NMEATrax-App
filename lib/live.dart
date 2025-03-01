@@ -32,7 +32,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   final List<String> wifiModeOptions = <String>['Client', 'Host'];
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   bool moreSettingsVisible = false;
-  // WebSocketChannel? channel;
   DateTime lastDataReceived = DateTime.now();
   Timer? connectionTimeoutTimer;
   Timer? reconnectTimer;
@@ -43,7 +42,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   TransmissionData transmissionData = TransmissionData(id: 0);
   DepthData depthData = DepthData(id: 0);
   TemperatureData temperatureData = TemperatureData(id: 0);
-  // String? webSocketStatus;
   late TabController _tabController;
   Map<String, DateTime> lastDataTime = {};
 
@@ -55,6 +53,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       prefs.setBool('isMeters', depthUnit == DepthUnit.meters ? true : false);
       prefs.setBool('isCelsius', tempUnit == TempUnit.celsius ? true : false);
       prefs.setBool('isLitre', fuelUnit == FuelUnit.litre ? true : false);
+      prefs.setBool('useOffset', useDepthOffset);
       prefs.setInt('speedUnit', speedUnit.index);
     });
   }
@@ -66,6 +65,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     if (prefs.getBool("isMeters") == null) {return;}
     if (prefs.getBool("isCelsius") == null) {return;}
     if (prefs.getBool("isLitre") == null) {return;}
+    if (prefs.getBool("useOffset") == null) {return;}
     if (prefs.getInt("speedUnit") == null) {return;}
     setState(() {
       prefs.getBool('darkMode')! == true ? MyApp.themeNotifier.value = ThemeMode.dark : MyApp.themeNotifier.value = ThemeMode.light;
@@ -73,6 +73,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       depthUnit = prefs.getBool('isMeters')! ? DepthUnit.meters : DepthUnit.feet;
       tempUnit = prefs.getBool('isCelsius')! ? TempUnit.celsius : TempUnit.fahrenheit;
       fuelUnit = prefs.getBool('isLitre')! ? FuelUnit.litre : FuelUnit.gallon;
+      useDepthOffset = prefs.getBool('useOffset')!;
       int su = prefs.getInt('speedUnit')!;
       switch (su) {
         case 0:
@@ -505,15 +506,15 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
           drawer: NmeaDrawer(
             option1Action: () {
               // if (channel != null) disconnectWebSocket();
-              if (nmeaDevice.connected) EventFlux.instance.disconnect();
+              if (nmeaDevice.connected) disconnectFromNmeaDataStream();
               Navigator.pushReplacementNamed(context, '/live');
             },
             option2Action: () {
-              if (nmeaDevice.connected) EventFlux.instance.disconnect();
+              if (nmeaDevice.connected) disconnectFromNmeaDataStream();
               Navigator.pushReplacementNamed(context, '/replay');
             },
             option3Action: () {
-              if (nmeaDevice.connected) EventFlux.instance.disconnect();
+              if (nmeaDevice.connected) disconnectFromNmeaDataStream();
               Navigator.pushReplacementNamed(context, '/files');
             },
             depthChanged: (selection) {
@@ -537,6 +538,18 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
             fuelChanged: (selection) {
               setState(() {
                 fuelUnit = selection.first;
+                savePrefs();
+              });
+            },
+            pressureChanged: (selection) {
+              setState(() {
+                pressureUnit = selection.first;
+                savePrefs();
+              });
+            },
+            useDepthOffsetChanged: (selection) {
+              setState(() {
+                useDepthOffset = selection!;
                 savePrefs();
               });
             },
@@ -1351,7 +1364,11 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       case ConversionType.wTemp:
         return (tempUnit == TempUnit.celsius ? value - 273.15 : ((value - 273.15) * (9/5) + 32)).toStringAsFixed(2);
       case ConversionType.depth:
-        return (depthUnit == DepthUnit.meters ? value : value * 3.280839895).toStringAsFixed(2);
+        if (useDepthOffset) {
+          return (depthUnit == DepthUnit.meters ? (value + depthData.offset!) : (value + depthData.offset!) * 3.280839895).toStringAsFixed(2);
+        } else {
+          return (depthUnit == DepthUnit.meters ? value : value * 3.280839895).toStringAsFixed(2);
+        }
       case ConversionType.fuelRate:
         return (fuelUnit == FuelUnit.litre ? value : value * 0.26417205234375).toStringAsFixed(1);
       case ConversionType.fuelEfficiency:
@@ -1364,6 +1381,8 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
             return value.toStringAsFixed(0);
           case PressureUnit.inHg:
             return (value * 0.296133971).toStringAsFixed(2);
+          case PressureUnit.bar:
+            return (value * 0.01).toStringAsFixed(2);
         }
       case ConversionType.speed:
         switch (speedUnit) {

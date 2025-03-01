@@ -29,6 +29,8 @@ class _FilePageState extends State<FilePage> {
         prefs.setBool('isMeters', depthUnit == DepthUnit.meters ? true : false);
         prefs.setBool('isCelsius', tempUnit == TempUnit.celsius ? true : false);
         prefs.setBool('isLitre', fuelUnit == FuelUnit.litre ? true : false);
+        prefs.setBool('useDepthOffset', useDepthOffset);
+        prefs.setInt('pressureUnit', pressureUnit.index);
         prefs.setInt('speedUnit', speedUnit.index);
       });
     }
@@ -122,6 +124,18 @@ class _FilePageState extends State<FilePage> {
             fuelChanged: (selection) {
               setState(() {
                 fuelUnit = selection.first;
+                saveTheme();
+              });
+            },
+            pressureChanged: (selection) {
+              setState(() {
+                pressureUnit = selection.first;
+                saveTheme();
+              });
+            },
+            useDepthOffsetChanged: (selection) {
+              setState(() {
+                useDepthOffset = selection!;
                 saveTheme();
               });
             },

@@ -622,7 +622,8 @@ class UnitSelectionDialog extends StatelessWidget {
     return StatefulBuilder(
       builder: (context, setState) {
         return AlertDialog(
-          title: const Text('Select Units'),
+          backgroundColor: Theme.of(mainContext).colorScheme.surface,
+          title: Text('Select Units', style: TextStyle(color: Theme.of(mainContext).colorScheme.onSurface),),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -630,7 +631,7 @@ class UnitSelectionDialog extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Card(
-                    color: Theme.of(context).colorScheme.surfaceContainer,
+                    color: Theme.of(mainContext).colorScheme.surfaceContainer,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                       child: Column(

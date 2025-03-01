@@ -49,15 +49,17 @@ class _WifiPageState extends State<WifiPage> {
 
   void _getWifi() async {
     await getOptions();
-    setState(() {
-      wifiList.clear();
-      if (nmeaDevice.wifiCredentials != null && nmeaDevice.wifiCredentials != "null") {
-        List<dynamic> ssidList = jsonDecode(nmeaDevice.wifiCredentials!);
-        for (var wifiPair in ssidList) {
-          wifiList.add(Map<String, String>.from(wifiPair));
+    if (mounted) {
+      setState(() {
+        wifiList.clear();
+        if (nmeaDevice.wifiCredentials != null && nmeaDevice.wifiCredentials != "null") {
+          List<dynamic> ssidList = jsonDecode(nmeaDevice.wifiCredentials!);
+          for (var wifiPair in ssidList) {
+            wifiList.add(Map<String, String>.from(wifiPair));
+          }
         }
-      }
-    });
+      });
+    }
   }
 
   @override

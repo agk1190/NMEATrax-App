@@ -6,13 +6,11 @@ import 'package:http/http.dart' as http;
 import 'package:nmeatrax_app/communications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:web_socket_channel/io.dart';
-// import 'package:dart_ping/dart_ping.dart';
 
 List<String> downloadList = [];
 // String emailData = "";
 String connectURL = "192.168.1.1";
-IOWebSocketChannel? channel;
+// IOWebSocketChannel? channel;
 // List<String> emailMessages = [];
 ValueNotifier<List<String>> emailMessagesNotifier = ValueNotifier([]);
 

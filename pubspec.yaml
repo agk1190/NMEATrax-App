@@ -28,13 +28,13 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 
-## updated 2/28/2025
+## updated 3/01/2025
 dependencies:
   flutter:
     sdk: flutter
   csv: ^6.0.0
   file_picker: ^9.0.2
-  settings_ui: ^2.0.2
+  # settings_ui: ^2.0.2
   flutter_map: ^8.1.0
   latlong2: ^0.9.1
   gpx: ^2.3.0

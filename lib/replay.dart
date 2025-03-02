@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gpx/gpx.dart';
 import 'package:csv/csv.dart';
-import 'package:settings_ui/settings_ui.dart';
+// import 'package:settings_ui/settings_ui.dart';
 
 import 'classes.dart';
 import 'main.dart';
@@ -185,7 +185,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
           final headersRow = rows.first;
           rows.removeAt(0);
           for (var row in rows) {
-            if (row.elementAt(headersRow.indexOf("Latitude")) != -273) {
+            if (row.elementAt(headersRow.indexOf("Latitude")) != -273 && row.elementAt(headersRow.indexOf("Latitude")) != "-") {
               waypoints.add(Wpt(lat: row.elementAt(headersRow.indexOf("Latitude")), lon: row.elementAt(headersRow.indexOf("Longitude"))));
             }
           }
@@ -408,6 +408,9 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
                 _tabController.animateTo(value);
                 analyzeData();
                 analyzeVisible = true;
+                if (value != 3) {
+                  selectedLimit = 0;
+                }
               }),
               indicatorColor: Colors.white,
               tabs: const [
@@ -599,6 +602,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
                       ),
                     ),
                     DropdownMenu(
+                      width: 250,
                       initialSelection: upperLimits.keys.first,
                       menuStyle: MenuStyle(
                         backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surface),
@@ -625,63 +629,96 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
                         });
                       },
                     ),
-                    SettingsList(
-                      physics: const NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      darkTheme: SettingsThemeData(
-                        settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                        settingsListBackground: Theme.of(context).colorScheme.surface,
-                        titleTextColor: Theme.of(context).colorScheme.onSurface,
+                    const SizedBox(height: 20),
+                    ListTile(
+                      title: Text(
+                        "Lower Limit",
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface,),
                       ),
-                      lightTheme: SettingsThemeData(
-                        settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                        settingsListBackground: Theme.of(context).colorScheme.surface,
-                        titleTextColor: Theme.of(context).colorScheme.onSurface,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 50),
+                      leading: Icon(Icons.vertical_align_bottom, color: Theme.of(context).colorScheme.onSurface,),
+                      trailing: Text(
+                        UnitFunctions.returnInPreferredUnit(lowerLimits.keys.elementAt(selectedLimit), lowerLimits.values.elementAt(selectedLimit)).toString(), 
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 16,
+                        ),
                       ),
-                      platform: DevicePlatform.android,
-                      sections: [
-                        SettingsSection(
-                          title: const Text(
-                            "Lower Limit", 
-                            style: TextStyle(
-                              fontSize: 18,
-                            ),
-                          ),
-                          tiles: [
-                            SettingsTile.navigation(
-                              title: Text(
-                                // lowerLimits.values.elementAt(selectedLimit).toString(),
-                                UnitFunctions.returnInPreferredUnit(lowerLimits.keys.elementAt(selectedLimit), lowerLimits.values.elementAt(selectedLimit)).toString(),
-                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                              ),
-                              onPressed: (lcontext) {
-                                showInputDialog(context, "Enter lower limit", false);
-                              },
-                            ),
-                          ],
-                        ),
-                        SettingsSection(
-                          title: const Text(
-                            "Upper Limit", 
-                            style: TextStyle(
-                              fontSize: 18,
-                            ),
-                          ),
-                          tiles: [
-                            SettingsTile.navigation(
-                              title: Text(
-                                // upperLimits.values.elementAt(selectedLimit).toString(),
-                                UnitFunctions.returnInPreferredUnit(upperLimits.keys.elementAt(selectedLimit), upperLimits.values.elementAt(selectedLimit)).toString(),
-                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                              ),
-                              onPressed: (lcontext) {
-                                showInputDialog(context, "Enter upper limit", true);
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
+                      onTap: () => showInputDialog(context, "Enter lower limit", false),
                     ),
+                    ListTile(
+                      title: Text(
+                        "Upper Limit",
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface,),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 50),
+                      leading: Icon(Icons.vertical_align_top_outlined, color: Theme.of(context).colorScheme.onSurface,),
+                      trailing: Text(
+                        UnitFunctions.returnInPreferredUnit(upperLimits.keys.elementAt(selectedLimit), upperLimits.values.elementAt(selectedLimit)).toString(), 
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 16,
+                        ),
+                      ),
+                      onTap: () => showInputDialog(context, "Enter upper limit", true),
+                    ),
+                    // SettingsList(
+                    //   physics: const NeverScrollableScrollPhysics(),
+                    //   shrinkWrap: true,
+                    //   darkTheme: SettingsThemeData(
+                    //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
+                    //     settingsListBackground: Theme.of(context).colorScheme.surface,
+                    //     titleTextColor: Theme.of(context).colorScheme.onSurface,
+                    //   ),
+                    //   lightTheme: SettingsThemeData(
+                    //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
+                    //     settingsListBackground: Theme.of(context).colorScheme.surface,
+                    //     titleTextColor: Theme.of(context).colorScheme.onSurface,
+                    //   ),
+                    //   platform: DevicePlatform.android,
+                    //   sections: [
+                    //     SettingsSection(
+                    //       title: const Text(
+                    //         "Lower Limit", 
+                    //         style: TextStyle(
+                    //           fontSize: 18,
+                    //         ),
+                    //       ),
+                    //       tiles: [
+                    //         SettingsTile.navigation(
+                    //           title: Text(
+                    //             // lowerLimits.values.elementAt(selectedLimit).toString(),
+                    //             UnitFunctions.returnInPreferredUnit(lowerLimits.keys.elementAt(selectedLimit), lowerLimits.values.elementAt(selectedLimit)).toString(),
+                    //             style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                    //           ),
+                    //           onPressed: (lcontext) {
+                    //             showInputDialog(context, "Enter lower limit", false);
+                    //           },
+                    //         ),
+                    //       ],
+                    //     ),
+                    //     SettingsSection(
+                    //       title: const Text(
+                    //         "Upper Limit", 
+                    //         style: TextStyle(
+                    //           fontSize: 18,
+                    //         ),
+                    //       ),
+                    //       tiles: [
+                    //         SettingsTile.navigation(
+                    //           title: Text(
+                    //             // upperLimits.values.elementAt(selectedLimit).toString(),
+                    //             UnitFunctions.returnInPreferredUnit(upperLimits.keys.elementAt(selectedLimit), upperLimits.values.elementAt(selectedLimit)).toString(),
+                    //             style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                    //           ),
+                    //           onPressed: (lcontext) {
+                    //             showInputDialog(context, "Enter upper limit", true);
+                    //           },
+                    //         ),
+                    //       ],
+                    //     ),
+                    //   ],
+                    // ),
                   ]
                 ),
               ),

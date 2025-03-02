@@ -146,8 +146,6 @@ class UnitFunctions {
       return (fuelUnit == FuelUnit.litre ? value : value * 3.785411784);
     } else if (limitMap.keys.elementAt(selectedLimit).contains('Efficiency')) {
       return (fuelUnit == FuelUnit.litre ? value : (3.78541 / (1.60934 * value)));
-    } else if (limitMap.keys.elementAt(selectedLimit).contains('Hours')) {
-      return value * 3600;
     } else if (limitMap.keys.elementAt(selectedLimit).contains('Speed')) {
       switch (speedUnit) {
         case SpeedUnit.km:

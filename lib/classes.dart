@@ -62,8 +62,6 @@ class UnitFunctions {
     } else if (dataHeader.contains('Efficiency')) {
       result = fuelUnit == FuelUnit.litre ? 'L/km' : 'mpg';
       result = leadingSpace ? ' $result' : result;
-    } else if (dataHeader.contains('Pressure')) {
-      result = leadingSpace ? ' kpa' : 'kpa';
     } else if (dataHeader.contains('Level') || dataHeader.contains('Tilt')) {
       result = '%';
     } else if (dataHeader.contains('Heading') || dataHeader.contains('Variation')) {
@@ -84,6 +82,18 @@ class UnitFunctions {
           result = 'm/s';
       }
       result = leadingSpace ? ' $result' : result;
+    } else if (dataHeader.contains('Pressure')) {
+      switch (pressureUnit) {
+        case PressureUnit.psi:
+          result = 'psi';
+        case PressureUnit.kpa:
+          result = 'kpa';
+        case PressureUnit.bar:
+          result = 'bar';
+        case PressureUnit.inHg:
+          result = 'inHg';
+      }
+      result = leadingSpace ? ' $result' : result;
     } else {
       result = '';
     }
@@ -100,8 +110,6 @@ class UnitFunctions {
       return (fuelUnit == FuelUnit.litre ? value : round(value * 0.26417205234375, decimals: 1));
     } else if (key.contains('Efficiency')) {
       return (fuelUnit == FuelUnit.litre ? round(value, decimals: 3) : round(2.35214583 / value, decimals: 3));
-    } else if (key.contains('Hours')) {
-      return round(value / 3600, decimals: 1);
     } else if (key.contains('Speed')) {
       switch (speedUnit) {
         case SpeedUnit.km:
@@ -112,6 +120,17 @@ class UnitFunctions {
           return round(value * 2.2369362920544025, decimals: 2);
         case SpeedUnit.ms:
           return round(value, decimals: 2);
+      }
+    } else if (key.contains('Pressure')) {
+      switch (pressureUnit) {
+        case PressureUnit.psi:
+          return round(value * 0.1450377377, decimals: 0);
+        case PressureUnit.kpa:
+          return round(value * 1.0, decimals: 0);
+        case PressureUnit.bar:
+          return round(value * 0.01, decimals: 0);
+        case PressureUnit.inHg:
+          return round(value * 0.296133971, decimals: 0);
       }
     } else {
       return value;

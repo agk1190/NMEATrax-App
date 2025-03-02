@@ -92,9 +92,10 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
 
   // Connect to nmea data stream
   void connectToNmeaDataStream() async {
+    engineData.errors = <String>[]; // Clear any existing errors
     if (!nmeaDevice.connected) {
       final validIP = await Ping(connectURL, count: 1).stream.first;
-      if (validIP.summary == null && validIP.response != null) {
+      if (validIP.summary == null && validIP.error == null) {
         EventFlux.instance.connect(
           EventFluxConnectionType.get,
           'http://$connectURL/NMEATrax',
@@ -119,8 +120,21 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
             mode: ReconnectMode.linear,
             interval: Duration(seconds: 5),
             maxAttempts: 5,
-          )
+          ),
+          onError: (p0) {
+            setState(() {
+              nmeaDevice.connected = false;
+              engineData.errors = <String>[];
+              engineData.errors!.add("Error connecting to data stream");
+            });
+          },
         );
+      } else {
+        setState(() {
+          nmeaDevice.connected = false;
+          engineData.errors = <String>[];
+          engineData.errors!.add("Bad IP Address");
+        });
       }
     }
   }
@@ -195,191 +209,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     });
   }
 
-/*
-  // Function to connect the WebSocket
-  void connectWebSocket() async {
-    if (channel == null) {
-      final validIP = await Ping(connectURL, count: 1).stream.first;
-      if (validIP.summary == null && validIP.response != null) {
-        
-        channel = WebSocketChannel.connect(Uri.parse('ws://$connectURL/ws'));
-        
-        try {
-          await channel?.ready;
-        } on SocketException {
-          setState(() {
-            channel = null;
-            webSocketStatus = 'No Websocket';
-          });
-          return;
-        } on WebSocketChannelException {
-          setState(() {
-            channel = null;
-            webSocketStatus = 'No Websocket';
-          });
-          return;
-        }
-        
-        Map<String, DateTime> lastDataTime = {};
-        channel!.stream.listen((message) async {
-          // print(message);
-          String msgId = '';
-          Map<String, dynamic> data = {};
-          try {
-            msgId = jsonDecode(message).values.first;
-            data = jsonDecode(message).values.last;
-          } on Exception {
-            return;
-          }
-
-          switch (msgId) {
-            case '127488':
-            case '127489':
-              engineData = engineData.updateFromJson(data);
-              lastDataTime['engine'] = DateTime.now();
-              break;
-            case '127258':
-            case '129026':
-            case '129029':
-              gpsData = gpsData.updateFromJson(data);
-              lastDataTime['gps'] = DateTime.now();
-              break;
-            case '127505':
-              fluidLevel = fluidLevel.updateFromJson(data);
-              lastDataTime['fluid'] = DateTime.now();
-              break;
-            case '127493':
-              transmissionData = transmissionData.updateFromJson(data);
-              lastDataTime['transmission'] = DateTime.now();
-              break;
-            case '130312':
-              temperatureData = temperatureData.updateFromJson(data);
-              lastDataTime['temperature'] = DateTime.now();
-              break;
-            case '128267':
-              depthData = depthData.updateFromJson(data);
-              lastDataTime['depth'] = DateTime.now();
-              break;
-            case '161616':
-              engineData = engineData.updateErrorsFromJson(data);
-              break;
-            default:
-          }
-
-          for (MapEntry<String, DateTime> data in lastDataTime.entries) {
-            if (DateTime.now().difference(data.value).inSeconds > 5) {
-              switch (data.key) {
-                case 'engine':
-                  engineData = EngineData(id: 0);
-                  break;
-                case 'gps':
-                  gpsData = GpsData(id: 0);
-                  break;
-                case 'fluid':
-                  fluidLevel = FluidLevel(id: 0);
-                  break;
-                case 'transmission':
-                  transmissionData = TransmissionData(id: 0);
-                  break;
-                case 'temperature':
-                  temperatureData = TemperatureData(id: 0);
-                  break;
-                case 'depth':
-                  depthData = DepthData(id: 0);
-                  break;
-                default:
-              }
-            }
-          }
-
-          lastDataReceived = DateTime.now();
-
-          if (_tabController.index != 2) {
-            setState(() {});
-          }
-          
-        });
-        setState(() {
-          getOptions();
-          if (Platform.isAndroid) {KeepScreenOn.turnOn();}
-          savePrefs();
-          // startHeartbeat();
-          reconnecting = false;
-        });
-      } else {
-        setState(() {
-          channel = null;
-        });
-      }
-    }
-  }
-
-  // Function to disconnect the WebSocket
-  void disconnectWebSocket() {
-    if (channel != null) {
-      // If WebSocket is connected, close the connection
-      channel!.sink.close();
-      channel = null;
-      setState(() {
-        if (Platform.isAndroid) {KeepScreenOn.turnOff();}
-        // nmeaData.updateAll((key, value) => value = "-");
-        // evcErrorList = List.empty();
-        webSocketTimer?.cancel();
-        reconnectTimer?.cancel();
-        clearData();
-        nmeaDevice = NmeaDevice();
-      });
-    }
-  }
-
-  // Function to reconnect the WebSocket
-  void reconnectDataStream() {
-    int reconnectAttempts = 0;
-    connectionTimeoutTimer?.cancel();
-    disconnectFromNmeaDataStream();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Reconnecting...', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const LinearProgressIndicator(),
-              Text('Last message at ${lastDataReceived.hour > 12 ? lastDataReceived.hour-12 : lastDataReceived.hour}:${lastDataReceived.minute.toString().padLeft(2, '0')} ${lastDataReceived.hour > 11 ? 'PM' : 'AM'}')
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              style: ButtonStyle(backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)),
-              onPressed: () {
-                reconnectTimer!.cancel();
-                connectionTimeoutTimer!.cancel();
-                Navigator.of(context).pop();
-                clearData();
-              }, 
-              child: Text("Cancel", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),)
-            )
-          ],
-        );
-      },
-    );
-    reconnectTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      reconnectAttempts++;
-      connectToNmeaDataStream();
-      setState(() {});
-      if (nmeaDevice.connected || reconnectAttempts > 24) {
-        setState(() {
-          if (Navigator.canPop(context)) {
-            Navigator.of(context).pop();
-          }
-          reconnectTimer!.cancel();
-        });
-      }
-    },);
-  }
-*/
-
   // Check if data is being received within the expected time frame
   void startHeartbeat() {
     connectionTimeoutTimer?.cancel();  // Cancel any existing heartbeat timer
@@ -414,8 +243,8 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
         }
       }
 
-      // Check if more than 2 seconds have passed without data
-      if (durationSinceLastData.inSeconds >= 2) { // && !reconnecting
+      // Check if more than 5 seconds have passed without data
+      if (durationSinceLastData.inSeconds >= 5) { // && !reconnecting
         // reconnecting = true;
         // reconnectDataStream();
         // print('Lost connection to data stream');
@@ -847,108 +676,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                     ),
                     Visibility(   // More Settings
                       visible: moreSettingsVisible,
-                      // child: SettingsList(
-                      //   physics: const NeverScrollableScrollPhysics(),
-                      //   shrinkWrap: true,
-                      //   darkTheme: SettingsThemeData(
-                      //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                      //     settingsListBackground: Theme.of(context).colorScheme.surface,
-                      //     titleTextColor: Theme.of(context).colorScheme.onSurface,
-                      //   ),
-                      //   lightTheme: SettingsThemeData(
-                      //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                      //     settingsListBackground: Theme.of(context).colorScheme.surface,
-                      //     titleTextColor: Theme.of(context).colorScheme.onSurface,
-                      //   ),
-                      //   platform: DevicePlatform.android,
-                      //   sections: [
-                      //     SettingsSection(
-                      //       tiles: [
-                      //         // SettingsTile.navigation(
-                      //         //   title: Text("WiFi Settings", style: TextStyle(color: Theme.of(context).colorScheme.error),),
-                      //         //   onPressed: (context) async {
-                      //         //     // await http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true'));
-                      //         //     showDialog(
-                      //         //       context: lcontext,
-                      //         //       builder: (context) {
-                      //         //         String wifiSSID = '';
-                      //         //         String wifiPASS = '';
-                      //         //         return AlertDialog(
-                      //         //           title: Text('WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                      //         //           backgroundColor: Theme.of(context).colorScheme.surface,
-                      //         //           actionsAlignment: MainAxisAlignment.spaceBetween,
-                      //         //           content: Column(
-                      //         //             crossAxisAlignment: CrossAxisAlignment.start,
-                      //         //             mainAxisSize: MainAxisSize.min,
-                      //         //             children: [
-                      //         //               Text('SSID', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                      //         //               TextField(
-                      //         //                 autocorrect: false,
-                      //         //                 autofocus: true,
-                      //         //                 onChanged: (value) => wifiSSID,
-                      //         //               ),
-                      //         //               Padding(
-                      //         //                 padding: const EdgeInsets.only(top: 16),
-                      //         //                 child: Text('Password', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                      //         //               ),
-                      //         //               TextField(
-                      //         //                 autocorrect: false,
-                      //         //                 onChanged: (value) => wifiPASS,
-                      //         //               ),
-                      //         //             ],
-                      //         //           ),
-                      //         //           actions: [
-                      //         //             TextButton(
-                      //         //               style: ButtonStyle(
-                      //         //                 backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.error)
-                      //         //               ),
-                      //         //               onPressed: () => http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true')),
-                      //         //               child: Padding(
-                      //         //                 padding: const EdgeInsets.all(8.0),
-                      //         //                 child: Text('Erase WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onError),),
-                      //         //               )
-                      //         //             ),
-                      //         //             TextButton(
-                      //         //               style: ButtonStyle(
-                      //         //                 backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
-                      //         //               ),
-                      //         //               onPressed: () async {
-                      //         //                 await http.get(Uri.parse('http://$connectURL/set?AP_SSID=$wifiSSID'));
-                      //         //                 await http.get(Uri.parse('http://$connectURL/set?AP_PASS=$wifiPASS'));
-                      //         //                 Future.delayed(Durations.extralong4, () {
-                      //         //                   http.get(Uri.parse('http://$connectURL/set?reboot=true'));
-                      //         //                 },);
-                      //         //               },
-                      //         //               child: Padding(
-                      //         //                 padding: const EdgeInsets.all(8.0),
-                      //         //                 child: Text('Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                      //         //               )
-                      //         //             ),
-                      //         //           ],
-                      //         //         );
-                      //         //       },
-                      //         //     );
-                      //         //   },
-                      //         // ),
-                      //         SettingsTile.navigation(
-                      //           title: Text("OTA Update", style: TextStyle(color: Theme.of(context).colorScheme.error),),
-                      //           onPressed: (context) async {
-                      //             await http.get(Uri.parse('http://$connectURL/set?otaUpdate=true'));
-                      //             if (!await launchUrl(Uri.parse('http://$connectURL/update'))) {
-                      //               throw Exception('Could not launch http://$connectURL/update');
-                      //             }
-                      //           },
-                      //         ),
-                      //         SettingsTile.navigation(
-                      //           title: Text("Reboot", style: TextStyle(color: Theme.of(context).colorScheme.error),),
-                      //           onPressed: (context) async {
-                      //             await http.get(Uri.parse('http://$connectURL/set?reboot=true'));
-                      //           },
-                      //         ),
-                      //       ],
-                      //     )
-                      //   ],
-                      // ),
                       child: Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: Column(

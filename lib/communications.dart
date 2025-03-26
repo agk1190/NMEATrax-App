@@ -38,7 +38,7 @@ Future<void> setOptions(String kvPair) async {
   try {
     final response = await http.post(Uri.parse('http://$connectURL/set?$kvPair'));
     if (response.statusCode == 200) {
-      getOptions();
+      await getOptions();
       // setState(() {});
     }
   } on Exception {

@@ -5,13 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:csv/csv.dart';
-// import 'package:settings_ui/settings_ui.dart';
-// import 'package:http/http.dart' as http;
 import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:dart_ping/dart_ping.dart';
+import 'package:eventflux/eventflux.dart';
 
 import 'classes.dart';
 import 'downloads.dart';
@@ -28,29 +25,24 @@ class LivePage extends StatefulWidget {
 
 class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin {
 
-  // Map<String, dynamic> ntOptions = {"recInt":0, "recMode":0, "wifiMode":0, "wifiSSID":"", "wifiPass":"", "buildDate":""};
   Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
   Map<bool, String> wifiModeEnum = {false:"Client", true:"Host"};
   final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
   final List<String> wifiModeOptions = <String>['Client', 'Host'];
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
-  // late StreamSubscription<String> subscription;
   bool moreSettingsVisible = false;
-  WebSocketChannel? channel;
-  // late BuildContext lcontext;
   DateTime lastDataReceived = DateTime.now();
-  Timer? webSocketTimer;
+  Timer? connectionTimeoutTimer;
   Timer? reconnectTimer;
-  bool reconnecting = false;
+  // bool reconnecting = false;
   EngineData engineData = EngineData(id: 0);
   GpsData gpsData = GpsData(id: 0);
   FluidLevel fluidLevel = FluidLevel(id: 0);
   TransmissionData transmissionData = TransmissionData(id: 0);
   DepthData depthData = DepthData(id: 0);
   TemperatureData temperatureData = TemperatureData(id: 0);
-  String? webSocketStatus;
-  // NmeaDevice nmeaDevice = NmeaDevice();
   late TabController _tabController;
+  Map<String, DateTime> lastDataTime = {};
 
   Future<void> savePrefs() async {
     final SharedPreferences prefs = await _prefs;
@@ -60,6 +52,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       prefs.setBool('isMeters', depthUnit == DepthUnit.meters ? true : false);
       prefs.setBool('isCelsius', tempUnit == TempUnit.celsius ? true : false);
       prefs.setBool('isLitre', fuelUnit == FuelUnit.litre ? true : false);
+      prefs.setBool('useOffset', useDepthOffset);
       prefs.setInt('speedUnit', speedUnit.index);
     });
   }
@@ -71,6 +64,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     if (prefs.getBool("isMeters") == null) {return;}
     if (prefs.getBool("isCelsius") == null) {return;}
     if (prefs.getBool("isLitre") == null) {return;}
+    if (prefs.getBool("useOffset") == null) {return;}
     if (prefs.getInt("speedUnit") == null) {return;}
     setState(() {
       prefs.getBool('darkMode')! == true ? MyApp.themeNotifier.value = ThemeMode.dark : MyApp.themeNotifier.value = ThemeMode.light;
@@ -78,6 +72,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       depthUnit = prefs.getBool('isMeters')! ? DepthUnit.meters : DepthUnit.feet;
       tempUnit = prefs.getBool('isCelsius')! ? TempUnit.celsius : TempUnit.fahrenheit;
       fuelUnit = prefs.getBool('isLitre')! ? FuelUnit.litre : FuelUnit.gallon;
+      useDepthOffset = prefs.getBool('useOffset')!;
       int su = prefs.getInt('speedUnit')!;
       switch (su) {
         case 0:
@@ -95,241 +90,193 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     });
   }
 
-  // Future<void> getOptions() async {
-  //   dynamic response;
-  //   try {
-  //     response = await http.get(Uri.parse('http://$connectURL/get'));
-  //
-  //     if (response.statusCode == 200) {
-  //       // ntOptions = jsonDecode(response.body);
-  //       nmeaDevice = nmeaDevice.updateFromJson(jsonDecode(response.body));
-  //       setState(() {});
-  //     } else {
-  //       throw Exception('Failed to get options');
-  //     }
-  //
-  //     final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
-  //
-  //     if (dlList.statusCode == 200) {
-  //       List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
-  //       if (converted.isEmpty) {return;}
-  //       downloadList = converted.elementAt(0);
-  //       downloadList.removeAt(downloadList.length - 1);
-  //     } else {
-  //       throw Exception('Failed to get download list');
-  //     }
-  //   } on Exception {
-  //     //
-  //   }
-  // }
-  //
-  // Future<void> setOptions(String kvPair) async {
-  //   try {
-  //     final response = await http.post(Uri.parse('http://$connectURL/set?$kvPair'));
-  //     if (response.statusCode == 200) {
-  //       getOptions();
-  //       setState(() {});
-  //     }
-  //   } on Exception {
-  //     //
-  //   }
-  // }
-
-  // Function to connect the WebSocket
-  void connectWebSocket() async {
-    if (channel == null) {
+  // Connect to nmea data stream
+  void connectToNmeaDataStream() async {
+    engineData.errors = <String>[]; // Clear any existing errors
+    if (!nmeaDevice.connected) {
       final validIP = await Ping(connectURL, count: 1).stream.first;
-      if (validIP.summary == null && validIP.response != null) {
-        
-        channel = WebSocketChannel.connect(Uri.parse('ws://$connectURL/ws'));
-        
-        try {
-          await channel?.ready;
-        } on SocketException {
-          setState(() {
-            channel = null;
-            webSocketStatus = 'No Websocket';
-          });
-          return;
-        } on WebSocketChannelException {
-          setState(() {
-            channel = null;
-            webSocketStatus = 'No Websocket';
-          });
-          return;
-        }
-        
-        Map<String, DateTime> lastDataTime = {};
-        channel!.stream.listen((message) async {
-          // print(message);
-          String msgId = '';
-          Map<String, dynamic> data = {};
-          try {
-            msgId = jsonDecode(message).values.first;
-            data = jsonDecode(message).values.last;
-          } on Exception {
-            return;
-          }
-
-          switch (msgId) {
-            case '127488':
-            case '127489':
-              engineData = engineData.updateFromJson(data);
-              lastDataTime['engine'] = DateTime.now();
-              break;
-            case '127258':
-            case '129026':
-            case '129029':
-              gpsData = gpsData.updateFromJson(data);
-              lastDataTime['gps'] = DateTime.now();
-              break;
-            case '127505':
-              fluidLevel = fluidLevel.updateFromJson(data);
-              lastDataTime['fluid'] = DateTime.now();
-              break;
-            case '127493':
-              transmissionData = transmissionData.updateFromJson(data);
-              lastDataTime['transmission'] = DateTime.now();
-              break;
-            case '130312':
-              temperatureData = temperatureData.updateFromJson(data);
-              lastDataTime['temperature'] = DateTime.now();
-              break;
-            case '128267':
-              depthData = depthData.updateFromJson(data);
-              lastDataTime['depth'] = DateTime.now();
-              break;
-            case '161616':
-              engineData = engineData.updateErrorsFromJson(data);
-              break;
-            default:
-          }
-
-          for (MapEntry<String, DateTime> data in lastDataTime.entries) {
-            if (DateTime.now().difference(data.value).inSeconds > 5) {
-              switch (data.key) {
-                case 'engine':
-                  engineData = EngineData(id: 0);
-                  break;
-                case 'gps':
-                  gpsData = GpsData(id: 0);
-                  break;
-                case 'fluid':
-                  fluidLevel = FluidLevel(id: 0);
-                  break;
-                case 'transmission':
-                  transmissionData = TransmissionData(id: 0);
-                  break;
-                case 'temperature':
-                  temperatureData = TemperatureData(id: 0);
-                  break;
-                case 'depth':
-                  depthData = DepthData(id: 0);
-                  break;
-                default:
-              }
-            }
-          }
-
-          lastDataReceived = DateTime.now();
-
-          if (_tabController.index != 2) {
-            setState(() {});
-          }
-          
-        });
-        setState(() {
-          getOptions();
-          if (Platform.isAndroid) {KeepScreenOn.turnOn();}
-          savePrefs();
-          // startHeartbeat();
-          reconnecting = false;
-        });
+      if (validIP.summary == null && validIP.error == null) {
+        EventFlux.instance.connect(
+          EventFluxConnectionType.get,
+          'http://$connectURL/NMEATrax',
+          onSuccessCallback: (EventFluxResponse? response) {
+            nmeaDevice.connected = true;
+            setState(() {
+              getOptions();
+              if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+              savePrefs();
+              // if (!reconnecting) {
+              //   startHeartbeat();
+              //   reconnecting = false;
+              // }
+              startHeartbeat();
+            });
+            response?.stream?.listen((event) {
+              updateFromEvent(event);
+            });
+          },
+          autoReconnect: false,
+          reconnectConfig: ReconnectConfig(
+            mode: ReconnectMode.linear,
+            interval: Duration(seconds: 5),
+            maxAttempts: 5,
+          ),
+          onError: (p0) {
+            setState(() {
+              nmeaDevice.connected = false;
+              engineData.errors = <String>[];
+              engineData.errors!.add("Error connecting to data stream");
+            });
+          },
+        );
       } else {
         setState(() {
-          channel = null;
+          nmeaDevice.connected = false;
+          engineData.errors = <String>[];
+          engineData.errors!.add("Bad IP Address");
         });
       }
     }
   }
 
-  // Function to disconnect the WebSocket
-  void disconnectWebSocket() {
-    if (channel != null) {
-      // If WebSocket is connected, close the connection
-      channel!.sink.close();
-      channel = null;
-      setState(() {
-        if (Platform.isAndroid) {KeepScreenOn.turnOff();}
-        // nmeaData.updateAll((key, value) => value = "-");
-        // evcErrorList = List.empty();
-        webSocketTimer?.cancel();
-        reconnectTimer?.cancel();
-        clearData();
-        nmeaDevice = NmeaDevice();
-      });
+  void updateFromEvent(EventFluxData event) async {
+    String msgId;
+    Map<String, dynamic> nmeaData;
+    try {
+      msgId = jsonDecode(event.data).values.first;
+      nmeaData = jsonDecode(event.data).values.last;
+    } on Exception {
+      return;
     }
-  }
 
-  // Function to reconnect the WebSocket
-  void reconnectWebSocket() {
-    int reconnectAttempts = 0;
-    webSocketTimer?.cancel();
-    disconnectWebSocket();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Reconnecting...', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const LinearProgressIndicator(),
-              Text('Last message at ${lastDataReceived.hour > 12 ? lastDataReceived.hour-12 : lastDataReceived.hour}:${lastDataReceived.minute.toString().padLeft(2, '0')} ${lastDataReceived.hour > 11 ? 'PM' : 'AM'}')
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              style: ButtonStyle(backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)),
-              onPressed: () {
-                reconnectTimer!.cancel();
-                webSocketTimer!.cancel();
-                Navigator.of(context).pop();
-                clearData();
-              }, 
-              child: Text("Cancel", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),)
-            )
-          ],
-        );
-      },
-    );
-    reconnectTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      reconnectAttempts++;
-      connectWebSocket();
+    switch (msgId) {
+      case '127488':
+      case '127489':
+        engineData = engineData.updateFromJson(nmeaData);
+        lastDataTime['engine'] = DateTime.now();
+        break;
+      case '127258':
+      case '129026':
+      case '129029':
+        gpsData = gpsData.updateFromJson(nmeaData);
+        lastDataTime['gps'] = DateTime.now();
+        break;
+      case '127505':
+        fluidLevel = fluidLevel.updateFromJson(nmeaData);
+        lastDataTime['fluid'] = DateTime.now();
+        break;
+      case '127493':
+        transmissionData = transmissionData.updateFromJson(nmeaData);
+        lastDataTime['transmission'] = DateTime.now();
+        break;
+      case '130312':
+        temperatureData = temperatureData.updateFromJson(nmeaData);
+        lastDataTime['temperature'] = DateTime.now();
+        break;
+      case '128267':
+        depthData = depthData.updateFromJson(nmeaData);
+        lastDataTime['depth'] = DateTime.now();
+        break;
+      case '161616':
+        engineData = engineData.updateErrorsFromJson(nmeaData);
+        break;
+      case '000000':
+        // heartbeat message
+        break;
+      case 'email':
+        // emailMessages.add(nmeaData['msg']);
+        emailMessagesNotifier.value = List.from(emailMessagesNotifier.value)..add(nmeaData['msg']);
+        break;
+      default:
+    }
+
+    lastDataReceived = DateTime.now();
+
+    // if (_tabController.index != 2) {
       setState(() {});
-      if (channel != null || reconnectAttempts > 24) {
-        setState(() {
-          if (Navigator.canPop(context)) {
-            Navigator.of(context).pop();
-          }
-          reconnectTimer!.cancel();
-          clearData();
-        });
-      }
-    },);
+    // }
+  }
+
+  // Disconnect from nmea data stream
+  void disconnectFromNmeaDataStream() {
+    EventFlux.instance.disconnect();
+    setState(() {
+      if (Platform.isAndroid) {KeepScreenOn.turnOff();}
+      connectionTimeoutTimer?.cancel();
+      reconnectTimer?.cancel();
+      clearData();
+      nmeaDevice = NmeaDevice();
+    });
   }
 
   // Check if data is being received within the expected time frame
   void startHeartbeat() {
-    webSocketTimer?.cancel();  // Cancel any existing heartbeat timer
-    webSocketTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    connectionTimeoutTimer?.cancel();  // Cancel any existing heartbeat timer
+    connectionTimeoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final now = DateTime.now();
       final durationSinceLastData = now.difference(lastDataReceived);
 
-      // Check if more than 2 seconds have passed without data
-      if (durationSinceLastData.inSeconds >= 2 && !reconnecting) {
-        reconnecting = true;
-        reconnectWebSocket();
+      for (MapEntry<String, DateTime> msgName in lastDataTime.entries) {
+        if (DateTime.now().difference(msgName.value).inSeconds > 5) {
+          switch (msgName.key) {
+            case 'engine':
+              engineData = EngineData(id: 0);
+              break;
+            case 'gps':
+              gpsData = GpsData(id: 0);
+              break;
+            case 'fluid':
+              fluidLevel = FluidLevel(id: 0);
+              break;
+            case 'transmission':
+              transmissionData = TransmissionData(id: 0);
+              break;
+            case 'temperature':
+              temperatureData = TemperatureData(id: 0);
+              break;
+            case 'depth':
+              depthData = DepthData(id: 0);
+              break;
+            default:
+          }
+          setState(() {});
+        }
+      }
+
+      // Check if more than 5 seconds have passed without data
+      if (durationSinceLastData.inSeconds >= 5) { // && !reconnecting
+        // reconnecting = true;
+        // reconnectDataStream();
+        // print('Lost connection to data stream');
+        disconnectFromNmeaDataStream();
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Connection Lost', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+              content: const Text('Lost connection to data stream'),
+              actionsAlignment: MainAxisAlignment.spaceBetween,
+              actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Close', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+                ),
+                ElevatedButton(
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    connectToNmeaDataStream();
+                  },
+                  child: Text('Reconnect', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+                ),
+              ],
+            );
+          },
+        );
       }
     });
   }
@@ -386,15 +333,16 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
         child: Scaffold(
           drawer: NmeaDrawer(
             option1Action: () {
-              if (channel != null) disconnectWebSocket();
+              // if (channel != null) disconnectWebSocket();
+              if (nmeaDevice.connected) disconnectFromNmeaDataStream();
               Navigator.pushReplacementNamed(context, '/live');
             },
             option2Action: () {
-              if (channel != null) disconnectWebSocket();
+              if (nmeaDevice.connected) disconnectFromNmeaDataStream();
               Navigator.pushReplacementNamed(context, '/replay');
             },
             option3Action: () {
-              if (channel != null) disconnectWebSocket();
+              if (nmeaDevice.connected) disconnectFromNmeaDataStream();
               Navigator.pushReplacementNamed(context, '/files');
             },
             depthChanged: (selection) {
@@ -418,6 +366,18 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
             fuelChanged: (selection) {
               setState(() {
                 fuelUnit = selection.first;
+                savePrefs();
+              });
+            },
+            pressureChanged: (selection) {
+              setState(() {
+                pressureUnit = selection.first;
+                savePrefs();
+              });
+            },
+            useDepthOffsetChanged: (selection) {
+              setState(() {
+                useDepthOffset = selection!;
                 savePrefs();
               });
             },
@@ -576,40 +536,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                         child: Text('Voyage Recordings', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onPrimary),),
                       ),
                     ),
-                    // Row(     // Recording Mode
-                    //   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    //   children: [
-                    //     Text(
-                    //       "Recording Mode",
-                    //       style: TextStyle(
-                    //         color: Theme.of(context).colorScheme.onSurface,
-                    //         fontSize: 18,
-                    //       ),
-                    //     ),
-                    //     DropdownMenu(
-                    //       menuStyle: MenuStyle(
-                    //         backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surface),
-                    //         surfaceTintColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceContainerHighest),
-                    //       ),
-                    //       textStyle: TextStyle(
-                    //         color: Theme.of(context).colorScheme.onSurface,
-                    //         backgroundColor: Theme.of(context).colorScheme.surface,
-                    //       ),
-                    //       initialSelection: recModeEnum[ntOptions["recMode"]],
-                    //       enableSearch: false,
-                    //       dropdownMenuEntries: recModeOptions.map<DropdownMenuEntry<String>>((String value) {
-                    //         return DropdownMenuEntry<String>(
-                    //           value: value,
-                    //           label: value,
-                    //           style: ButtonStyle(foregroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.onSurfaceVariant))
-                    //         );
-                    //       }).toList(),
-                    //       onSelected: (value) {
-                    //         setOptions("recMode=${recModeEnum.keys.firstWhere((element) => recModeEnum[element] == value)}");
-                    //       },
-                    //     ),
-                    //   ],
-                    // ),
                     Padding(    // Recording Mode
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                       child: ElevatedButton(
@@ -709,36 +635,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                         ),
                       ),
                     ),
-                    // SettingsList(    // Settings List
-                    //   physics: const NeverScrollableScrollPhysics(),
-                    //   shrinkWrap: true,
-                    //   brightness: MyApp.themeNotifier.value == ThemeMode.light ? Brightness.light : Brightness.dark,
-                    //   darkTheme: SettingsThemeData(
-                    //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                    //     settingsListBackground: Theme.of(context).colorScheme.surface,
-                    //     titleTextColor: Theme.of(context).colorScheme.onSurface,
-                    //   ),
-                    //   lightTheme: SettingsThemeData(
-                    //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                    //     settingsListBackground: Theme.of(context).colorScheme.surface,
-                    //     titleTextColor: Theme.of(context).colorScheme.onSurface,
-                    //   ),
-                    //   platform: DevicePlatform.android,
-                    //   sections: [
-                    //     SettingsSection(
-                    //       tiles: [
-                    //         SettingsTile(
-                    //           title: Text("Recording Interval (seconds)", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                    //           value: Text(ntOptions["recInt"].toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                    //           onPressed: (lContext) {
-                    //             showInputDialog(context, "Recording Interval", ntOptions["recInt"], "recInt");
-                    //           },
-                    //         ),
-                    //       ],
-                    //     )
-                    //   ],
-                    // ),
-                    // const SizedBox(height: 15,),
                     Padding(    // WiFi Mode
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                       child: ElevatedButton(
@@ -780,108 +676,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                     ),
                     Visibility(   // More Settings
                       visible: moreSettingsVisible,
-                      // child: SettingsList(
-                      //   physics: const NeverScrollableScrollPhysics(),
-                      //   shrinkWrap: true,
-                      //   darkTheme: SettingsThemeData(
-                      //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                      //     settingsListBackground: Theme.of(context).colorScheme.surface,
-                      //     titleTextColor: Theme.of(context).colorScheme.onSurface,
-                      //   ),
-                      //   lightTheme: SettingsThemeData(
-                      //     settingsSectionBackground: Theme.of(context).colorScheme.surface,
-                      //     settingsListBackground: Theme.of(context).colorScheme.surface,
-                      //     titleTextColor: Theme.of(context).colorScheme.onSurface,
-                      //   ),
-                      //   platform: DevicePlatform.android,
-                      //   sections: [
-                      //     SettingsSection(
-                      //       tiles: [
-                      //         // SettingsTile.navigation(
-                      //         //   title: Text("WiFi Settings", style: TextStyle(color: Theme.of(context).colorScheme.error),),
-                      //         //   onPressed: (context) async {
-                      //         //     // await http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true'));
-                      //         //     showDialog(
-                      //         //       context: lcontext,
-                      //         //       builder: (context) {
-                      //         //         String wifiSSID = '';
-                      //         //         String wifiPASS = '';
-                      //         //         return AlertDialog(
-                      //         //           title: Text('WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                      //         //           backgroundColor: Theme.of(context).colorScheme.surface,
-                      //         //           actionsAlignment: MainAxisAlignment.spaceBetween,
-                      //         //           content: Column(
-                      //         //             crossAxisAlignment: CrossAxisAlignment.start,
-                      //         //             mainAxisSize: MainAxisSize.min,
-                      //         //             children: [
-                      //         //               Text('SSID', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                      //         //               TextField(
-                      //         //                 autocorrect: false,
-                      //         //                 autofocus: true,
-                      //         //                 onChanged: (value) => wifiSSID,
-                      //         //               ),
-                      //         //               Padding(
-                      //         //                 padding: const EdgeInsets.only(top: 16),
-                      //         //                 child: Text('Password', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                      //         //               ),
-                      //         //               TextField(
-                      //         //                 autocorrect: false,
-                      //         //                 onChanged: (value) => wifiPASS,
-                      //         //               ),
-                      //         //             ],
-                      //         //           ),
-                      //         //           actions: [
-                      //         //             TextButton(
-                      //         //               style: ButtonStyle(
-                      //         //                 backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.error)
-                      //         //               ),
-                      //         //               onPressed: () => http.get(Uri.parse('http://$connectURL/set?eraseWiFi=true')),
-                      //         //               child: Padding(
-                      //         //                 padding: const EdgeInsets.all(8.0),
-                      //         //                 child: Text('Erase WiFi Settings', style: TextStyle(color: Theme.of(context).colorScheme.onError),),
-                      //         //               )
-                      //         //             ),
-                      //         //             TextButton(
-                      //         //               style: ButtonStyle(
-                      //         //                 backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
-                      //         //               ),
-                      //         //               onPressed: () async {
-                      //         //                 await http.get(Uri.parse('http://$connectURL/set?AP_SSID=$wifiSSID'));
-                      //         //                 await http.get(Uri.parse('http://$connectURL/set?AP_PASS=$wifiPASS'));
-                      //         //                 Future.delayed(Durations.extralong4, () {
-                      //         //                   http.get(Uri.parse('http://$connectURL/set?reboot=true'));
-                      //         //                 },);
-                      //         //               },
-                      //         //               child: Padding(
-                      //         //                 padding: const EdgeInsets.all(8.0),
-                      //         //                 child: Text('Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                      //         //               )
-                      //         //             ),
-                      //         //           ],
-                      //         //         );
-                      //         //       },
-                      //         //     );
-                      //         //   },
-                      //         // ),
-                      //         SettingsTile.navigation(
-                      //           title: Text("OTA Update", style: TextStyle(color: Theme.of(context).colorScheme.error),),
-                      //           onPressed: (context) async {
-                      //             await http.get(Uri.parse('http://$connectURL/set?otaUpdate=true'));
-                      //             if (!await launchUrl(Uri.parse('http://$connectURL/update'))) {
-                      //               throw Exception('Could not launch http://$connectURL/update');
-                      //             }
-                      //           },
-                      //         ),
-                      //         SettingsTile.navigation(
-                      //           title: Text("Reboot", style: TextStyle(color: Theme.of(context).colorScheme.error),),
-                      //           onPressed: (context) async {
-                      //             await http.get(Uri.parse('http://$connectURL/set?reboot=true'));
-                      //           },
-                      //         ),
-                      //       ],
-                      //     )
-                      //   ],
-                      // ),
                       child: Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: Column(
@@ -978,13 +772,14 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () {
-              if (channel != null) {
-                disconnectWebSocket();
+              if (nmeaDevice.connected) {
+                disconnectFromNmeaDataStream();
+                nmeaDevice.connected = false;
               } else {
                 showConnectDialog(context, "IP Address");
               }
             },
-            label: channel != null ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
+            label: nmeaDevice.connected ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         ),
@@ -1244,24 +1039,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   }
 
   engineStatusChips() {
-    // if (engineData.errors != null) {
-    //   return Padding(
-    //     padding: const EdgeInsets.all(8.0),
-    //     child: Wrap(
-    //       spacing: 8.0,
-    //       children: engineData.errors!.map((error) {
-    //         return Chip(
-    //           label: Text(error),
-    //           backgroundColor: Theme.of(context).colorScheme.surface,
-    //           labelStyle: const TextStyle(color: Colors.red),
-    //           side: const BorderSide(color: Colors.red),
-    //         );
-    //       }).toList(),
-    //     ),
-    //   );
-    // } else {
-    //   return const Text('');
-    // }
     if (engineData.errors != null) {
     return SizedBox(  
       height: 50,
@@ -1313,7 +1090,11 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       case ConversionType.wTemp:
         return (tempUnit == TempUnit.celsius ? value - 273.15 : ((value - 273.15) * (9/5) + 32)).toStringAsFixed(2);
       case ConversionType.depth:
-        return (depthUnit == DepthUnit.meters ? value : value * 3.280839895).toStringAsFixed(2);
+        if (useDepthOffset) {
+          return (depthUnit == DepthUnit.meters ? (value + depthData.offset!) : (value + depthData.offset!) * 3.280839895).toStringAsFixed(2);
+        } else {
+          return (depthUnit == DepthUnit.meters ? value : value * 3.280839895).toStringAsFixed(2);
+        }
       case ConversionType.fuelRate:
         return (fuelUnit == FuelUnit.litre ? value : value * 0.26417205234375).toStringAsFixed(1);
       case ConversionType.fuelEfficiency:
@@ -1326,6 +1107,8 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
             return value.toStringAsFixed(0);
           case PressureUnit.inHg:
             return (value * 0.296133971).toStringAsFixed(2);
+          case PressureUnit.bar:
+            return (value * 0.01).toStringAsFixed(2);
         }
       case ConversionType.speed:
         switch (speedUnit) {
@@ -1343,7 +1126,16 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
 
     //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
   showConnectDialog(BuildContext context, String title) {
-    String input = connectURL;
+    final TextEditingController urlController = TextEditingController();
+    urlController.text = connectURL;
+
+    void confirmURL() {
+      setState(() {
+        connectURL = urlController.text;
+        connectToNmeaDataStream();
+      });
+      Navigator.of(context, rootNavigator: true).pop();
+    }
 
     Widget confirmButton = ElevatedButton(
       style: ButtonStyle(
@@ -1351,43 +1143,19 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       ),
       child: Text("Connect", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
       onPressed: () {
-        setState(() {
-          connectURL = input;
-          connectWebSocket();
-        });
-        //https://stackoverflow.com/a/50683571 for nav.pop
-        Navigator.of(context, rootNavigator: true).pop();
+        confirmURL();
       },
     );
     AlertDialog alert = AlertDialog(
       backgroundColor: Theme.of(context).colorScheme.surface,
       title: Text(title),
       content: TextFormField(
+        controller: urlController,
         keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
         autofocus: true,
-        initialValue: connectURL,
-        onChanged: (value) {
-          setState(() {
-            try {
-              input = value;
-            } on Exception {
-              // do nothing
-            }
-          });
-        },
         onFieldSubmitted: (value) {
-          setState(() {
-            connectURL = input;
-            connectWebSocket();
-          });
-          Navigator.of(context, rootNavigator: true).pop();
+          confirmURL();
         },
-        // decoration: const InputDecoration(
-        //   prefixIcon: Icon(
-        //     Icons.language,
-        //     size: 18.0,
-        //   ),
-        // ),
       ),
       actions: [
         confirmButton,
@@ -1402,7 +1170,14 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   }
 
   showInputDialog(BuildContext context, String title, var setting, String parameter) {
-    int input = 0;
+    final TextEditingController inputController = TextEditingController();
+    inputController.text = setting.toString();
+
+    void confirmValue() async {
+      Navigator.of(context, rootNavigator: true).pop();
+      await setOptions("$parameter=${inputController.text}");
+      setState(() {});
+    }
 
     Widget confirmButton = ElevatedButton(
       style: ButtonStyle(
@@ -1410,34 +1185,18 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       ),
       child: Text("Set", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
       onPressed: () {
-        setState(() {
-          setOptions("$parameter=$input");
-        });
-        //https://stackoverflow.com/a/50683571 for nav.pop
-        Navigator.of(context, rootNavigator: true).pop();
+        confirmValue();
       },
     );
     AlertDialog alert = AlertDialog(
       backgroundColor: Theme.of(context).colorScheme.surface,
       title: Text(title),
       content: TextFormField(
+        controller: inputController,
         keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
         autofocus: true,
-        initialValue: setting.toString(),
-        onChanged: (value) {
-          setState(() {
-            try {
-              input = int.parse(value);
-            } on Exception {
-              // do nothing
-            }
-          });
-        },
         onFieldSubmitted: (value) {
-          setState(() {
-            setOptions("$parameter=$input");
-          });
-          Navigator.of(context, rootNavigator: true).pop();
+          confirmValue();
         },
       ),
       actions: [

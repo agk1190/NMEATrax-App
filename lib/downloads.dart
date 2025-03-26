@@ -3,15 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:http/http.dart' as http;
+import 'package:nmeatrax_app/communications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:web_socket_channel/io.dart';
-import 'package:dart_ping/dart_ping.dart';
 
 List<String> downloadList = [];
-String emailData = "";
 String connectURL = "192.168.1.1";
-IOWebSocketChannel? channel;
+ValueNotifier<List<String>> emailMessagesNotifier = ValueNotifier([]);
 
 class DownloadsPage extends StatefulWidget {
   const DownloadsPage({super.key});
@@ -47,32 +45,6 @@ class _DownloadsPageState extends State<DownloadsPage> {
   void initState() {
     super.initState();
     getFilesList();
-  }
-
-  // Function to connect to the WebSocket
-  void connectWebSocket() async {
-    if (channel == null) {
-      // If WebSocket is not connected, connect to the WebSocket
-      channel = IOWebSocketChannel.connect(Uri.parse('ws://$connectURL/emws'));
-      channel!.stream.listen((message) {
-        setState(() {
-          emailData += message;
-          emailData += "\r\n";
-        });
-      });
-}
-  }
-
-  // Function to disconnect the WebSocket
-  void disconnectWebSocket() {
-    if (channel != null) {
-      // If WebSocket is connected, close the connection
-      channel!.sink.close();
-      channel = null;
-      setState(() {
-        emailData = "";
-      });
-    }
   }
 
   @override
@@ -112,11 +84,23 @@ class _DownloadsPageState extends State<DownloadsPage> {
                       context: context,
                       builder: (context) {
                         bool emailBtnVis = true;
-                        return StatefulBuilder(
-                          builder: (aContext, setState) {
+                        return ValueListenableBuilder<List<String>>(
+                          valueListenable: emailMessagesNotifier,
+                          builder: (aContext, emailMessages, child) {
                             return AlertDialog(
                               title: const Text("Email Progress"),
-                              content: Text(emailData),
+                              content: SizedBox(
+                                width: double.maxFinite,
+                                child: ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: emailMessages.length,
+                                  itemBuilder: (BuildContext context, int index) {
+                                    return ListTile(
+                                      title: Text(emailMessages.elementAt(index)),
+                                    );
+                                  },
+                                ),
+                              ),
                               actions: [
                                 Visibility(
                                   visible: emailBtnVis,
@@ -124,31 +108,22 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                     style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(
                                       emailBtnVis ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.secondary
                                     ),),
-                                    onPressed: () async {
+                                    onPressed: emailBtnVis ? () {
                                       setState(() {
-                                        emailData = "";
                                         emailBtnVis = false;
                                       });
-                                      final validIP = await Ping(connectURL, count: 1).stream.first;
-                                      if (validIP.response != null) {
-                                        channel = IOWebSocketChannel.connect(Uri.parse('ws://$connectURL/emws'));
-                                        channel!.stream.listen((message) {
-                                          setState(() {
-                                            emailData += message;
-                                            emailData += "\r\n";
-                                          });
-                                        });
-                                        http.post(Uri.parse("http://$connectURL/set?email=true"));
-                                      }
-                                    },
+                                      setOptions("email=true");
+                                    } : null,
                                     child: Text("Send Email", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
                                   ),
                                 ),
                                 ElevatedButton(
                                   onPressed: () {
-                                    emailBtnVis = true;
-                                    disconnectWebSocket();
                                     Navigator.of(context, rootNavigator: true).pop();
+                                    setState(() {
+                                      emailBtnVis = true;
+                                      emailMessagesNotifier.value = [];
+                                    });
                                   },
                                   child: Text("Close", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                                 ),

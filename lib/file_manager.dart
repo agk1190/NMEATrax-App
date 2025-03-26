@@ -29,6 +29,8 @@ class _FilePageState extends State<FilePage> {
         prefs.setBool('isMeters', depthUnit == DepthUnit.meters ? true : false);
         prefs.setBool('isCelsius', tempUnit == TempUnit.celsius ? true : false);
         prefs.setBool('isLitre', fuelUnit == FuelUnit.litre ? true : false);
+        prefs.setBool('useDepthOffset', useDepthOffset);
+        prefs.setInt('pressureUnit', pressureUnit.index);
         prefs.setInt('speedUnit', speedUnit.index);
       });
     }
@@ -122,6 +124,18 @@ class _FilePageState extends State<FilePage> {
             fuelChanged: (selection) {
               setState(() {
                 fuelUnit = selection.first;
+                saveTheme();
+              });
+            },
+            pressureChanged: (selection) {
+              setState(() {
+                pressureUnit = selection.first;
+                saveTheme();
+              });
+            },
+            useDepthOffsetChanged: (selection) {
+              setState(() {
+                useDepthOffset = selection!;
                 saveTheme();
               });
             },
@@ -440,70 +454,72 @@ class _FilePageState extends State<FilePage> {
       int lonIndex = rowsAsListOfValues.first.indexOf('Longitude');
       int magVarIndex = rowsAsListOfValues.first.indexOf('Magnetic Variation (*)');
       int timeIndex = rowsAsListOfValues.first.indexOf('Time Stamp');
-      int month = 1;
+      // int month = 1;
       rowsAsListOfValues.removeAt(0);
       for (List<String> line in rowsAsListOfValues) {
-        List<String> timeSplit = line.elementAt(timeIndex).split(RegExp(r' |:'));
+        // List<String> timeSplit = line.elementAt(timeIndex).split(RegExp(r' |:'));
         String rawLine = line.join(',');
         DateTime dateTime;
 
-        if (!line.elementAt(latIndex).contains('-273')) {
-          if (timeSplit.elementAt(0) != '-') {
-            switch (timeSplit.elementAt(1)) {
-              case 'Jan':
-                month = 1;
-                break;
-              case 'Feb':
-                month = 2;
-                break;
-              case 'Mar':
-                month = 3;
-                break;
-              case 'Apr':
-                month = 4;
-                break;
-              case 'May':
-                month = 5;
-                break;
-              case 'Jun':
-                month = 6;
-                break;
-              case 'Jul':
-                month = 7;
-                break;
-              case 'Aug':
-                month = 8;
-                break;
-              case 'Sep':
-                month = 9;
-                break;
-              case 'Oct':
-                month = 10;
-                break;
-              case 'Nov':
-                month = 11;
-                break;
-              case 'Dec':
-                month = 12;
-                break;
-              default:
-                month = 1;
-            }
-            dateTime = DateTime(int.parse(timeSplit.last), month, int.parse(timeSplit.elementAt(2)), int.parse(timeSplit.elementAt(3)), int.parse(timeSplit.elementAt(4)), int.parse(timeSplit.elementAt(5)));
-          } else {
-            dateTime = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-          }
+        if (!line.elementAt(latIndex).contains('-273') && line.elementAt(timeIndex) != "-") {
+          // if (line.elementAt(timeIndex) != "-") {
+            dateTime = DateTime.parse(line.elementAt(timeIndex));
+            // switch (timeSplit.elementAt(1)) {
+            //   case 'Jan':
+            //     month = 1;
+            //     break;
+            //   case 'Feb':
+            //     month = 2;
+            //     break;
+            //   case 'Mar':
+            //     month = 3;
+            //     break;
+            //   case 'Apr':
+            //     month = 4;
+            //     break;
+            //   case 'May':
+            //     month = 5;
+            //     break;
+            //   case 'Jun':
+            //     month = 6;
+            //     break;
+            //   case 'Jul':
+            //     month = 7;
+            //     break;
+            //   case 'Aug':
+            //     month = 8;
+            //     break;
+            //   case 'Sep':
+            //     month = 9;
+            //     break;
+            //   case 'Oct':
+            //     month = 10;
+            //     break;
+            //   case 'Nov':
+            //     month = 11;
+            //     break;
+            //   case 'Dec':
+            //     month = 12;
+            //     break;
+            //   default:
+            //     month = 1;
+            // }
+            // dateTime = DateTime(int.parse(timeSplit.last), month, int.parse(timeSplit.elementAt(2)), int.parse(timeSplit.elementAt(3)), int.parse(timeSplit.elementAt(4)), int.parse(timeSplit.elementAt(5)));
+          // } else {
+          //   dateTime = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+          // }
 
-          waypoints.add(Wpt(
-            lat: double.parse(line.elementAt(latIndex)),
-            lon: double.parse(line.elementAt(lonIndex)),
-            // ele: 0,
-            magvar: double.parse(line.elementAt(magVarIndex)),
-            time: dateTime,
-            name: lineCount.toString(),
-            desc: rawLine,
-          ));
-          lineCount++;
+          if (line.elementAt(latIndex) != "-273" && line.elementAt(latIndex) != "-") {
+            waypoints.add(Wpt(
+              lat: double.parse(line.elementAt(latIndex)),
+              lon: double.parse(line.elementAt(lonIndex)),
+              magvar: double.parse(line.elementAt(magVarIndex)),
+              time: dateTime,
+              name: lineCount.toString(),
+              desc: rawLine,
+            ));
+            lineCount++;
+          }
         }
       }
     }

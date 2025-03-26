@@ -7,6 +7,22 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - yyyy-mm-dd
  
 ### To-Do
+- remove SettingsTile
+
+
+## [6.0.0] - 2024-12-06
+
+### Added
+- Basics of event based mode
+- Added NmeaDevice class
+- Added pressure units
+- Moved unit selection to pop-up
+
+### Changed
+- Moved back to SSE
+- Updated both dashboard pages
+- Updated options page
+- Updated WiFi dialog
 
 
 ## [5.0.0] - 2024-09-22

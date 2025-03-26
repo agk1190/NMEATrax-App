@@ -7,13 +7,13 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - yyyy-mm-dd
  
 ### To-Do
-- remove SettingsTile
 
 
-## [6.0.0] - 2024-12-06
+
+## [6.0.0] - 2025-03-25
 
 ### Added
-- Basics of event based mode
+- Event based display of data
 - Added NmeaDevice class
 - Added pressure units
 - Moved unit selection to pop-up

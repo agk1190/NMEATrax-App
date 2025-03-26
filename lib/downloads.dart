@@ -8,10 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 
 List<String> downloadList = [];
-// String emailData = "";
 String connectURL = "192.168.1.1";
-// IOWebSocketChannel? channel;
-// List<String> emailMessages = [];
 ValueNotifier<List<String>> emailMessagesNotifier = ValueNotifier([]);
 
 class DownloadsPage extends StatefulWidget {
@@ -49,32 +46,6 @@ class _DownloadsPageState extends State<DownloadsPage> {
     super.initState();
     getFilesList();
   }
-
-  // Function to connect to the WebSocket
-  // void connectWebSocket() async {
-  //   if (channel == null) {
-  //     // If WebSocket is not connected, connect to the WebSocket
-  //     channel = IOWebSocketChannel.connect(Uri.parse('ws://$connectURL/emws'));
-  //     channel!.stream.listen((message) {
-  //       setState(() {
-  //         emailData += message;
-  //         emailData += "\r\n";
-  //       });
-  //     });
-  //   }
-  // }
-
-  // Function to disconnect the WebSocket
-  // void disconnectWebSocket() {
-  //   if (channel != null) {
-  //     // If WebSocket is connected, close the connection
-  //     channel!.sink.close();
-  //     channel = null;
-  //     setState(() {
-  //       emailData = "";
-  //     });
-  //   }
-  // }
 
   @override
   Widget build(BuildContext context) {

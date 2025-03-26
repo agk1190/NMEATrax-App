@@ -10,7 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gpx/gpx.dart';
 import 'package:csv/csv.dart';
-// import 'package:settings_ui/settings_ui.dart';
 
 import 'classes.dart';
 import 'main.dart';

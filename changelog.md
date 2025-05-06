@@ -10,6 +10,12 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 
 
 
+## [6.1.0] - 2025-05-05
+
+### Added
+- GestureDetector on cards to switch units
+
+
 ## [6.0.0] - 2025-03-25
 
 ### Added

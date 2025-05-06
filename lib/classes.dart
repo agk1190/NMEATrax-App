@@ -278,6 +278,7 @@ class SizedNMEABox extends StatelessWidget {
   final String unit;
   final double fontSize;
   final dynamic mainContext;
+  final Function(double)? onDrag;
 
   const SizedNMEABox({
     super.key,
@@ -286,25 +287,31 @@ class SizedNMEABox extends StatelessWidget {
     required this.unit,
     this.fontSize = 24,
     required this.mainContext,
+    this.onDrag,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: SizedBox(
-        child: Card(
-          color: Theme.of(mainContext).colorScheme.surfaceContainerLow,
-          elevation: 3,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                Text(title, style: TextStyle(color: Theme.of(mainContext).colorScheme.onSurface),),
-                Text("$value$unit", style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onSurface),),
-              ],
-            ),
-          )
+        child: GestureDetector(
+          onLongPressMoveUpdate: (details) {
+            onDrag?.call(details.localOffsetFromOrigin.dy);
+          },
+          child: Card(
+            color: Theme.of(mainContext).colorScheme.surfaceContainerLow,
+            elevation: 3,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Text(title, style: TextStyle(color: Theme.of(mainContext).colorScheme.onSurface),),
+                  Text("$value$unit", style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: Theme.of(mainContext).colorScheme.onSurface),),
+                ],
+              ),
+            )
+          ),
         ),
       ),
     );

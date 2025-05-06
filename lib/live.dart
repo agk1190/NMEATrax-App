@@ -449,27 +449,153 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                       child: engineStatusChips(),
                     ),
                     NMEAdataRow(mainContext: context, boxes: [
-                      SizedNMEABox(value: returnAfterConversion(gpsData.speedOverGround, ConversionType.speed), title: "Speed", unit: UnitFunctions.unitFor(ConversionType.speed), mainContext: context,),
-                      SizedNMEABox(value: returnAfterConversion(depthData.depth, ConversionType.depth), title: "Depth", unit: UnitFunctions.unitFor(ConversionType.depth), mainContext: context,),
+                      SizedNMEABox(
+                        value: returnAfterConversion(
+                          gpsData.speedOverGround, ConversionType.speed), 
+                          title: "Speed", 
+                          unit: UnitFunctions.unitFor(ConversionType.speed), 
+                          mainContext: context,
+                          onDrag: (dy) {
+                            setState(() {
+                              int unitChange = (dy % 25).floor();
+                              if (unitChange == 0) {
+                                speedUnit = SpeedUnit.values[(speedUnit.index + 1) % SpeedUnit.values.length];
+                              }
+                            });
+                          },
+                        ),
+                      SizedNMEABox(
+                        value: returnAfterConversion(depthData.depth, ConversionType.depth), 
+                        title: "Depth", 
+                        unit: UnitFunctions.unitFor(ConversionType.depth), 
+                        mainContext: context,
+                        onDrag: (dy) {
+                          setState(() {
+                            int unitChange = (dy % 25).floor();
+                            if (unitChange == 0) {
+                              depthUnit = depthUnit == DepthUnit.meters ? DepthUnit.feet : DepthUnit.meters;
+                            }
+                          });
+                        },
+                      ),
                     ]),
                     NMEAdataRow(mainContext: context, boxes: [
                       SizedNMEABox(value: returnAfterConversion(engineData.rpm, ConversionType.none), title: "RPM", unit: "", fontSize: 48, mainContext: context,),
                     ]),
                     NMEAdataRow(mainContext: context, boxes: [
-                      SizedNMEABox(value: returnAfterConversion(engineData.coolantTemp, ConversionType.temp), title: "Engine", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),
-                      SizedNMEABox(value: returnAfterConversion(fluidLevel.level, ConversionType.none), title: "Fuel", unit: "%", mainContext: context,),
+                      SizedNMEABox(
+                        value: returnAfterConversion(
+                          engineData.coolantTemp, 
+                          ConversionType.temp
+                        ), 
+                        title: "Engine", 
+                        unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), 
+                        mainContext: context, 
+                        onDrag: (dy) {
+                          setState(() {
+                            int unitChange = (dy % 25).floor();
+                            if (unitChange == 0) {
+                              tempUnit = tempUnit == TempUnit.celsius ? TempUnit.fahrenheit : TempUnit.celsius;
+                            }
+                          });
+                        },
+                      ),
+                      SizedNMEABox(
+                        value: returnAfterConversion(fluidLevel.level, ConversionType.none), 
+                        title: "Fuel", 
+                        unit: "%", 
+                        mainContext: context,
+                        onDrag: (dy) {
+                          setState(() {
+                            int unitChange = (dy % 25).floor();
+                            if (unitChange == 0) {
+                              fuelUnit = fuelUnit == FuelUnit.litre ? FuelUnit.gallon : FuelUnit.litre;
+                            }
+                          });
+                        },
+                      ),
                     ]),
                     NMEAdataRow(mainContext: context, boxes: [
-                      SizedNMEABox(value: returnAfterConversion(engineData.oilTemp, ConversionType.temp), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), mainContext: context,),
-                      SizedNMEABox(value: returnAfterConversion(engineData.oilPres, ConversionType.pressure), title: "Oil", unit: UnitFunctions.unitFor(ConversionType.pressure), mainContext: context,),
+                      SizedNMEABox(
+                        value: returnAfterConversion(engineData.oilTemp, ConversionType.temp), 
+                        title: "Oil", 
+                        unit: UnitFunctions.unitFor(ConversionType.temp, leadingSpace: false), 
+                        mainContext: context,
+                        onDrag: (dy) {
+                          setState(() {
+                            int unitChange = (dy % 25).floor();
+                            if (unitChange == 0) {
+                              tempUnit = tempUnit == TempUnit.celsius ? TempUnit.fahrenheit : TempUnit.celsius;
+                            }
+                          });
+                        },
+                      ),
+                      SizedNMEABox(
+                        value: returnAfterConversion(engineData.oilPres, ConversionType.pressure), 
+                        title: "Oil", 
+                        unit: UnitFunctions.unitFor(ConversionType.pressure), 
+                        mainContext: context,
+                        onDrag: (dy) {
+                          setState(() {
+                            int unitChange = (dy % 25).floor();
+                            if (unitChange == 0) {
+                              pressureUnit = PressureUnit.values[(pressureUnit.index + 1) % PressureUnit.values.length];
+                            }
+                          });
+                        },
+                      ),
                     ]),
                     NMEAdataRow(mainContext: context, boxes: [
-                      SizedNMEABox(value: returnAfterConversion(engineData.fuelRate, ConversionType.fuelRate), title: "Fuel Rate", unit: UnitFunctions.unitFor(ConversionType.fuelRate), mainContext: context,),
-                      SizedNMEABox(value: returnAfterConversion(engineData.efficieny, ConversionType.fuelEfficiency), title: "Efficiency", unit: UnitFunctions.unitFor(ConversionType.fuelEfficiency), mainContext: context,),
+                      SizedNMEABox(
+                        value: returnAfterConversion(engineData.fuelRate, ConversionType.fuelRate), 
+                        title: "Fuel Rate", 
+                        unit: UnitFunctions.unitFor(ConversionType.fuelRate), 
+                        mainContext: context,
+                        onDrag: (dy) {
+                          setState(() {
+                            int unitChange = (dy % 25).floor();
+                            if (unitChange == 0) {
+                              fuelUnit = fuelUnit == FuelUnit.litre ? FuelUnit.gallon : FuelUnit.litre;
+                            }
+                          });
+                        },
+                      ),
+                      SizedNMEABox(
+                        value: returnAfterConversion(engineData.efficieny, ConversionType.fuelEfficiency), 
+                        title: "Efficiency", 
+                        unit: UnitFunctions.unitFor(ConversionType.fuelEfficiency), 
+                        mainContext: context,
+                        onDrag: (dy) {
+                          setState(() {
+                            int unitChange = (dy % 25).floor();
+                            if (unitChange == 0) {
+                              fuelUnit = fuelUnit == FuelUnit.litre ? FuelUnit.gallon : FuelUnit.litre;
+                            }
+                          });
+                        },
+                      ),
                     ]),
                     NMEAdataRow(mainContext: context, boxes: [
-                      SizedNMEABox(value: returnAfterConversion(engineData.legTilt, ConversionType.none), title: "Leg Tilt", unit: "%", mainContext: context,),
-                      SizedNMEABox(value: returnAfterConversion(temperatureData.actualTemp, ConversionType.wTemp), title: "Water Temp", unit: UnitFunctions.unitFor(ConversionType.wTemp, leadingSpace: false), mainContext: context,),
+                      SizedNMEABox(
+                        value: returnAfterConversion(engineData.legTilt, ConversionType.none), 
+                        title: "Leg Tilt", 
+                        unit: "%", 
+                        mainContext: context,
+                      ),
+                      SizedNMEABox(
+                        value: returnAfterConversion(temperatureData.actualTemp, ConversionType.wTemp), 
+                        title: "Water Temp", 
+                        unit: UnitFunctions.unitFor(ConversionType.wTemp, leadingSpace: false), 
+                        mainContext: context,
+                        onDrag: (dy) {
+                          setState(() {
+                            int unitChange = (dy % 25).floor();
+                            if (unitChange == 0) {
+                              tempUnit = tempUnit == TempUnit.celsius ? TempUnit.fahrenheit : TempUnit.celsius;
+                            }
+                          });
+                        },
+                      ),
                     ]),
                   ],
                 ),
@@ -494,7 +620,20 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                       SizedNMEABox(value: transmissionData.gear ?? '-', title: "Gear", unit: "", fontSize: 32, mainContext: context),
                     ]),
                     NMEAdataRow(mainContext: context, boxes: [
-                      SizedNMEABox(value: returnAfterConversion(gpsData.speedOverGround, ConversionType.speed), title: "Speed", unit: UnitFunctions.unitFor(ConversionType.speed), mainContext: context,),
+                      SizedNMEABox(
+                        value: returnAfterConversion(gpsData.speedOverGround, ConversionType.speed), 
+                        title: "Speed", 
+                        unit: UnitFunctions.unitFor(ConversionType.speed), 
+                        mainContext: context,
+                        onDrag: (dy) {
+                          setState(() {
+                            int unitChange = (dy % 25).floor();
+                            if (unitChange == 0) {
+                              speedUnit = SpeedUnit.values[(speedUnit.index + 1) % SpeedUnit.values.length];
+                            }
+                          });
+                        },
+                      ),
                       SizedNMEABox(value: returnAfterConversion(gpsData.courseOverGround, ConversionType.none), title: "Course", unit: "°", mainContext: context,),
                     ]),
                     NMEAdataRow(mainContext: context, boxes: [

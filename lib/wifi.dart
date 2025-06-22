@@ -52,7 +52,7 @@ class _WifiPageState extends State<WifiPage> {
     if (mounted) {
       setState(() {
         wifiList.clear();
-        if (nmeaDevice.wifiCredentials != null && nmeaDevice.wifiCredentials != "null") {
+        if (nmeaDevice.wifiCredentials != null && nmeaDevice.wifiCredentials != "null" && nmeaDevice.wifiCredentials!.isNotEmpty) {
           List<dynamic> ssidList = jsonDecode(nmeaDevice.wifiCredentials!);
           for (var wifiPair in ssidList) {
             wifiList.add(Map<String, String>.from(wifiPair));

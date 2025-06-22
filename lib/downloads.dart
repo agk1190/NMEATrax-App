@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 List<String> downloadList = [];
 String connectURL = "192.168.1.1";
 ValueNotifier<List<String>> emailMessagesNotifier = ValueNotifier([]);
+ScrollController emailMessagesScrollController = ScrollController();
 
 class DownloadsPage extends StatefulWidget {
   const DownloadsPage({super.key});
@@ -92,16 +93,31 @@ class _DownloadsPageState extends State<DownloadsPage> {
                               content: SizedBox(
                                 width: double.maxFinite,
                                 child: ListView.builder(
+                                  controller: emailMessagesScrollController,
                                   shrinkWrap: true,
                                   itemCount: emailMessages.length,
                                   itemBuilder: (BuildContext context, int index) {
-                                    return ListTile(
-                                      title: Text(emailMessages.elementAt(index)),
+                                    if (emailMessagesScrollController.hasClients) {
+                                      emailMessagesScrollController.jumpTo(emailMessagesScrollController.position.maxScrollExtent);
+                                    }
+                                    return Padding(
+                                      padding: const EdgeInsets.all(4.0),
+                                      child: Text(
+                                        emailMessages.elementAt(index),
+                                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                                      ),
                                     );
                                   },
                                 ),
                               ),
                               actions: [
+                                Visibility(
+                                  visible: emailMessages.where((x) => x.contains("Email sent successfully!")).isNotEmpty,
+                                  child: Icon(Icons.check_circle, 
+                                    color: Theme.of(context).colorScheme.onPrimary,
+                                    size: 36,
+                                  ),
+                                ),
                                 Visibility(
                                   visible: emailBtnVis,
                                   child: ElevatedButton(
@@ -125,7 +141,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                       emailMessagesNotifier.value = [];
                                     });
                                   },
-                                  child: Text("Close", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                  child: emailMessages.where((x) => x.contains("Email sent successfully!")).isNotEmpty ? Text("Done", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),) : Text("Close", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                                 ),
                               ],
                             );

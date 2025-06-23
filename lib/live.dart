@@ -399,20 +399,30 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
             backgroundColor: Theme.of(context).colorScheme.primary,
             iconTheme: Theme.of(context).primaryIconTheme,
             title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Flexible(flex: 2, child: Text('NMEATrax Live', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),)),
-                if (nmeaDevice.recMode == 0) const Flexible(
-                  flex: 1,
-                  child: Text(
-                    "  Recording Off!",
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontSize: 14,
-                    ),
+                Text(
+                  'NMEATrax Live',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
-                ) else const Text(""),
+                ),
+                const Spacer(),
+                Icon(
+                  switch (nmeaDevice.recMode) {
+                    0 => Icons.motion_photos_off,
+                    1 => Icons.motion_photos_on,
+                    2 => Icons.motion_photos_auto,
+                    3 => Icons.motion_photos_auto,
+                    4 => Icons.motion_photos_auto_outlined,
+                    5 => Icons.motion_photos_auto_outlined,
+                    _ => Icons.motion_photos_off_outlined,
+                  },
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
               ],
             ),
             bottom: TabBar(

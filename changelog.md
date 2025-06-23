@@ -10,10 +10,13 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 
 
 
-## [6.2.0] - 2025-06-21
+## [6.2.0] - 2025-06-22
 
 ### Added
 - Improved Send Email pop-up
+
+### Changed
+- Recording state now displayed with icon
 
 
 ## [6.1.0] - 2025-05-05

@@ -148,6 +148,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     } on Exception {
       return;
     }
+    // print(event.data);
 
     switch (msgId) {
       case '127488':
@@ -288,6 +289,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     transmissionData = TransmissionData(id: 0);
     depthData = DepthData(id: 0);
     temperatureData = TemperatureData(id: 0);
+    downloadList = <String>[];
   }
 
   @override
@@ -411,17 +413,20 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                   ),
                 ),
                 const Spacer(),
-                Icon(
-                  switch (nmeaDevice.recMode) {
-                    0 => Icons.motion_photos_off,
-                    1 => Icons.motion_photos_on,
-                    2 => Icons.motion_photos_auto,
-                    3 => Icons.motion_photos_auto,
-                    4 => Icons.motion_photos_auto_outlined,
-                    5 => Icons.motion_photos_auto_outlined,
-                    _ => Icons.motion_photos_off_outlined,
-                  },
-                  color: Theme.of(context).colorScheme.onPrimary,
+                Tooltip(
+                  message: recModeEnum[nmeaDevice.recMode] ?? 'Recording Mode',
+                  child: Icon(
+                    switch (nmeaDevice.recMode) {
+                      0 => Icons.motion_photos_off_outlined,
+                      1 => Icons.motion_photos_on,
+                      2 => Icons.motion_photos_auto,
+                      3 => Icons.motion_photos_auto,
+                      4 => Icons.motion_photos_auto_outlined,
+                      5 => Icons.motion_photos_auto_outlined,
+                      _ => Icons.motion_photos_off_outlined,
+                    },
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
                 ),
               ],
             ),
@@ -467,7 +472,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                           mainContext: context,
                           onDrag: (dy) {
                             setState(() {
-                              int unitChange = (dy % 25).floor();
+                              int unitChange = (dy % 75).floor();
                               if (unitChange == 0) {
                                 speedUnit = SpeedUnit.values[(speedUnit.index + 1) % SpeedUnit.values.length];
                               }
@@ -911,7 +916,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                       visible: nmeaDevice.buildDate != null && nmeaDevice.buildDate != '',
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(0, 25, 0, 8),
-                        child: Text("Firmware built on ${nmeaDevice.buildDate}", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                        child: Text("Firmware v${nmeaDevice.firmware} built on ${nmeaDevice.buildDate}", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                       ),
                     ),
                   ]

@@ -9,6 +9,12 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ### To-Do
 
 
+## [6.3.0] - 2025-07-19
+
+### Changed
+- Few modification to API
+- Other bug fixes
+
 
 ## [6.2.0] - 2025-06-22
 

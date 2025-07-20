@@ -27,6 +27,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
       
       if (dlList.statusCode == 200) {
         List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
+        if (converted.isEmpty) {
+          throw Exception('No files found');
+        }
         downloadList = converted.elementAt(0);
         downloadList.removeAt(downloadList.length - 1);
         setState(() {});
@@ -35,7 +38,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
       }
     } on Exception{
       if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Error. Could not connect to NMEATrax.", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+        content: Text("Could not fetch files from NMEAtrax.", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
         duration: const Duration(seconds: 5),
         backgroundColor: Theme.of(context).colorScheme.surface,
       ));}
@@ -294,7 +297,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
       
       return "$fileName$fileExt saved to $filePath";
     } else {
-      return "Error. Could not get $fileName$fileExt";
+      return "Error. Could not get $fileName";
     }
   }
 }

@@ -109,7 +109,11 @@ class UnitFunctions {
     } else if (key.contains('Rate')) {
       return (fuelUnit == FuelUnit.litre ? value : round(value * 0.26417205234375, decimals: 1));
     } else if (key.contains('Efficiency')) {
-      return (fuelUnit == FuelUnit.litre ? round(value, decimals: 3) : round(2.35214583 / value, decimals: 3));
+      if (value is int) {
+        return (fuelUnit == FuelUnit.litre ? '$value.000' : round((3.78541 / (1.60934 * value)), decimals: 2));
+      } else {
+        return (fuelUnit == FuelUnit.litre ? round(value, decimals: 3) : round(2.35214583 / value, decimals: 3));
+      }
     } else if (key.contains('Speed')) {
       switch (speedUnit) {
         case SpeedUnit.km:
@@ -1128,7 +1132,7 @@ class GpsData {
   double? latitude;
   double? longitude;
   double? speedOverGround;
-  int? courseOverGround;
+  double? courseOverGround;
   double? magneticVariation;
 
   GpsData({this.id = 0, this.unixTime, this.latitude, this.longitude, this.speedOverGround, this.courseOverGround, this.magneticVariation});
@@ -1147,7 +1151,7 @@ class GpsData {
 
 class FluidLevel {
   int id = 0;
-  double? fluidType;
+  int? fluidType;
   double? level;
   double? capacity;
 

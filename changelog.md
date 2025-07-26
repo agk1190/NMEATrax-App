@@ -12,7 +12,7 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ## [6.3.0] - 2025-07-19
 
 ### Changed
-- Few modification to API
+- Few modifications to API
 - Other bug fixes
 
 

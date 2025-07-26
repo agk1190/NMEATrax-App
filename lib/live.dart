@@ -178,9 +178,9 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
         depthData = depthData.updateFromJson(nmeaData);
         lastDataTime['depth'] = DateTime.now();
         break;
-      case '161616':
-        engineData = engineData.updateErrorsFromJson(nmeaData);
-        break;
+      // case '161616':
+      //   engineData = engineData.updateErrorsFromJson(nmeaData);
+      //   break;
       case '000000':
         // heartbeat message
         break;

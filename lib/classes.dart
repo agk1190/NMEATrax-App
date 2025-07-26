@@ -8,6 +8,44 @@ FuelUnit fuelUnit = FuelUnit.litre;
 PressureUnit pressureUnit = PressureUnit.kpa;
 bool useDepthOffset = false;
 
+List<String> status1ErrorNames = [
+  "Check Engine",
+  "Over Temperature",
+  "Low Oil Pressure",
+  "Low Oil Level",
+  "Low Fuel Pressure",
+  "Low Voltage",
+  "Low Coolant Level",
+  "Water Flow",
+  "Water in Fuel",
+  "Charge Indicator",
+  "Preheat Indicator",
+  "High Boost Pressure",
+  "Rev Limit Exceeded",
+  "EGR System",
+  "Throttle Position Sensor",
+  "Engine Emergency Stop Mode",
+];
+
+List<String> status2ErrorNames = [
+  "Warning Level 1",
+  "Warning Level 2",
+  "Power Reduction",
+  "Maintenance Needed",
+  "Engine Comm Error",
+  "Sub or Secondary Throttle",
+  "Neutral Start Protect",
+  "Engine Shutting Down",
+  "Reserved 1",
+  "Reserved 2",
+  "Reserved 3",
+  "Reserved 4",
+  "Reserved 5",
+  "Reserved 6",
+  "Reserved 7",
+  "Reserved 8",
+];
+
 class UnitFunctions {
   static String unitFor(ConversionType type, {bool leadingSpace = true}) {
     String result;
@@ -998,9 +1036,11 @@ class EngineData {
   int? hours;
   double? engineLoad;
   double? engineTorque;
+  int status1 = 0;
+  int status2 = 0;
   List<String>? errors;
 
-  EngineData({this.id = 0, this.rpm, this.boostPres, this.legTilt, this.oilTemp, this.oilPres, this.coolantTemp, this.coolantPres, this.voltage, this.fuelRate, this.fuelPres, this.efficieny, this.hours, this.engineLoad, this.engineTorque, this.errors});
+  EngineData({this.id = 0, this.rpm, this.boostPres, this.legTilt, this.oilTemp, this.oilPres, this.coolantTemp, this.coolantPres, this.voltage, this.fuelRate, this.fuelPres, this.efficieny, this.hours, this.engineLoad, this.engineTorque, this.status1 = 0, this.status2 = 0, this.errors});
 
   // Factory constructor for creating an instance from JSON   // ChatGPT
   factory EngineData.fromJson(Map<String, dynamic> json) {
@@ -1038,58 +1078,19 @@ class EngineData {
       hours: json['eHours'] ?? hours,
       engineLoad: json['eLoad'] ?? engineLoad,
       engineTorque: json['eTorque'] ?? engineTorque,
-      errors: errors,
+      status1: json['status1'] ?? status1,
+      status2: json['status2'] ?? status2,
+      errors: getErrorsFromBits(status1, status2)
     );
   }
 
-  EngineData updateErrorsFromJson(Map<String, dynamic> json) {
+/*   EngineData updateErrorsFromJson(Map<String, dynamic> json) {
     int status1 = json['status1'] ?? 0;
     int status2 = json['status2'] ?? 0;
 
-    List<String> status1ErrorNames = [
-      "Check Engine",
-      "Over Temperature",
-      "Low Oil Pressure",
-      "Low Oil Level",
-      "Low Fuel Pressure",
-      "Low Voltage",
-      "Low Coolant Level",
-      "Water Flow",
-      "Water in Fuel",
-      "Charge Indicator",
-      "Preheat Indicator",
-      "High Boost Pressure",
-      "Rev Limit Exceeded",
-      "EGR System",
-      "Throttle Position Sensor",
-      "Engine Emergency Stop Mode",
-    ];
-
-    List<String> status2ErrorNames = [
-      "Warning Level 1",
-      "Warning Level 2",
-      "Power Reduction",
-      "Maintenance Needed",
-      "Engine Comm Error",
-      "Sub or Secondary Throttle",
-      "Neutral Start Protect",
-      "Engine Shutting Down",
-      "Reserved 1",
-      "Reserved 2",
-      "Reserved 3",
-      "Reserved 4",
-      "Reserved 5",
-      "Reserved 6",
-      "Reserved 7",
-      "Reserved 8",
-    ];
-
-    // status1Errors = [];
-    // status2Errors = [];
     errors = [];
     for (int i = 0; i < 16; i++) {
       if ((status1 & (1 << i)) != 0) {
-        // status1Errors?.add(status1ErrorNames[i]);
         errors?.add(status1ErrorNames[i]);
       }
       if ((status2 & (1 << i)) != 0) {
@@ -1098,24 +1099,23 @@ class EngineData {
     }
 
     return EngineData(
-      id: id,
-      rpm: rpm,
-      boostPres: boostPres,
-      legTilt: legTilt,
-      oilTemp: oilTemp,
-      oilPres: oilPres,
-      coolantTemp: coolantTemp,
-      coolantPres: coolantPres,
-      voltage: voltage,
-      fuelRate: fuelRate,
-      fuelPres: fuelPres,
-      efficieny: efficieny,
-      hours: hours,
-      engineLoad: engineLoad,
-      engineTorque: engineTorque,
       errors: errors,
     );
+  } */
+
+  List<String>? getErrorsFromBits(int status1, int status2) {
+    errors = [];
+    for (int i = 0; i < 16; i++) {
+      if ((status1 & (1 << i)) != 0) {
+        errors?.add(status1ErrorNames[i]);
+      }
+      if ((status2 & (1 << i)) != 0) {
+        errors?.add(status2ErrorNames[i]);
+      }
+    }
+    return errors;
   }
+
   // Method to convert an instance to JSON    // ChatGPT
   // Map<String, dynamic> toJson() {
   //   return {

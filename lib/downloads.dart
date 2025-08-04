@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:csv/csv.dart';
+// import 'package:csv/csv.dart';
 import 'package:http/http.dart' as http;
+// import 'package:nmeatrax_app/classes.dart';
 import 'package:nmeatrax_app/communications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
@@ -21,34 +22,36 @@ class DownloadsPage extends StatefulWidget {
 
 class _DownloadsPageState extends State<DownloadsPage> {
   
-  Future<void> getFilesList() async {
-    try {
-      final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
-      
-      if (dlList.statusCode == 200) {
-        List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
-        if (converted.isEmpty) {
-          throw Exception('No files found');
-        }
-        downloadList = converted.elementAt(0);
-        downloadList.removeAt(downloadList.length - 1);
-        setState(() {});
-      } else {
-        throw Exception('Failed to get download list');
-      }
-    } on Exception{
-      if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Could not fetch files from NMEAtrax.", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-        duration: const Duration(seconds: 5),
-        backgroundColor: Theme.of(context).colorScheme.surface,
-      ));}
-    }
-  }
+  // Future<void> getFilesList() async {
+  //   try {
+  //     final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
+  //
+  //     if (dlList.statusCode == 200) {
+  //       List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
+  //       if (converted.isEmpty) {
+  //         throw Exception('No files found');
+  //       }
+  //       downloadList = converted.elementAt(0);
+  //       downloadList.removeAt(downloadList.length - 1);
+  //       setState(() {});
+  //     } else {
+  //       throw Exception('Failed to get download list');
+  //     }
+  //   } on Exception{
+  //     if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+  //       content: Text("Could not fetch files from NMEAtrax.", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+  //       duration: const Duration(seconds: 5),
+  //       backgroundColor: Theme.of(context).colorScheme.surface,
+  //     ));}
+  //   }
+  // }
 
   @override
   void initState() {
     super.initState();
-    getFilesList();
+    // if (connectionMode == ConnectionMode.wifi) {
+    //   getFilesList();
+    // }
   }
 
   @override
@@ -60,14 +63,15 @@ class _DownloadsPageState extends State<DownloadsPage> {
           children: [
             Text('Voyage Recordings', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
             Spacer(),
-            IconButton(onPressed: getFilesList, icon: Icon(Icons.refresh, color: Theme.of(context).colorScheme.onPrimary,)),
+            IconButton(onPressed: getOptions, icon: Icon(Icons.refresh, color: Theme.of(context).colorScheme.onPrimary,)),
           ],
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: Theme.of(context).primaryIconTheme,
       ),
       body: RefreshIndicator(
-        onRefresh: getFilesList,
+        // onRefresh: getFilesList,
+        onRefresh: getOptions,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
@@ -195,7 +199,8 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                   backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
                                 ),
                                 onPressed: () {
-                                  http.post(Uri.parse("http://$connectURL/set?eraseData=true"));
+                                  // http.post(Uri.parse("http://$connectURL/set?eraseData=true"));
+                                  setOptions("eraseData=true");
                                   downloadList.clear();
                                   if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                     content: Text("Erased all recordings", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),

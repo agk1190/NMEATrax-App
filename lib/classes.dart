@@ -7,6 +7,7 @@ SpeedUnit speedUnit = SpeedUnit.kn;
 FuelUnit fuelUnit = FuelUnit.litre;
 PressureUnit pressureUnit = PressureUnit.kpa;
 bool useDepthOffset = false;
+ConnectionMode connectionMode = ConnectionMode.bluetooth;
 
 List<String> status1ErrorNames = [
   "Check Engine",
@@ -1292,3 +1293,5 @@ enum TempSource {
   exhaustGasTemp,
   shaftSealTemp,
 }
+
+enum ConnectionMode {bluetooth, wifi}

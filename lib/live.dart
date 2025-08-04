@@ -9,6 +9,7 @@ import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dart_ping/dart_ping.dart';
 import 'package:eventflux/eventflux.dart';
+import 'package:csv/csv.dart';
 
 import 'classes.dart';
 import 'downloads.dart';
@@ -24,25 +25,16 @@ class LivePage extends StatefulWidget {
 }
 
 class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin {
-
   Map<num, String> recModeEnum = {0:"Off", 1:"On", 2:"Auto by Speed", 3:"Auto by RPM", 4:"Auto by Speed", 5:"Auto by RPM"};
   Map<bool, String> wifiModeEnum = {false:"Client", true:"Host"};
   final List<String> recModeOptions = <String>['Off', 'On', 'Auto by Speed', 'Auto by RPM'];
   final List<String> wifiModeOptions = <String>['Client', 'Host'];
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   bool moreSettingsVisible = false;
-  DateTime lastDataReceived = DateTime.now();
   Timer? connectionTimeoutTimer;
   Timer? reconnectTimer;
   // bool reconnecting = false;
-  EngineData engineData = EngineData(id: 0);
-  GpsData gpsData = GpsData(id: 0);
-  FluidLevel fluidLevel = FluidLevel(id: 0);
-  TransmissionData transmissionData = TransmissionData(id: 0);
-  DepthData depthData = DepthData(id: 0);
-  TemperatureData temperatureData = TemperatureData(id: 0);
   late TabController _tabController;
-  Map<String, DateTime> lastDataTime = {};
 
   Future<void> savePrefs() async {
     final SharedPreferences prefs = await _prefs;
@@ -112,7 +104,8 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
               startHeartbeat();
             });
             response?.stream?.listen((event) {
-              updateFromEvent(event);
+              // parseData(event.data);
+              NmeaData.parseData(event.data, () => setState(() {}));
             });
           },
           autoReconnect: false,
@@ -137,65 +130,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
         });
       }
     }
-  }
-
-  void updateFromEvent(EventFluxData event) async {
-    String msgId;
-    Map<String, dynamic> nmeaData;
-    try {
-      msgId = jsonDecode(event.data).values.first;
-      nmeaData = jsonDecode(event.data).values.last;
-    } on Exception {
-      return;
-    }
-    // print(event.data);
-
-    switch (msgId) {
-      case '127488':
-      case '127489':
-        engineData = engineData.updateFromJson(nmeaData);
-        lastDataTime['engine'] = DateTime.now();
-        break;
-      case '127258':
-      case '129026':
-      case '129029':
-        gpsData = gpsData.updateFromJson(nmeaData);
-        lastDataTime['gps'] = DateTime.now();
-        break;
-      case '127505':
-        fluidLevel = fluidLevel.updateFromJson(nmeaData);
-        lastDataTime['fluid'] = DateTime.now();
-        break;
-      case '127493':
-        transmissionData = transmissionData.updateFromJson(nmeaData);
-        lastDataTime['transmission'] = DateTime.now();
-        break;
-      case '130312':
-        temperatureData = temperatureData.updateFromJson(nmeaData);
-        lastDataTime['temperature'] = DateTime.now();
-        break;
-      case '128267':
-        depthData = depthData.updateFromJson(nmeaData);
-        lastDataTime['depth'] = DateTime.now();
-        break;
-      // case '161616':
-      //   engineData = engineData.updateErrorsFromJson(nmeaData);
-      //   break;
-      case '000000':
-        // heartbeat message
-        break;
-      case 'email':
-        // emailMessages.add(nmeaData['msg']);
-        emailMessagesNotifier.value = List.from(emailMessagesNotifier.value)..add(nmeaData['msg']);
-        break;
-      default:
-    }
-
-    lastDataReceived = DateTime.now();
-
-    // if (_tabController.index != 2) {
-      setState(() {});
-    // }
   }
 
   // Disconnect from nmea data stream
@@ -290,6 +224,8 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     depthData = DepthData(id: 0);
     temperatureData = TemperatureData(id: 0);
     downloadList = <String>[];
+    nmeaDevice = NmeaDevice();
+    if (Platform.isAndroid) {KeepScreenOn.turnOff();}
   }
 
   @override
@@ -925,12 +861,46 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
             ]
           ),
           floatingActionButton: FloatingActionButton.extended(
-            onPressed: () {
-              if (nmeaDevice.connected) {
-                disconnectFromNmeaDataStream();
-                nmeaDevice.connected = false;
-              } else {
-                showConnectDialog(context, "IP Address");
+            onPressed: () async {
+              switch (connectionMode) {
+                case ConnectionMode.wifi:
+                  if (nmeaDevice.connected) {
+                    disconnectFromNmeaDataStream();
+                    nmeaDevice.connected = false;
+                  } else {
+                    showConnectDialog(context, "IP Address");
+                  }
+                  break;
+                case ConnectionMode.bluetooth:
+                  if (connectedDevice?.isConnected ?? false) {
+                    connectedDevice!.disconnect();
+                    connectedDevice!.clearGattCache();
+                    nmeaDevice.connected = false;
+                    Future.delayed(const Duration(seconds: 1), () {
+                      setState(() {
+                        clearData();
+                      });
+                    });
+                  } else {
+                    // scanAndConnect();
+                    BLEServices.scanAndConnect(
+                      () {setState(() {
+                          if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+                          nmeaDevice.connected = true;
+                        });
+                      }, 
+                      () => setState(() {}),
+                      (p0) => nmeaDevice = nmeaDevice.updateFromJson(p0), 
+                      (data) {
+                        print("Received download data: $data");
+                        List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(data);
+                        if (converted.isEmpty) {return;}
+                        downloadList = converted.elementAt(0);
+                        downloadList.removeAt(downloadList.length - 1);
+                      },
+                    );
+                  }
+                  break;
               }
             },
             label: nmeaDevice.connected ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),

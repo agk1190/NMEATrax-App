@@ -9,7 +9,7 @@ import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dart_ping/dart_ping.dart';
 import 'package:eventflux/eventflux.dart';
-import 'package:csv/csv.dart';
+// import 'package:csv/csv.dart';
 
 import 'classes.dart';
 import 'downloads.dart';
@@ -223,7 +223,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     transmissionData = TransmissionData(id: 0);
     depthData = DepthData(id: 0);
     temperatureData = TemperatureData(id: 0);
-    downloadList = <String>[];
+    downloadList = List<Map<String, dynamic>>.empty(growable: true);
     nmeaDevice = NmeaDevice();
     if (Platform.isAndroid) {KeepScreenOn.turnOff();}
   }
@@ -349,6 +349,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                   ),
                 ),
                 const Spacer(),
+                Icon(connectedDevice?.isConnected ?? false ? Icons.bluetooth_connected : Icons.bluetooth),
                 Tooltip(
                   message: recModeEnum[nmeaDevice.recMode] ?? 'Recording Mode',
                   child: Icon(
@@ -361,7 +362,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                       5 => Icons.motion_photos_auto_outlined,
                       _ => Icons.motion_photos_off_outlined,
                     },
-                    color: Theme.of(context).colorScheme.onPrimary,
+                    color: connectedDevice?.isConnected ?? false ? Theme.of(context).colorScheme.onPrimary : Colors.grey,
                   ),
                 ),
               ],
@@ -416,7 +417,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                           },
                         ),
                       SizedNMEABox(
-                        value: returnAfterConversion(depthData.depth, ConversionType.depth), 
+                        value: returnAfterConversion(depthData.depthAdjusted, ConversionType.depth), 
                         title: "Depth", 
                         unit: UnitFunctions.unitFor(ConversionType.depth), 
                         mainContext: context,
@@ -892,11 +893,11 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                       () => setState(() {}),
                       (p0) => nmeaDevice = nmeaDevice.updateFromJson(p0), 
                       (data) {
-                        print("Received download data: $data");
-                        List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(data);
-                        if (converted.isEmpty) {return;}
-                        downloadList = converted.elementAt(0);
-                        downloadList.removeAt(downloadList.length - 1);
+                        // print("Received download data: $data");
+                        // List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(data);
+                        // if (converted.isEmpty) {return;}
+                        // downloadList = converted.elementAt(0);
+                        // downloadList.removeAt(downloadList.length - 1);
                       },
                     );
                   }

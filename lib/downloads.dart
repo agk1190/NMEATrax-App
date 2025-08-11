@@ -3,12 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 // import 'package:csv/csv.dart';
 import 'package:http/http.dart' as http;
+import 'package:nmeatrax_app/classes.dart';
 // import 'package:nmeatrax_app/classes.dart';
 import 'package:nmeatrax_app/communications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 
-List<String> downloadList = [];
+List<Map<String, dynamic>> downloadList = [];
 String connectURL = "192.168.1.1";
 ValueNotifier<List<String>> emailMessagesNotifier = ValueNotifier([]);
 ScrollController emailMessagesScrollController = ScrollController();
@@ -21,37 +22,9 @@ class DownloadsPage extends StatefulWidget {
 }
 
 class _DownloadsPageState extends State<DownloadsPage> {
-  
-  // Future<void> getFilesList() async {
-  //   try {
-  //     final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
-  //
-  //     if (dlList.statusCode == 200) {
-  //       List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(dlList.body);
-  //       if (converted.isEmpty) {
-  //         throw Exception('No files found');
-  //       }
-  //       downloadList = converted.elementAt(0);
-  //       downloadList.removeAt(downloadList.length - 1);
-  //       setState(() {});
-  //     } else {
-  //       throw Exception('Failed to get download list');
-  //     }
-  //   } on Exception{
-  //     if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //       content: Text("Could not fetch files from NMEAtrax.", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-  //       duration: const Duration(seconds: 5),
-  //       backgroundColor: Theme.of(context).colorScheme.surface,
-  //     ));}
-  //   }
-  // }
-
   @override
   void initState() {
     super.initState();
-    // if (connectionMode == ConnectionMode.wifi) {
-    //   getFilesList();
-    // }
   }
 
   @override
@@ -170,7 +143,14 @@ class _DownloadsPageState extends State<DownloadsPage> {
                       backgroundColor: Theme.of(context).colorScheme.surface,
                     ));}
                     for (var file in downloadList) {
-                      await downloadData(file);
+                      switch (connectionMode) {
+                        case ConnectionMode.wifi:
+                          await downloadData(file['name']);
+                          break;
+                        case ConnectionMode.bluetooth:
+                          await downloadDataBLE(file['name']);
+                          break;
+                      }
                     }
                     if (context.mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
@@ -199,7 +179,6 @@ class _DownloadsPageState extends State<DownloadsPage> {
                                   backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
                                 ),
                                 onPressed: () {
-                                  // http.post(Uri.parse("http://$connectURL/set?eraseData=true"));
                                   setOptions("eraseData=true");
                                   downloadList.clear();
                                   if (mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -219,10 +198,6 @@ class _DownloadsPageState extends State<DownloadsPage> {
                   },
                   child: const Icon(Icons.delete_rounded, color: Colors.red, size: 36,),
                 ),
-                // ElevatedButton(
-                //   onPressed: getFilesList,
-                //   child: const Text("Refresh")
-                // ),
               ],
             ),
             Expanded(
@@ -234,12 +209,21 @@ class _DownloadsPageState extends State<DownloadsPage> {
                   return ListTile(
                     mouseCursor: WidgetStateMouseCursor.clickable,
                     hoverColor: Theme.of(context).colorScheme.surface,
-                    leading: downloadList.elementAt(index).substring(downloadList.elementAt(index).length - 3) == 'gpx' ? const Icon(Icons.location_on) : const Icon(Icons.insert_drive_file),
-                    title: Text(downloadList.elementAt(index)),
+                    leading: downloadList.elementAt(index)['name'].substring(downloadList.elementAt(index)['name'].length - 3) == 'gpx' ? const Icon(Icons.location_on) : const Icon(Icons.insert_drive_file),
+                    title: Text(downloadList.elementAt(index)['name'], style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                    trailing: Text('${downloadList.elementAt(index)['size'].toString()} Bytes', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                     onTap: () async {
-                      String s = await downloadData(downloadList.elementAt(index));
+                      String result;
+                      switch (connectionMode) {
+                        case ConnectionMode.wifi:
+                          result = await downloadData(downloadList.elementAt(index)['name']);
+                          break;
+                        case ConnectionMode.bluetooth:
+                          result = await downloadDataBLE(downloadList.elementAt(index)['name']);
+                          break;
+                      }
                       if (context.mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                        content: Text(result, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                         duration: const Duration(seconds: 5),
                         backgroundColor: Theme.of(context).colorScheme.surface,
                       ));}

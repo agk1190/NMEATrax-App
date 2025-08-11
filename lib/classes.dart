@@ -1188,13 +1188,15 @@ class DepthData{
   int id = 0;
   double? depth;
   double? offset;
+  double? depthAdjusted;
 
-  DepthData({this.id = 0, this.depth, this.offset});
+  DepthData({this.id = 0, this.depth, this.offset, this.depthAdjusted});
 
   DepthData updateFromJson(Map<String, dynamic> json) {
     return DepthData(
       depth: json['depth'] ?? depth,
       offset: json['offset'] ?? offset,
+      depthAdjusted: (json['depth'] ?? depth) + (json['offset'] ?? offset) ?? depthAdjusted,
     );
   }
 }

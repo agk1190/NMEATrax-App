@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 // import 'package:csv/csv.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -222,7 +223,7 @@ class BleFileDownloader {
 
   BleFileDownloader(this.fileDownloadControlChar, this.fileDownloadChar, {this.expectedSize});
 
-  Future<Uint8List> downloadFile(String filename) async {
+  Future<Uint8List> downloadFile(String filename, ValueNotifier<double> progressNotifier) async {
     _fileBuffer = Uint8List(0);
     _receiving = false;
     _completer = Completer<void>();
@@ -231,6 +232,11 @@ class BleFileDownloader {
     _dataSubscription = fileDownloadChar.lastValueStream.listen((value) async {
       _receiving = true;
       _fileBuffer = Uint8List.fromList(_fileBuffer + value);
+
+      // Update progress
+      if (expectedSize != null && expectedSize! > 0) {
+        progressNotifier.value = _fileBuffer.length / expectedSize!;
+      }
       
       if (expectedSize != null && _fileBuffer.length >= expectedSize!) {
         await fileDownloadControlChar.write(utf8.encode('end'), withoutResponse: false);
@@ -256,6 +262,7 @@ class BleFileDownloader {
     // Wait for the file to finish receiving
     await _completer.future;
     await _dataSubscription.cancel();
+    progressNotifier.value = 1.0; // Ensure progress is 100% at end
     return _fileBuffer;
   }
 
@@ -296,7 +303,7 @@ Future<String> downloadDataBLE(String filename) async {
         expectedSize = int.tryParse(fileEntry['size'].toString());
       }
       final downloader = BleFileDownloader(fileDownloadControlChar!, fileDownloadChar!, expectedSize: expectedSize);
-      Uint8List fileData = await downloader.downloadFile(filename);
+      Uint8List fileData = await downloader.downloadFile(filename, progressNotifier);
       String fileExt = filename.substring(filename.length - 4);
       final dynamic directory;
       if (Platform.isAndroid) {

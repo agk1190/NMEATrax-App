@@ -13,6 +13,7 @@ List<Map<String, dynamic>> downloadList = [];
 String connectURL = "192.168.1.1";
 ValueNotifier<List<String>> emailMessagesNotifier = ValueNotifier([]);
 ScrollController emailMessagesScrollController = ScrollController();
+final progressNotifier = ValueNotifier<double>(0);
 
 class DownloadsPage extends StatefulWidget {
   const DownloadsPage({super.key});
@@ -142,15 +143,46 @@ class _DownloadsPageState extends State<DownloadsPage> {
                       duration: const Duration(seconds: 3),
                       backgroundColor: Theme.of(context).colorScheme.surface,
                     ));}
-                    for (var file in downloadList) {
+                    for (var i = 0; i < downloadList.length; i++) {
+                      if (!context.mounted) return;
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) {
+                          return ValueListenableBuilder<double>(
+                            valueListenable: progressNotifier,
+                            builder: (context, value, child) {
+                              if (value >= 1.0) {
+                                Navigator.of(context, rootNavigator: true).pop();
+                              }
+                              return AlertDialog(
+                                title: Text(
+                                  "Downloading ${downloadList[i]['name']}",
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),
+                                ),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    LinearProgressIndicator(value: value),
+                                    SizedBox(height: 16),
+                                    Text("${(value * 100).toStringAsFixed(0)}%"),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                      progressNotifier.value = 0;
                       switch (connectionMode) {
-                        case ConnectionMode.wifi:
-                          await downloadData(file['name']);
-                          break;
-                        case ConnectionMode.bluetooth:
-                          await downloadDataBLE(file['name']);
-                          break;
+                      case ConnectionMode.wifi:
+                        await downloadData(downloadList[i]['name']);
+                        break;
+                      case ConnectionMode.bluetooth:
+                        await downloadDataBLE(downloadList[i]['name']);
+                        break;
                       }
+                      progressNotifier.value = 1.0;
                     }
                     if (context.mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text("Downloaded all files!", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
@@ -214,6 +246,32 @@ class _DownloadsPageState extends State<DownloadsPage> {
                     trailing: Text('${downloadList.elementAt(index)['size'].toString()} Bytes', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                     onTap: () async {
                       String result;
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) {
+                          return ValueListenableBuilder<double>(
+                            valueListenable: progressNotifier,
+                            builder: (context, value, child) {
+                              if (value >= 1.0) {
+                                Navigator.of(context, rootNavigator: true).pop();
+                              }
+                              return AlertDialog(
+                                title: Text("Downloading ${downloadList.elementAt(index)['name']}", style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    LinearProgressIndicator(value: value),
+                                    SizedBox(height: 16),
+                                    Text("${(value * 100).toStringAsFixed(0)}%"),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                      progressNotifier.value = 0;
                       switch (connectionMode) {
                         case ConnectionMode.wifi:
                           result = await downloadData(downloadList.elementAt(index)['name']);

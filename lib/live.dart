@@ -882,22 +882,45 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                         clearData();
                       });
                     });
-                  } else {
-                    // scanAndConnect();
+                    } else {
+                    // Show connecting dialog
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) {
+                        return AlertDialog(
+                          backgroundColor: Theme.of(context).colorScheme.surface,
+                          content: Row(
+                            children: [
+                              const CircularProgressIndicator(),
+                              const SizedBox(width: 20),
+                              Text(
+                              "Connecting...",
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
                     BLEServices.scanAndConnect(
-                      () {setState(() {
-                          if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+                      () {
+                        setState(() {
+                          if (Platform.isAndroid) {
+                            KeepScreenOn.turnOn();
+                          }
                           nmeaDevice.connected = true;
                         });
-                      }, 
+                        Navigator.of(context, rootNavigator: true).pop(); // Close dialog
+                      },
                       () => setState(() {}),
-                      (p0) => nmeaDevice = nmeaDevice.updateFromJson(p0), 
+                      (p0) => nmeaDevice = nmeaDevice.updateFromJson(p0),
                       (data) {
-                        // print("Received download data: $data");
-                        // List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(data);
-                        // if (converted.isEmpty) {return;}
-                        // downloadList = converted.elementAt(0);
-                        // downloadList.removeAt(downloadList.length - 1);
+                      // print("Received download data: $data");
+                      // List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(data);
+                      // if (converted.isEmpty) {return;}
+                      // downloadList = converted.elementAt(0);
+                      // downloadList.removeAt(downloadList.length - 1);
                       },
                     );
                   }

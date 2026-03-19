@@ -642,17 +642,35 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                                 title: Text("Set Recording Mode", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                                 content: Column(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: recModeOptions.map((String value) {
-                                    return RadioListTile(
-                                      title: Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                                      value: value,
+                                  children: [
+                                    RadioGroup(
                                       groupValue: recModeEnum[nmeaDevice.recMode],
                                       onChanged: (String? value) {
                                         setOptions("recMode=${recModeEnum.keys.firstWhere((element) => recModeEnum[element] == value)}");
                                         Navigator.of(context).pop();
-                                      },
-                                    );
-                                  }).toList(),
+                                      }, 
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: recModeOptions.map((String value) {
+                                          return RadioListTile(
+                                            title: Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                            value: value,
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ],
+                                  // children: recModeOptions.map((String value) {
+                                  //   return RadioListTile(
+                                  //     title: Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                                  //     value: value,
+                                  //     groupValue: recModeEnum[nmeaDevice.recMode],
+                                  //     onChanged: (String? value) {
+                                  //       setOptions("recMode=${recModeEnum.keys.firstWhere((element) => recModeEnum[element] == value)}");
+                                  //       Navigator.of(context).pop();
+                                  //     },
+                                  //   );
+                                  // }).toList(),
                                 ),
                               );
                             },
@@ -980,19 +998,39 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                   ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: wifiModeOptions.map((String value) {
-                      return RadioListTile(
-                        title: Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                        value: value,
+                    children: [
+                      RadioGroup(
                         groupValue: newWifiModeValue,
                         onChanged: (String? value) {
                           setState(() {
                             newWifiModeValue = value;
                             fieldsChanged += 1;
                           });
-                        },
-                      );
-                    }).toList(),
+                        }, 
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: wifiModeOptions.map((String value) {
+                            return RadioListTile(
+                              title: Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              value: value,
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                    // children: wifiModeOptions.map((String value) {
+                    //   return RadioListTile(
+                    //     title: Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                    //     value: value,
+                    //     groupValue: newWifiModeValue,
+                    //     onChanged: (String? value) {
+                    //       setState(() {
+                    //         newWifiModeValue = value;
+                    //         fieldsChanged += 1;
+                    //       });
+                    //     },
+                    //   );
+                    // }).toList(),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 16),

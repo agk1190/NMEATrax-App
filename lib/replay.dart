@@ -95,7 +95,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
 
   Future<List<List<dynamic>>> loadCSV(File filePath) async {
     String csvData = await filePath.readAsString();
-    List<List<dynamic>> rowsAsListOfValues = const CsvToListConverter().convert(csvData);
+    List<List<dynamic>> rowsAsListOfValues = csv.decode(csvData);
     return rowsAsListOfValues;
   }
 

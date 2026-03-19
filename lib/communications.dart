@@ -189,7 +189,7 @@ class BLEServices {
 
           connectedDevice = r.device;
             try {
-              await connectedDevice!.connect(autoConnect: false);
+              await connectedDevice!.connect(autoConnect: false, license: License.free);
             } on Exception catch (e) {
             // Handle Android GATT error 133 by retrying connection
             if (e.toString().contains('133')) {
@@ -198,7 +198,7 @@ class BLEServices {
                 await connectedDevice!.disconnect();
               } catch (_) {}
               await Future.delayed(const Duration(seconds: 1));
-              await connectedDevice!.connect(autoConnect: false);
+              await connectedDevice!.connect(autoConnect: false, license: License.free);
             } else {
               rethrow;
             }

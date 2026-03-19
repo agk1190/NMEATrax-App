@@ -448,7 +448,7 @@ class _FilePageState extends State<FilePage> {
 
     for (CsvFile voyage in selectedCSVs) {
       String csvData = await voyage.file.readAsString();
-      List<List<String>> rowsAsListOfValues = const CsvToListConverter().convert(csvData, shouldParseNumbers: false);
+      List<List<dynamic>> rowsAsListOfValues = csv.decode(csvData);
 
       int latIndex = rowsAsListOfValues.first.indexOf('Latitude');
       int lonIndex = rowsAsListOfValues.first.indexOf('Longitude');
@@ -456,7 +456,7 @@ class _FilePageState extends State<FilePage> {
       int timeIndex = rowsAsListOfValues.first.indexOf('Time Stamp');
       // int month = 1;
       rowsAsListOfValues.removeAt(0);
-      for (List<String> line in rowsAsListOfValues) {
+      for (List<dynamic> line in rowsAsListOfValues) {
         // List<String> timeSplit = line.elementAt(timeIndex).split(RegExp(r' |:'));
         String rawLine = line.join(',');
         DateTime dateTime;
@@ -552,7 +552,7 @@ class _FilePageState extends State<FilePage> {
 
     for (CsvFile voyage in selectedCSVs) {
       String csvData = await voyage.file.readAsString();
-      List<List<String>> rowsAsListOfValues = const CsvToListConverter().convert(csvData, shouldParseNumbers: false);
+      List<List<dynamic>> rowsAsListOfValues = csv.decode(csvData);
 
       int latIndex = rowsAsListOfValues.first.indexOf('Latitude');
       int lonIndex = rowsAsListOfValues.first.indexOf('Longitude');
@@ -560,7 +560,7 @@ class _FilePageState extends State<FilePage> {
       int month = 1;
       rowsAsListOfValues.removeAt(0);
 
-      for (List<String> line in rowsAsListOfValues) {
+      for (List<dynamic> line in rowsAsListOfValues) {
         List<String> timeSplit = line.elementAt(timeIndex).split(RegExp(r' |:'));
         String rawLine = line.join(',');
         DateTime dateTime;

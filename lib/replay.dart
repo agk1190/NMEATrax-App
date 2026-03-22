@@ -60,6 +60,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
     'Latitude':47.0,
     'Longitude':-125.0,
     'Magnetic Variation':0.0,
+    'Error Bits':0.0,
   };
   Map<String, dynamic> upperLimits = <String, dynamic>{
     'RPM':5200.0,
@@ -79,6 +80,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
     'Latitude':50.0,
     'Longitude':-122.0,
     'Magnetic Variation':20.0,
+    'Error Bits':0.0,
   };
 
   Future<File> getFilePath(List<String> ext) async {
@@ -94,9 +96,13 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
   }
 
   Future<List<List<dynamic>>> loadCSV(File filePath) async {
-    String csvData = await filePath.readAsString();
-    List<List<dynamic>> rowsAsListOfValues = csv.decode(csvData);
-    return rowsAsListOfValues;
+    final csvCodec = CsvCodec(
+      dynamicTyping: true
+    );
+    // String csvData = await filePath.readAsString();
+    // List<List<dynamic>> rowsAsListOfValues = csv.decode(csvData);
+    final rowsAsListOfValues = await filePath.openRead().transform(utf8.decoder).transform(csvCodec.decoder).toList();
+    return rowsAsListOfValues.first;
   }
 
   Future<List<Wpt>> loadGPX(File filePath) async {
@@ -124,7 +130,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
       loadCSV(csvFilePath).then((rows) {
         if (rows.isNotEmpty) {
           csvListData = rows;
-          csvHeaderData = rows[0];
+          csvHeaderData = rows.first;
           List<String> temp = [];
           for (String header in csvHeaderData) {
             if (header.contains(' (')) {
@@ -184,7 +190,8 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
           final headersRow = rows.first;
           rows.removeAt(0);
           for (var row in rows) {
-            if (row.elementAt(headersRow.indexOf("Latitude")) != -273 && row.elementAt(headersRow.indexOf("Latitude")) != "-") {
+            final latitudeValue = row.elementAt(headersRow.indexOf("Latitude")).toString();
+            if (!latitudeValue.contains("-273") && latitudeValue != "-") {
               waypoints.add(Wpt(lat: row.elementAt(headersRow.indexOf("Latitude")), lon: row.elementAt(headersRow.indexOf("Longitude"))));
             }
           }

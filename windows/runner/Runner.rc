@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "nmeatrax_replay" "\0"
+            VALUE "CompanyName", "com.nmeatrax" "\0"
+            VALUE "FileDescription", "nmeatrax_app" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "nmeatrax_replay" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2023 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "nmeatrax_replay.exe" "\0"
-            VALUE "ProductName", "nmeatrax_replay" "\0"
+            VALUE "InternalName", "nmeatrax_app" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 NMEATrax. All rights reserved." "\0"
+            VALUE "OriginalFilename", "nmeatrax_app.exe" "\0"
+            VALUE "ProductName", "nmeatrax_app" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

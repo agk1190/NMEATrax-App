@@ -1,6 +1,6 @@
 {
-    "name": "nmeatrax_replay",
-    "short_name": "nmeatrax_replay",
+    "name": "nmeatrax_app",
+    "short_name": "nmeatrax_app",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

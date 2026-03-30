@@ -47,6 +47,33 @@ class BLEServices {
 
   BLEServices(this.onDataStreamStarted, this.onNmeaDataUpdated, this.onSettingsUpdated, this.onDownloadsListUpdated);
 
+  /// Connect to a [device] that was already found by a scan and start the
+  /// NMEA data stream. Used when the user selects a device from the scan picker.
+  BLEServices.connectToDevice(BluetoothDevice device, this.onDataStreamStarted, this.onNmeaDataUpdated, this.onSettingsUpdated, this.onDownloadsListUpdated) {
+    connectedDevice = device;
+    _connectAndDiscover();
+  }
+
+  /// Connects [connectedDevice] and discovers its GATT services.
+  Future<void> _connectAndDiscover() async {
+    try {
+      await connectedDevice!.connect(autoConnect: false, license: License.free);
+    } on Exception catch (e) {
+      // Handle Android GATT error 133 by retrying connection
+      if (e.toString().contains('133')) {
+        await Future.delayed(const Duration(seconds: 2));
+        try {
+          await connectedDevice!.disconnect();
+        } catch (_) {}
+        await Future.delayed(const Duration(seconds: 1));
+        await connectedDevice!.connect(autoConnect: false, license: License.free);
+      } else {
+        rethrow;
+      }
+    }
+    await discoverServices();
+  }
+
   Future<void> discoverServices() async {
     List<BluetoothService> services = await connectedDevice!.discoverServices();
     for (var service in services) {
@@ -130,25 +157,8 @@ class BLEServices {
       for (ScanResult r in results) {
         if (r.advertisementData.serviceUuids.contains(serviceUuid)) {
           FlutterBluePlus.stopScan();
-
           connectedDevice = r.device;
-            try {
-              await connectedDevice!.connect(autoConnect: false, license: License.free);
-            } on Exception catch (e) {
-            // Handle Android GATT error 133 by retrying connection
-            if (e.toString().contains('133')) {
-              await Future.delayed(const Duration(seconds: 2));
-              try {
-                await connectedDevice!.disconnect();
-              } catch (_) {}
-              await Future.delayed(const Duration(seconds: 1));
-              await connectedDevice!.connect(autoConnect: false, license: License.free);
-            } else {
-              rethrow;
-            }
-          }
-
-          BLEServices(onDataStreamStarted, onNmeaDataUpdated, onSettingsUpdated, onDownloadsListUpdated).discoverServices();
+          await _connectAndDiscover();
           break;
         }
       }

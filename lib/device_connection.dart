@@ -131,6 +131,9 @@ class WifiDeviceConnection implements DeviceConnection {
     if (nmeaDevice.connected) return;
 
     final pingResult = await Ping(connectURL, count: 1).stream.first;
+    // With .stream.first, a successful reply yields a response packet
+    // (summary == null, error == null).  A failure yields an error event or
+    // a summary with 0 received packets — so either non-null field means failure.
     if (pingResult.summary != null || pingResult.error != null) {
       onError("Could not reach NMEATrax at $connectURL. Please check your connection.");
       return;

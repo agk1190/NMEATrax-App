@@ -1,13 +1,5 @@
-import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
-// import 'package:csv/csv.dart';
-import 'package:http/http.dart' as http;
-import 'package:nmeatrax_app/classes.dart';
-// import 'package:nmeatrax_app/classes.dart';
-import 'package:nmeatrax_app/communications.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:nmeatrax_app/device_connection.dart';
 
 List<Map<String, dynamic>> downloadList = [];
 String connectURL = "192.168.1.1";
@@ -174,14 +166,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                         },
                       );
                       progressNotifier.value = 0;
-                      switch (connectionMode) {
-                      case ConnectionMode.wifi:
-                        await downloadData(downloadList[i]['name']);
-                        break;
-                      case ConnectionMode.bluetooth:
-                        await downloadDataBLE(downloadList[i]['name']);
-                        break;
-                      }
+                      await DeviceConnection.create().downloadFile(downloadList[i]['name'], progressNotifier);
                       progressNotifier.value = 1.0;
                     }
                     if (context.mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -272,14 +257,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                         },
                       );
                       progressNotifier.value = 0;
-                      switch (connectionMode) {
-                        case ConnectionMode.wifi:
-                          result = await downloadData(downloadList.elementAt(index)['name']);
-                          break;
-                        case ConnectionMode.bluetooth:
-                          result = await downloadDataBLE(downloadList.elementAt(index)['name']);
-                          break;
-                      }
+                      result = await DeviceConnection.create().downloadFile(downloadList.elementAt(index)['name'], progressNotifier);
                       if (context.mounted) {ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                         content: Text(result, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                         duration: const Duration(seconds: 5),
@@ -296,55 +274,4 @@ class _DownloadsPageState extends State<DownloadsPage> {
     );
   }
 
-  Future<String> downloadData(String fileName) async {
-    String fileExt = fileName.substring(fileName.length - 4);
-    final dynamic directory;
-    final http.StreamedResponse streamedResponse;
-
-    if (Platform.isAndroid) {
-      var status = await Permission.storage.status;
-      if (!status.isGranted) {
-        await Permission.storage.request();
-      }
-    }
-
-    try {
-      final request = http.Request('GET', Uri.parse('http://$connectURL/sdCard/$fileName'));
-      streamedResponse = await request.send();
-    } catch (e) {
-      return "Error. Could not connect to NMEATrax.";
-    }
-    if (streamedResponse.statusCode == 200) {
-      if (Platform.isAndroid) {
-        directory = "/storage/emulated/0/Download";
-      } else {
-        directory = await getDownloadsDirectory();
-      }
-      
-      fileName = fileName.substring(0, fileName.length - 4);
-
-      String filePath = Platform.isAndroid ? "$directory/$fileName$fileExt" : "${directory?.path}\\$fileName$fileExt";
-
-      File file = File(filePath);
-      
-      int i = 1;
-      while (file.existsSync()) {
-        if (i == 1) {
-          fileName += " ($i)";
-        } else {
-          fileName = fileName.substring(0, fileName.length - 4);
-          fileName += " ($i)";
-        }
-        i++;
-        filePath = Platform.isAndroid ? "$directory/$fileName$fileExt" : "${directory?.path}\\$fileName$fileExt";
-        file = File(filePath);
-      }
-      
-      await streamedResponse.stream.pipe(file.openWrite());
-      
-      return "$fileName$fileExt saved to $filePath";
-    } else {
-      return "Error. Could not get $fileName";
-    }
-  }
 }

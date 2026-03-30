@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'communications.dart';
+import 'device_connection.dart';
 
 class WifiPage extends StatefulWidget {
   const WifiPage({super.key});

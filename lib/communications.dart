@@ -1,12 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
-// import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'classes.dart';
 import 'downloads.dart';
 
@@ -39,66 +34,6 @@ final settingsUUID = Guid("2e99e907-2587-43f9-8865-5a02f39a322a");
 final downloadsListUUID = Guid("5a3446e2-cab6-4bbe-b4c4-d7be7284a4b5");
 final fileDownloadControlUUID = Guid("b946d82c-2878-472b-ae34-9d47f84e1a58");
 final fileDownloadUUID = Guid("2661cd56-cd1f-47f6-b404-6f5bde95793b");
-
-Future<void> getOptions() async {
-  if (connectedDevice == null || connectedDevice!.isConnected == false) {
-    return;
-  }
-  switch (connectionMode) {
-    case ConnectionMode.wifi:
-      dynamic response;
-      try {
-        response = await http.get(Uri.parse('http://$connectURL/get'));
-
-        if (response.statusCode == 200) {
-          nmeaDevice = nmeaDevice.updateFromJson(jsonDecode(response.body));
-        } else {
-          throw Exception('Failed to get options');
-        }
-
-        final dlList = await http.get(Uri.parse('http://$connectURL/listDir'));
-
-        try {
-          final List<dynamic> jsonList = jsonDecode(dlList.body);
-          downloadList = jsonList.map((e) => {'name': e['name'], 'size': e['size']}).toList();
-        } catch (e) {
-          // fallback: try to parse as old format (list of names)
-          try {
-            final List<String> oldList = List<String>.from(jsonDecode(dlList.body));
-            downloadList = oldList.map((name) => {'name': name, 'size': null}).toList();
-          } catch (_) {
-            // ignore
-          }
-        }
-      } on Exception {
-        //
-      }
-      break;
-    case ConnectionMode.bluetooth:
-      await downloadsListChar!.write(utf8.encode('listDir'), withoutResponse: false);
-      await settingsChar!.write(utf8.encode('fetch'), withoutResponse: false);
-      break;
-  }
-}
-
-Future<void> setOptions(String kvPair) async {
-  switch (connectionMode) {
-    case ConnectionMode.wifi:
-      try {
-        final response = await http.post(Uri.parse('http://$connectURL/set?$kvPair'));
-          if (response.statusCode == 200) {
-            await getOptions();
-          }
-        } on Exception {
-          //
-        }
-      break;
-    case ConnectionMode.bluetooth:
-      await settingsChar!.write(utf8.encode(kvPair), withoutResponse: false);
-      break;
-  }
-  
-}
 
 class BLEServices {
   final Function() onDataStreamStarted;
@@ -175,7 +110,13 @@ class BLEServices {
         }
       }
     }
-    getOptions();
+    // Request settings and file list over BLE now that characteristics are ready
+    if (downloadsListChar != null) {
+      await downloadsListChar!.write(utf8.encode('listDir'), withoutResponse: false);
+    }
+    if (settingsChar != null) {
+      await settingsChar!.write(utf8.encode('fetch'), withoutResponse: false);
+    }
   }
 
   Future<void> scanAndConnect() async {
@@ -273,63 +214,6 @@ class BleFileDownloader {
   }
 }
 
-Future<String> downloadDataBLE(String filename) async {
-  if (connectedDevice == null || connectedDevice!.isConnected == false) {
-    return Future.error('Device not connected');
-  }
-  switch (connectionMode) {
-    case ConnectionMode.wifi:
-      // try {
-      //   final response = await http.get(Uri.parse('http://$connectURL/download/$filename'));
-      //   if (response.statusCode == 200) {
-      //     return File.fromRawPath(response.bodyBytes);
-      //   } else {
-      //     throw Exception('Failed to download file');
-      //   }
-      // } on Exception catch (e) {
-      //   return Future.error(e.toString());
-      // }
-    case ConnectionMode.bluetooth:
-      if (fileDownloadControlChar == null || fileDownloadChar == null) {
-        return Future.error('File download characteristics not available');
-      }
-      // Find file size from downloadList
-      int? expectedSize;
-      final fileEntry = downloadList.firstWhere(
-        (e) => e['name'] == filename,
-        orElse: () => <String, dynamic>{},
-      );
-      if (fileEntry['size'] != null) {
-        expectedSize = int.tryParse(fileEntry['size'].toString());
-      }
-      final downloader = BleFileDownloader(fileDownloadControlChar!, fileDownloadChar!, expectedSize: expectedSize);
-      Uint8List fileData = await downloader.downloadFile(filename, progressNotifier);
-      String fileExt = filename.substring(filename.length - 4);
-      final dynamic directory;
-      if (Platform.isAndroid) {
-        var status = await Permission.storage.status;
-        if (!status.isGranted) {
-          await Permission.storage.request();
-        }
-        directory = "/storage/emulated/0/Download";
-      } else {
-        directory = await getDownloadsDirectory();
-      }
-      String baseName = filename.substring(0, filename.length - 4);
-      String filePath = Platform.isAndroid ? "$directory/$baseName$fileExt" : "${directory?.path}\\$baseName$fileExt";
-      File file = File(filePath);
-      int i = 1;
-      while (file.existsSync()) {
-        String tryName = i == 1 ? "$baseName ($i)" : "$baseName ($i)";
-        filePath = Platform.isAndroid ? "$directory/$tryName$fileExt" : "${directory?.path}\\$tryName$fileExt";
-        file = File(filePath);
-        i++;
-      }
-      await file.writeAsBytes(fileData);
-      return "$baseName$fileExt saved to $filePath";
-  }
-}
-
 class NmeaData {
   dynamic data;
   final Function() onDataUpdated;
@@ -389,4 +273,3 @@ class NmeaData {
     onDataUpdated();
   }
 }
-

@@ -7,8 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:dart_ping/dart_ping.dart';
-import 'package:eventflux/eventflux.dart';
 // import 'package:csv/csv.dart';
 
 import 'classes.dart';
@@ -16,6 +14,7 @@ import 'downloads.dart';
 import 'main.dart';
 import 'wifi.dart';
 import 'communications.dart';
+import 'device_connection.dart';
 
 class LivePage extends StatefulWidget {
   const LivePage({super.key});
@@ -83,58 +82,32 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   }
 
   // Connect to nmea data stream
-  void connectToNmeaDataStream() async {
-    engineData.errors = <String>[]; // Clear any existing errors
-    if (!nmeaDevice.connected) {
-      final validIP = await Ping(connectURL, count: 1).stream.first;
-      if (validIP.summary == null && validIP.error == null) {
-        EventFlux.instance.connect(
-          EventFluxConnectionType.get,
-          'http://$connectURL/NMEATrax',
-          onSuccessCallback: (EventFluxResponse? response) {
-            nmeaDevice.connected = true;
-            setState(() {
-              getOptions();
-              if (Platform.isAndroid) {KeepScreenOn.turnOn();}
-              savePrefs();
-              // if (!reconnecting) {
-              //   startHeartbeat();
-              //   reconnecting = false;
-              // }
-              startHeartbeat();
-            });
-            response?.stream?.listen((event) {
-              // parseData(event.data);
-              NmeaData.parseData(event.data, () => setState(() {}));
-            });
-          },
-          autoReconnect: false,
-          reconnectConfig: ReconnectConfig(
-            mode: ReconnectMode.linear,
-            interval: Duration(seconds: 5),
-            maxAttempts: 5,
-          ),
-          onError: (p0) {
-            setState(() {
-              nmeaDevice.connected = false;
-              engineData.errors = <String>[];
-              engineData.errors!.add("Error connecting to data stream");
-            });
-          },
-        );
-      } else {
+  void connectToNmeaDataStream() {
+    engineData.errors = <String>[];
+    DeviceConnection.create().connect(
+      onDataStreamStarted: () {
         setState(() {
-          nmeaDevice.connected = false;
-          engineData.errors = <String>[];
-          engineData.errors!.add("Bad IP Address");
+          if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+          savePrefs();
+          startHeartbeat();
         });
-      }
-    }
+      },
+      onDataUpdated: () => setState(() {}),
+      onSettingsUpdated: (data) => setState(() {
+        nmeaDevice = nmeaDevice.updateFromJson(data);
+      }),
+      onDownloadsListUpdated: (_) {},
+      onError: (msg) => setState(() {
+        nmeaDevice.connected = false;
+        engineData.errors = <String>[];
+        engineData.errors!.add(msg);
+      }),
+    );
   }
 
   // Disconnect from nmea data stream
   void disconnectFromNmeaDataStream() {
-    EventFlux.instance.disconnect();
+    DeviceConnection.create().disconnect();
     setState(() {
       if (Platform.isAndroid) {KeepScreenOn.turnOff();}
       connectionTimeoutTimer?.cancel();
@@ -881,71 +854,57 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () async {
-              switch (connectionMode) {
-                case ConnectionMode.wifi:
-                  if (nmeaDevice.connected) {
-                    disconnectFromNmeaDataStream();
-                    nmeaDevice.connected = false;
-                  } else {
-                    showConnectDialog(context, "IP Address");
-                  }
-                  break;
-                case ConnectionMode.bluetooth:
-                  if (connectedDevice?.isConnected ?? false) {
-                    connectedDevice!.disconnect();
-                    connectedDevice!.clearGattCache();
-                    nmeaDevice.connected = false;
-                    Future.delayed(const Duration(seconds: 1), () {
-                      setState(() {
-                        clearData();
-                      });
-                    });
-                    } else {
-                    // Show connecting dialog
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (context) {
-                        return AlertDialog(
-                          backgroundColor: Theme.of(context).colorScheme.surface,
-                          content: Row(
-                            children: [
-                              const CircularProgressIndicator(),
-                              const SizedBox(width: 20),
-                              Text(
+              final connection = DeviceConnection.create();
+              if (connection.isConnected) {
+                disconnectFromNmeaDataStream();
+              } else {
+                if (connectionMode == ConnectionMode.wifi) {
+                  showConnectDialog(context, "IP Address");
+                } else {
+                  // Show connecting dialog for BLE
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) {
+                      return AlertDialog(
+                        backgroundColor: Theme.of(context).colorScheme.surface,
+                        content: Row(
+                          children: [
+                            const CircularProgressIndicator(),
+                            const SizedBox(width: 20),
+                            Text(
                               "Connecting...",
                               style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                    BLEServices.scanAndConnect(
-                      () {
-                        setState(() {
-                          if (Platform.isAndroid) {
-                            KeepScreenOn.turnOn();
-                          }
-                          nmeaDevice.connected = true;
-                        });
-                        Navigator.of(context, rootNavigator: true).pop(); // Close dialog
-                      },
-                      () => setState(() {}),
-                      (p0) => nmeaDevice = nmeaDevice.updateFromJson(p0),
-                      (data) {
-                      // print("Received download data: $data");
-                      // List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(data);
-                      // if (converted.isEmpty) {return;}
-                      // downloadList = converted.elementAt(0);
-                      // downloadList.removeAt(downloadList.length - 1);
-                      },
-                    );
-                  }
-                  break;
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                  connection.connect(
+                    onDataStreamStarted: () {
+                      setState(() {
+                        if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+                        nmeaDevice.connected = true;
+                        startHeartbeat();
+                      });
+                      Navigator.of(context, rootNavigator: true).pop();
+                    },
+                    onDataUpdated: () => setState(() {}),
+                    onSettingsUpdated: (p0) => setState(() {
+                      nmeaDevice = nmeaDevice.updateFromJson(p0);
+                    }),
+                    onDownloadsListUpdated: (_) {},
+                    onError: (msg) => setState(() {
+                      nmeaDevice.connected = false;
+                      engineData.errors = <String>[];
+                      engineData.errors!.add(msg);
+                    }),
+                  );
+                }
               }
             },
-            label: nmeaDevice.connected ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
+            label: DeviceConnection.create().isConnected ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         ),

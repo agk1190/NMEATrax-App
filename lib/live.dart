@@ -31,6 +31,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   final List<String> wifiModeOptions = <String>['Client', 'Host'];
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   bool moreSettingsVisible = false;
+  bool isDisconnecting = false;
   Timer? connectionTimeoutTimer;
   Timer? reconnectTimer;
   // bool reconnecting = false;
@@ -115,6 +116,16 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       reconnectTimer?.cancel();
       clearData();
       nmeaDevice = NmeaDevice();
+    });
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 1));
+      if (isDeviceConnected) {
+        return true; // Continue the loop
+      }
+      setState(() {
+        isDisconnecting = false;
+      });
+      return false; // Stop the loop
     });
   }
 
@@ -323,7 +334,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                   ),
                 ),
                 const Spacer(),
-                Icon(connectedDevice?.isConnected ?? false ? Icons.bluetooth_connected : Icons.bluetooth),
+                Icon(connectedDevice?.isConnected ?? false ? Icons.bluetooth_connected : Icons.bluetooth, color: connectedDevice?.isConnected ?? false ? Theme.of(context).colorScheme.onPrimary : Colors.grey,),
                 Tooltip(
                   message: recModeEnum[nmeaDevice.recMode] ?? 'Recording Mode',
                   child: Icon(
@@ -854,9 +865,10 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
             ]
           ),
           floatingActionButton: FloatingActionButton.extended(
-            onPressed: () async {
+            onPressed: isDisconnecting ? null : () async {
               final connection = DeviceConnection.create();
               if (connection.isConnected) {
+                isDisconnecting = true;
                 disconnectFromNmeaDataStream();
               } else {
                 if (connectionMode == ConnectionMode.wifi) {

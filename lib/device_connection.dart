@@ -71,6 +71,51 @@ Future<void> getOptions() => DeviceConnection.create().getOptions();
 Future<void> setOptions(String kvPair) =>
     DeviceConnection.create().setOptions(kvPair);
 
+/// Whether the device is currently connected (works for both BLE and WiFi).
+bool get isDeviceConnected => DeviceConnection.create().isConnected;
+
+// ─── Shared file-save helper ──────────────────────────────────────────────────
+
+/// Saves [data] to the local Downloads folder under [filename].
+///
+/// Resolves filename conflicts by appending " (1)", " (2)", etc. Returns
+/// a human-readable result message. [progressNotifier] is set to 1.0 on success.
+Future<String> _saveToDownloads(
+    Uint8List data, String filename, ValueNotifier<double> progressNotifier) async {
+  final String fileExt = filename.substring(filename.length - 4);
+  final String baseName = filename.substring(0, filename.length - 4);
+  final dynamic directory;
+
+  if (Platform.isAndroid) {
+    var status = await Permission.storage.status;
+    if (!status.isGranted) {
+      await Permission.storage.request();
+    }
+    directory = "/storage/emulated/0/Download";
+  } else {
+    directory = await getDownloadsDirectory();
+  }
+
+  String filePath = Platform.isAndroid
+      ? "$directory/$baseName$fileExt"
+      : "${directory?.path}\\$baseName$fileExt";
+  File file = File(filePath);
+
+  int i = 1;
+  while (file.existsSync()) {
+    String tryName = "$baseName ($i)";
+    filePath = Platform.isAndroid
+        ? "$directory/$tryName$fileExt"
+        : "${directory?.path}\\$tryName$fileExt";
+    file = File(filePath);
+    i++;
+  }
+
+  await file.writeAsBytes(data);
+  progressNotifier.value = 1.0;
+  return "$baseName$fileExt saved to $filePath";
+}
+
 // ─── WiFi implementation ─────────────────────────────────────────────────────
 
 /// Communicates with the NMEATrax device over WiFi using HTTP and SSE.
@@ -170,9 +215,7 @@ class WifiDeviceConnection implements DeviceConnection {
   @override
   Future<String> downloadFile(
       String filename, ValueNotifier<double> progressNotifier) async {
-    final String fileExt = filename.substring(filename.length - 4);
     final http.StreamedResponse streamedResponse;
-    final dynamic directory;
 
     if (Platform.isAndroid) {
       var status = await Permission.storage.status;
@@ -190,31 +233,9 @@ class WifiDeviceConnection implements DeviceConnection {
     }
 
     if (streamedResponse.statusCode == 200) {
-      if (Platform.isAndroid) {
-        directory = "/storage/emulated/0/Download";
-      } else {
-        directory = await getDownloadsDirectory();
-      }
-
-      String baseName = filename.substring(0, filename.length - 4);
-      String filePath = Platform.isAndroid
-          ? "$directory/$baseName$fileExt"
-          : "${directory?.path}\\$baseName$fileExt";
-      File file = File(filePath);
-
-      int i = 1;
-      while (file.existsSync()) {
-        String tryName = "$baseName ($i)";
-        filePath = Platform.isAndroid
-            ? "$directory/$tryName$fileExt"
-            : "${directory?.path}\\$tryName$fileExt";
-        file = File(filePath);
-        i++;
-      }
-
-      await streamedResponse.stream.pipe(file.openWrite());
-      progressNotifier.value = 1.0;
-      return "$baseName$fileExt saved to $filePath";
+      final Uint8List data =
+          await streamedResponse.stream.toBytes();
+      return _saveToDownloads(data, filename, progressNotifier);
     } else {
       return "Error. Could not get $filename";
     }
@@ -291,36 +312,6 @@ class BleDeviceConnection implements DeviceConnection {
     final Uint8List fileData =
         await downloader.downloadFile(filename, progressNotifier);
 
-    final String fileExt = filename.substring(filename.length - 4);
-    final String baseName = filename.substring(0, filename.length - 4);
-    final dynamic directory;
-
-    if (Platform.isAndroid) {
-      var status = await Permission.storage.status;
-      if (!status.isGranted) {
-        await Permission.storage.request();
-      }
-      directory = "/storage/emulated/0/Download";
-    } else {
-      directory = await getDownloadsDirectory();
-    }
-
-    String filePath = Platform.isAndroid
-        ? "$directory/$baseName$fileExt"
-        : "${directory?.path}\\$baseName$fileExt";
-    File file = File(filePath);
-
-    int i = 1;
-    while (file.existsSync()) {
-      String tryName = "$baseName ($i)";
-      filePath = Platform.isAndroid
-          ? "$directory/$tryName$fileExt"
-          : "${directory?.path}\\$tryName$fileExt";
-      file = File(filePath);
-      i++;
-    }
-
-    await file.writeAsBytes(fileData);
-    return "$baseName$fileExt saved to $filePath";
+    return _saveToDownloads(fileData, filename, progressNotifier);
   }
 }

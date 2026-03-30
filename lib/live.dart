@@ -904,7 +904,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                 }
               }
             },
-            label: DeviceConnection.create().isConnected ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
+            label: isDeviceConnected ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         ),

@@ -110,7 +110,10 @@ class BLEServices {
         }
       }
     }
-    // Request settings and file list over BLE now that characteristics are ready
+    // Request settings and file list over BLE now that characteristics are ready.
+    // Note: this mirrors BleDeviceConnection.getOptions(). A direct call is not
+    // possible here because device_connection.dart imports communications.dart,
+    // which would create a circular import.
     if (downloadsListChar != null) {
       await downloadsListChar!.write(utf8.encode('listDir'), withoutResponse: false);
     }

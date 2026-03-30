@@ -48,8 +48,7 @@ abstract class DeviceConnection {
   ///
   /// Returns a human-readable status/result message.
   /// [progressNotifier] is updated from 0.0 to 1.0 as the download proceeds.
-  Future<String> downloadFile(
-      String filename, ValueNotifier<double> progressNotifier);
+  Future<String> downloadFile(String filename, ValueNotifier<double> progressNotifier);
 
   /// Returns the [DeviceConnection] implementation for the current [connectionMode].
   factory DeviceConnection.create() {
@@ -68,8 +67,7 @@ abstract class DeviceConnection {
 Future<void> getOptions() => DeviceConnection.create().getOptions();
 
 /// Sends a key=value setting to the device using the active connection type.
-Future<void> setOptions(String kvPair) =>
-    DeviceConnection.create().setOptions(kvPair);
+Future<void> setOptions(String kvPair) => DeviceConnection.create().setOptions(kvPair);
 
 /// Whether the device is currently connected (works for both BLE and WiFi).
 bool get isDeviceConnected => DeviceConnection.create().isConnected;
@@ -80,14 +78,13 @@ bool get isDeviceConnected => DeviceConnection.create().isConnected;
 ///
 /// Resolves filename conflicts by appending " (1)", " (2)", etc. Returns
 /// a human-readable result message. [progressNotifier] is set to 1.0 on success.
-Future<String> _saveToDownloads(
-    Uint8List data, String filename, ValueNotifier<double> progressNotifier) async {
+Future<String> _saveToDownloads(Uint8List data, String filename, ValueNotifier<double> progressNotifier) async {
   final String fileExt = filename.substring(filename.length - 4);
   final String baseName = filename.substring(0, filename.length - 4);
   final dynamic directory;
 
   if (Platform.isAndroid) {
-    var status = await Permission.storage.status;
+    PermissionStatus status = await Permission.storage.status;
     if (!status.isGranted) {
       await Permission.storage.request();
     }
@@ -135,7 +132,7 @@ class WifiDeviceConnection implements DeviceConnection {
 
     final pingResult = await Ping(connectURL, count: 1).stream.first;
     if (pingResult.summary != null || pingResult.error != null) {
-      onError("Bad IP Address");
+      onError("Could not reach NMEATrax at $connectURL. Please check your connection.");
       return;
     }
 
@@ -188,10 +185,8 @@ class WifiDeviceConnection implements DeviceConnection {
             .toList();
       } catch (e) {
         try {
-          final List<String> oldList =
-              List<String>.from(jsonDecode(dlList.body));
-          downloadList =
-              oldList.map((name) => {'name': name, 'size': null}).toList();
+          final List<String> oldList = List<String>.from(jsonDecode(dlList.body));
+          downloadList = oldList.map((name) => {'name': name, 'size': null}).toList();
         } catch (_) {}
       }
     } on Exception {
@@ -202,8 +197,7 @@ class WifiDeviceConnection implements DeviceConnection {
   @override
   Future<void> setOptions(String kvPair) async {
     try {
-      final response =
-          await http.post(Uri.parse('http://$connectURL/set?$kvPair'));
+      final response = await http.post(Uri.parse('http://$connectURL/set?$kvPair'));
       if (response.statusCode == 200) {
         await getOptions();
       }
@@ -213,28 +207,25 @@ class WifiDeviceConnection implements DeviceConnection {
   }
 
   @override
-  Future<String> downloadFile(
-      String filename, ValueNotifier<double> progressNotifier) async {
+  Future<String> downloadFile(String filename, ValueNotifier<double> progressNotifier) async {
     final http.StreamedResponse streamedResponse;
 
     if (Platform.isAndroid) {
-      var status = await Permission.storage.status;
+      PermissionStatus status = await Permission.storage.status;
       if (!status.isGranted) {
         await Permission.storage.request();
       }
     }
 
     try {
-      final request = http.Request(
-          'GET', Uri.parse('http://$connectURL/sdCard/$filename'));
+      final request = http.Request('GET', Uri.parse('http://$connectURL/sdCard/$filename'));
       streamedResponse = await request.send();
     } catch (e) {
-      return "Error. Could not connect to NMEATrax.";
+      return "Failed to connect while retrieving file.";
     }
 
     if (streamedResponse.statusCode == 200) {
-      final Uint8List data =
-          await streamedResponse.stream.toBytes();
+      final Uint8List data = await streamedResponse.stream.toBytes();
       return _saveToDownloads(data, filename, progressNotifier);
     } else {
       return "Error. Could not get $filename";
@@ -269,7 +260,7 @@ class BleDeviceConnection implements DeviceConnection {
   Future<void> disconnect() async {
     if (connectedDevice?.isConnected ?? false) {
       await connectedDevice!.disconnect();
-      connectedDevice!.clearGattCache();
+      // connectedDevice!.clearGattCache();
     }
     nmeaDevice.connected = false;
   }
@@ -277,8 +268,7 @@ class BleDeviceConnection implements DeviceConnection {
   @override
   Future<void> getOptions() async {
     if (downloadsListChar == null || settingsChar == null) return;
-    await downloadsListChar!.write(utf8.encode('listDir'),
-        withoutResponse: false);
+    await downloadsListChar!.write(utf8.encode('listDir'), withoutResponse: false);
     await settingsChar!.write(utf8.encode('fetch'), withoutResponse: false);
   }
 
@@ -289,8 +279,7 @@ class BleDeviceConnection implements DeviceConnection {
   }
 
   @override
-  Future<String> downloadFile(
-      String filename, ValueNotifier<double> progressNotifier) async {
+  Future<String> downloadFile(String filename, ValueNotifier<double> progressNotifier) async {
     if (fileDownloadControlChar == null || fileDownloadChar == null) {
       return Future.error('File download characteristics not available');
     }
@@ -309,8 +298,7 @@ class BleDeviceConnection implements DeviceConnection {
       fileDownloadChar!,
       expectedSize: expectedSize,
     );
-    final Uint8List fileData =
-        await downloader.downloadFile(filename, progressNotifier);
+    final Uint8List fileData = await downloader.downloadFile(filename, progressNotifier);
 
     return _saveToDownloads(fileData, filename, progressNotifier);
   }

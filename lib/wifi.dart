@@ -42,9 +42,11 @@ class _WifiPageState extends State<WifiPage> {
     await setOptions('clrWifiCred');
     for (Map<String, String> wifiPair in wifiList) {
       Map<String, String> wifiCredPair = {};
-      wifiCredPair['ssid'] = '"${wifiPair['ssid']}"';
-      wifiCredPair['password'] = '"${wifiPair['password']}"';
-      await setOptions('setWifiCred=$wifiCredPair');
+      wifiCredPair['ssid'] = '${wifiPair['ssid']}';
+      wifiCredPair['password'] = '${wifiPair['password']}';
+      // JsonCodec wifiCredPair2 = JsonCodec();
+      // wifiCredPair2 = jsonEncode(wifiCredPair);
+      await setOptions('setWifiCred=${jsonEncode(wifiCredPair)}');
     }
   }
 

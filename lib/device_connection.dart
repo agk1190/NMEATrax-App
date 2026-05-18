@@ -69,6 +69,35 @@ Future<void> getOptions() => DeviceConnection.create().getOptions();
 /// Sends a key=value setting to the device using the active connection type.
 Future<void> setOptions(String kvPair) => DeviceConnection.create().setOptions(kvPair);
 
+MapEntry<String, String>? _parseKvPair(String kvPair) {
+  final int separator = kvPair.indexOf('=');
+  if (separator <= 0) return null;
+  return MapEntry(
+    kvPair.substring(0, separator),
+    kvPair.substring(separator + 1),
+  );
+}
+
+const Set<String> _jsonValueKeys = <String>{'setWifiCred'};
+
+String _jsonNormalizeOptionValue(String rawValue) {
+  final String trimmed = rawValue.trim();
+  if (trimmed.isEmpty) return jsonEncode(rawValue);
+  try {
+    jsonDecode(trimmed);
+    return trimmed;
+  } catch (_) {
+    return jsonEncode(rawValue);
+  }
+}
+
+String _normalizeJsonOptionKvPair(String kvPair) {
+  final pair = _parseKvPair(kvPair);
+  if (pair == null) return kvPair;
+  if (!_jsonValueKeys.contains(pair.key)) return kvPair;
+  return '${pair.key}=${_jsonNormalizeOptionValue(pair.value)}';
+}
+
 /// Whether the device is currently connected (works for both BLE and WiFi).
 bool get isDeviceConnected => DeviceConnection.create().isConnected;
 
@@ -200,7 +229,13 @@ class WifiDeviceConnection implements DeviceConnection {
   @override
   Future<void> setOptions(String kvPair) async {
     try {
-      final response = await http.post(Uri.parse('http://$connectURL/set?$kvPair'));
+      final String normalizedKvPair = _normalizeJsonOptionKvPair(kvPair);
+      final MapEntry<String, String>? pair = _parseKvPair(normalizedKvPair);
+      final response = await http.post(
+        pair == null
+            ? Uri.parse('http://$connectURL/set?$normalizedKvPair')
+            : Uri.http(connectURL, '/set', {pair.key: pair.value}),
+      );
       if (response.statusCode == 200) {
         await getOptions();
       }
@@ -278,7 +313,8 @@ class BleDeviceConnection implements DeviceConnection {
   @override
   Future<void> setOptions(String kvPair) async {
     if (settingsChar == null) return;
-    await settingsChar!.write(utf8.encode(kvPair), withoutResponse: false);
+    final String normalizedKvPair = _normalizeJsonOptionKvPair(kvPair);
+    await settingsChar!.write(utf8.encode(normalizedKvPair), withoutResponse: false);
   }
 
   @override

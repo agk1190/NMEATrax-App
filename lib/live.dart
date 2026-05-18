@@ -3,12 +3,11 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:dart_ping/dart_ping.dart';
-import 'package:eventflux/eventflux.dart';
 // import 'package:csv/csv.dart';
 
 import 'classes.dart';
@@ -16,6 +15,7 @@ import 'downloads.dart';
 import 'main.dart';
 import 'wifi.dart';
 import 'communications.dart';
+import 'device_connection.dart';
 
 class LivePage extends StatefulWidget {
   const LivePage({super.key});
@@ -31,6 +31,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   final List<String> wifiModeOptions = <String>['Client', 'Host'];
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   bool moreSettingsVisible = false;
+  bool isDisconnecting = false;
   Timer? connectionTimeoutTimer;
   Timer? reconnectTimer;
   // bool reconnecting = false;
@@ -83,64 +84,48 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   }
 
   // Connect to nmea data stream
-  void connectToNmeaDataStream() async {
-    engineData.errors = <String>[]; // Clear any existing errors
-    if (!nmeaDevice.connected) {
-      final validIP = await Ping(connectURL, count: 1).stream.first;
-      if (validIP.summary == null && validIP.error == null) {
-        EventFlux.instance.connect(
-          EventFluxConnectionType.get,
-          'http://$connectURL/NMEATrax',
-          onSuccessCallback: (EventFluxResponse? response) {
-            nmeaDevice.connected = true;
-            setState(() {
-              getOptions();
-              if (Platform.isAndroid) {KeepScreenOn.turnOn();}
-              savePrefs();
-              // if (!reconnecting) {
-              //   startHeartbeat();
-              //   reconnecting = false;
-              // }
-              startHeartbeat();
-            });
-            response?.stream?.listen((event) {
-              // parseData(event.data);
-              NmeaData.parseData(event.data, () => setState(() {}));
-            });
-          },
-          autoReconnect: false,
-          reconnectConfig: ReconnectConfig(
-            mode: ReconnectMode.linear,
-            interval: Duration(seconds: 5),
-            maxAttempts: 5,
-          ),
-          onError: (p0) {
-            setState(() {
-              nmeaDevice.connected = false;
-              engineData.errors = <String>[];
-              engineData.errors!.add("Error connecting to data stream");
-            });
-          },
-        );
-      } else {
+  void connectToNmeaDataStream() {
+    engineData.errors = <String>[];
+    DeviceConnection.create().connect(
+      onDataStreamStarted: () {
         setState(() {
-          nmeaDevice.connected = false;
-          engineData.errors = <String>[];
-          engineData.errors!.add("Bad IP Address");
+          if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+          savePrefs();
+          startHeartbeat();
         });
-      }
-    }
+      },
+      onDataUpdated: () => setState(() {}),
+      onSettingsUpdated: (data) => setState(() {
+        nmeaDevice = nmeaDevice.updateFromJson(data);
+      }),
+      onDownloadsListUpdated: (_) {},
+      onError: (msg) => setState(() {
+        nmeaDevice.connected = false;
+        engineData.errors = <String>[];
+        engineData.errors!.add(msg);
+      }),
+    );
   }
 
   // Disconnect from nmea data stream
   void disconnectFromNmeaDataStream() {
-    EventFlux.instance.disconnect();
+    DeviceConnection.create().disconnect();
     setState(() {
       if (Platform.isAndroid) {KeepScreenOn.turnOff();}
       connectionTimeoutTimer?.cancel();
       reconnectTimer?.cancel();
       clearData();
       nmeaDevice = NmeaDevice();
+    });
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 1));
+      if (isDeviceConnected) {
+        return true; // Continue the loop
+      }
+      setState(() {
+        isDisconnecting = false;
+      });
+      return false; // Stop the loop
     });
   }
 
@@ -349,7 +334,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                   ),
                 ),
                 const Spacer(),
-                Icon(connectedDevice?.isConnected ?? false ? Icons.bluetooth_connected : Icons.bluetooth),
+                Icon(connectedDevice?.isConnected ?? false ? Icons.bluetooth_connected : Icons.bluetooth, color: connectedDevice?.isConnected ?? false ? Theme.of(context).colorScheme.onPrimary : Colors.grey,),
                 Tooltip(
                   message: recModeEnum[nmeaDevice.recMode] ?? 'Recording Mode',
                   child: Icon(
@@ -880,72 +865,38 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
             ]
           ),
           floatingActionButton: FloatingActionButton.extended(
-            onPressed: () async {
-              switch (connectionMode) {
-                case ConnectionMode.wifi:
-                  if (nmeaDevice.connected) {
-                    disconnectFromNmeaDataStream();
-                    nmeaDevice.connected = false;
-                  } else {
-                    showConnectDialog(context, "IP Address");
-                  }
-                  break;
-                case ConnectionMode.bluetooth:
-                  if (connectedDevice?.isConnected ?? false) {
-                    connectedDevice!.disconnect();
-                    connectedDevice!.clearGattCache();
-                    nmeaDevice.connected = false;
-                    Future.delayed(const Duration(seconds: 1), () {
-                      setState(() {
-                        clearData();
-                      });
-                    });
-                    } else {
-                    // Show connecting dialog
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (context) {
-                        return AlertDialog(
-                          backgroundColor: Theme.of(context).colorScheme.surface,
-                          content: Row(
-                            children: [
-                              const CircularProgressIndicator(),
-                              const SizedBox(width: 20),
-                              Text(
-                              "Connecting...",
-                              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                    BLEServices.scanAndConnect(
-                      () {
+            onPressed: isDisconnecting ? null : () async {
+              final connection = DeviceConnection.create();
+              if (connection.isConnected) {
+                isDisconnecting = true;
+                disconnectFromNmeaDataStream();
+              } else {
+                if (connectionMode == ConnectionMode.wifi) {
+                  showConnectDialog(context, "IP Address");
+                } else {
+                  // BLE: show device scan + picker dialog
+                  showDialog(
+                    context: context,
+                    barrierDismissible: true,
+                    builder: (_) => _BleScanDialog(
+                      onDataStreamStarted: () {
                         setState(() {
-                          if (Platform.isAndroid) {
-                            KeepScreenOn.turnOn();
-                          }
+                          if (Platform.isAndroid) {KeepScreenOn.turnOn();}
                           nmeaDevice.connected = true;
+                          startHeartbeat();
                         });
-                        Navigator.of(context, rootNavigator: true).pop(); // Close dialog
                       },
-                      () => setState(() {}),
-                      (p0) => nmeaDevice = nmeaDevice.updateFromJson(p0),
-                      (data) {
-                      // print("Received download data: $data");
-                      // List<List<String>> converted = const CsvToListConverter(shouldParseNumbers: false).convert(data);
-                      // if (converted.isEmpty) {return;}
-                      // downloadList = converted.elementAt(0);
-                      // downloadList.removeAt(downloadList.length - 1);
-                      },
-                    );
-                  }
-                  break;
+                      onDataUpdated: () => setState(() {}),
+                      onSettingsUpdated: (p0) => setState(() {
+                        nmeaDevice = nmeaDevice.updateFromJson(p0);
+                      }),
+                      onDownloadsListUpdated: (_) {},
+                    ),
+                  );
+                }
               }
             },
-            label: nmeaDevice.connected ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
+            label: isDeviceConnected ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         ),
@@ -1394,6 +1345,200 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       builder: (BuildContext context) {
         return alert;
       },
+    );
+  }
+}
+
+// ─── BLE device scan + picker dialog ─────────────────────────────────────────
+
+/// Scans for nearby NMEATrax BLE devices and lets the user select which one
+/// to connect to. Shows all found devices with their name, ID, and signal
+/// strength. Handles zero, one, or multiple devices gracefully.
+class _BleScanDialog extends StatefulWidget {
+  final Function() onDataStreamStarted;
+  final Function() onDataUpdated;
+  final Function(Map<String, dynamic>) onSettingsUpdated;
+  final Function(List<Map<String, dynamic>>) onDownloadsListUpdated;
+
+  const _BleScanDialog({
+    required this.onDataStreamStarted,
+    required this.onDataUpdated,
+    required this.onSettingsUpdated,
+    required this.onDownloadsListUpdated,
+  });
+
+  @override
+  State<_BleScanDialog> createState() => _BleScanDialogState();
+}
+
+class _BleScanDialogState extends State<_BleScanDialog> {
+  final List<ScanResult> _foundDevices = [];
+  bool _isScanning = true;
+  bool _isConnecting = false;
+  String _connectingToName = '';
+  StreamSubscription<List<ScanResult>>? _scanResultsSub;
+  StreamSubscription<bool>? _isScanSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _startScan();
+  }
+
+  @override
+  void dispose() {
+    _scanResultsSub?.cancel();
+    _isScanSub?.cancel();
+    FlutterBluePlus.stopScan();
+    super.dispose();
+  }
+
+  void _startScan() {
+    _scanResultsSub?.cancel();
+    _isScanSub?.cancel();
+    setState(() {
+      _foundDevices.clear();
+      _isScanning = true;
+    });
+
+    FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
+
+    _scanResultsSub = FlutterBluePlus.scanResults.listen((results) {
+      for (final r in results) {
+        if (r.advertisementData.serviceUuids.contains(serviceUuid)) {
+          final alreadyFound = _foundDevices.any(
+            (e) => e.device.remoteId == r.device.remoteId,
+          );
+          if (!alreadyFound && mounted) {
+            setState(() => _foundDevices.add(r));
+          }
+        }
+      }
+    });
+
+    _isScanSub = FlutterBluePlus.isScanning.listen((scanning) {
+      if (mounted) setState(() => _isScanning = scanning);
+    });
+  }
+
+  void _connectTo(ScanResult result) {
+    FlutterBluePlus.stopScan();
+    final name = result.device.platformName.isNotEmpty
+        ? result.device.platformName
+        : 'NMEATrax';
+    setState(() {
+      _isConnecting = true;
+      _connectingToName = name;
+    });
+
+    BLEServices.connectToDevice(
+      result.device,
+      () {
+        widget.onDataStreamStarted();
+        if (mounted) Navigator.of(context, rootNavigator: true).pop();
+      },
+      widget.onDataUpdated,
+      widget.onSettingsUpdated,
+      widget.onDownloadsListUpdated,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Sort strongest signal first so the closest device appears at the top.
+    final sorted = List<ScanResult>.from(_foundDevices)
+      ..sort((a, b) => b.rssi.compareTo(a.rssi));
+
+    // While connecting, show a non-dismissable spinner.
+    if (_isConnecting) {
+      return PopScope(
+        canPop: false,
+        child: AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Text(
+                  'Connecting to $_connectingToName…',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      title: Row(
+        children: [
+          Text(
+            'Select Device',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          ),
+          const Spacer(),
+          if (_isScanning)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+        ],
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: sorted.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  _isScanning ? 'Scanning for NMEATrax devices…' : 'No devices found.',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                ),
+              )
+            : ListView.builder(
+                shrinkWrap: true,
+                itemCount: sorted.length,
+                itemBuilder: (context, index) {
+                  final r = sorted[index];
+                  final name = r.device.platformName.isNotEmpty
+                      ? r.device.platformName
+                      : 'NMEATrax';
+                  return ListTile(
+                    leading: Icon(Icons.bluetooth, color: Theme.of(context).colorScheme.primary),
+                    title: Text(name, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+                    subtitle: Text(
+                      r.device.remoteId.str,
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
+                    trailing: Text(
+                      '${r.rssi} dBm',
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
+                    onTap: () => _connectTo(r),
+                  );
+                },
+              ),
+      ),
+      actions: [
+        if (!_isScanning)
+          TextButton(
+            onPressed: _startScan,
+            child: Text(
+              'Scan Again',
+              style: TextStyle(color: Theme.of(context).colorScheme.primary),
+            ),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          ),
+        ),
+      ],
     );
   }
 }

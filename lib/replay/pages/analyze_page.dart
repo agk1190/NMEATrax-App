@@ -142,7 +142,7 @@ class AnalyzeDataAppBar extends StatelessWidget {
             child: ValueListenableBuilder<List<NmeaViolation>>(
               valueListenable: analyzedDataNotifier,
               builder: (context, analyzedData, __) => Text(
-                '${analyzedData.length} Violation${analyzedData.length == 1 ? '.' : 's.'}',
+                '${analyzedData.length} Violation${analyzedData.length == 1 ? '' : 's'}',
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               ),
             ),

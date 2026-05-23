@@ -159,6 +159,8 @@ void analyzeData() {
   analyzedDataNotifier.value = result;
 }
 
+final ValueNotifier<List<int>> selectedGraphColumnsNotifier = ValueNotifier<List<int>>(<int>[]);
+
 final ValueNotifier<int> selectedLimitNotifier = ValueNotifier<int>(0);
 
 void setSelectedLimit(int index) {

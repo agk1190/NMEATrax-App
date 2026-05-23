@@ -6,6 +6,7 @@ import '../main.dart';
 
 import 'pages/data_page.dart';
 import 'pages/analyze_page.dart';
+import 'pages/graph_page.dart';
 import 'pages/map_page.dart';
 import 'pages/limits_page.dart';
 import 'pages/replay_shared_state.dart';
@@ -23,7 +24,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this, animationDuration: Durations.short4);
+    _tabController = TabController(length: 5, vsync: this, animationDuration: Durations.short4);
     loadPrefs();
   }
 
@@ -59,7 +60,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
       ),
       title: 'NMEATrax Replay',
       home: DefaultTabController(
-        length: 4,
+        length: 5,
         child: Scaffold(
           drawer: NmeaDrawer(
             option1Action: () {
@@ -139,6 +140,7 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
               tabs: const [
                 Tab(icon: Icon(Icons.directions_boat_sharp, color: Colors.white)),
                 Tab(icon: Icon(Icons.analytics, color: Colors.white)),
+                Tab(icon: Icon(Icons.show_chart, color: Colors.white)),
                 Tab(icon: Icon(Icons.map, color: Colors.white)),
                 Tab(icon: Icon(Icons.settings, color: Colors.white)),
               ],
@@ -152,8 +154,9 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
                 child: switch (_tabController.index) {
                   0 => const DataAppBar(),
                   1 => const AnalyzeDataAppBar(),
-                  2 => const MapAppBar(),
-                  3 => const LimitsAppBar(),
+                  2 => const GraphAppBar(),
+                  3 => const MapAppBar(),
+                  4 => const LimitsAppBar(),
                   int() => const Row(),
                 }
               );
@@ -164,9 +167,8 @@ class _ReplayPageState extends State<ReplayPage> with SingleTickerProviderStateM
             physics: const NeverScrollableScrollPhysics(),
             children: [
               const DataPage(),
-              AnalyzePage(onOpenDataTab: () {
-                _tabController.animateTo(0);
-              }),
+              AnalyzePage(onOpenDataTab: () => _tabController.animateTo(0)),
+              const GraphPage(),
               const MapPage(),
               const LimitsPage(),
             ]

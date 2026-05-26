@@ -9,6 +9,22 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ### To-Do
 
 
+## [6.5.0] - 2026-05-23
+
+### Added
+- Graphing added page to Replay
+
+### Changed
+- Split replay parts into multiples files
+- Removed standalone global variable -> Classes with ValueNotifier
+
+
+## [6.4.0] - 2026-04-20
+
+### Added
+- BLE Support
+
+
 ## [6.3.0] - 2025-07-19
 
 ### Changed

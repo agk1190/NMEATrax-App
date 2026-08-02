@@ -745,7 +745,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                             children: [
                               Flexible(
                                 child: Text(
-                                  "WiFi Mode: ",
+                                  "Host WiFi Mode: ",
                                   style: TextStyle(
                                     color: Theme.of(context).colorScheme.onSurface,
                                     fontSize: 18,
@@ -768,6 +768,45 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                         ),
                       ),
                     ),
+                    Padding(    // WiFi Mode
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceContainerLow),
+                        ),
+                        onPressed: () {
+                          communicationsMode(lcontext);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  "Communication Mode: ",
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                              Flexible(
+                                child: Text(nmeaDevice.commMode != null ?
+                                  nmeaDevice.commMode == ConnectionMode.wifi ? "WiFi" : "Bluetooth" : '-',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                     Visibility(   // More Settings
                       visible: moreSettingsVisible,
                       child: Padding(
@@ -776,7 +815,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                           children: [
                             ListTile(
                               trailing: Icon(Icons.arrow_forward_ios, color: Theme.of(context).colorScheme.onSurface,),
-                              title: Text("WiFi Settings", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              title: Text("Access Point Credentials", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
                               onTap: () {
                                 Navigator.push(context, MaterialPageRoute(builder: (context) => const WifiPage()));
                               },
@@ -871,29 +910,32 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                 isDisconnecting = true;
                 disconnectFromNmeaDataStream();
               } else {
-                if (connectionMode == ConnectionMode.wifi) {
-                  showConnectDialog(context, "IP Address");
-                } else {
-                  // BLE: show device scan + picker dialog
-                  showDialog(
-                    context: context,
-                    barrierDismissible: true,
-                    builder: (_) => _BleScanDialog(
-                      onDataStreamStarted: () {
-                        setState(() {
-                          if (Platform.isAndroid) {KeepScreenOn.turnOn();}
-                          nmeaDevice.connected = true;
-                          startHeartbeat();
-                        });
-                      },
-                      onDataUpdated: () => setState(() {}),
-                      onSettingsUpdated: (p0) => setState(() {
-                        nmeaDevice = nmeaDevice.updateFromJson(p0);
-                      }),
-                      onDownloadsListUpdated: (_) {},
-                    ),
-                  );
-                }
+                showDialog(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (_) => _ConnectionTabDialog(
+                    initialIpAddress: connectURL,
+                    onWifiConnect: (ipAddress) {
+                      setState(() {
+                        connectionMode = ConnectionMode.wifi;
+                        connectURL = ipAddress;
+                        connectToNmeaDataStream();
+                      });
+                    },
+                    onDataStreamStarted: () {
+                      setState(() {
+                        if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+                        nmeaDevice.connected = true;
+                        startHeartbeat();
+                      });
+                    },
+                    onDataUpdated: () => setState(() {}),
+                    onSettingsUpdated: (p0) => setState(() {
+                      nmeaDevice = nmeaDevice.updateFromJson(p0);
+                    }),
+                    onDownloadsListUpdated: (_) {},
+                  ),
+                );
               }
             },
             label: isDeviceConnected ? const Text("Disconnect", style: TextStyle(color: Colors.white)) : const Text("Connect", style: TextStyle(color: Colors.white)),
@@ -901,6 +943,76 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
           ),
         ),
       ),
+    );
+  }
+
+  Future<dynamic> communicationsMode(BuildContext lcontext) {
+    ConnectionMode? commMode = nmeaDevice.commMode;
+    return showDialog(
+      context: lcontext,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (aContext, setState) {
+            return AlertDialog(
+              title: Text('Communication Mode', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              actionsAlignment: MainAxisAlignment.spaceBetween,
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Communication Mode', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      RadioGroup(
+                        groupValue: commMode == null ? null : (commMode == ConnectionMode.wifi ? "WiFi" : "Bluetooth"),
+                        onChanged: (String? value) {
+                          setState(() {
+                            commMode = value == "WiFi" ? ConnectionMode.wifi : ConnectionMode.bluetooth;
+                          });
+                        }, 
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: ["WiFi", "Bluetooth"].map((String value) {
+                            return RadioListTile(
+                              title: Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                              value: value,
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                ElevatedButton(
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary)
+                  ),
+                  onPressed: () {
+                    setOptions("commMode=${commMode == ConnectionMode.wifi ? "1" : "0"}");
+                    Navigator.of(context).pop();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text('Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
+                  )
+                ),
+              ],
+            );
+          }
+        );
+      },
     );
   }
 
@@ -928,22 +1040,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('WiFi Mode', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            newApPrompt(context);
-                            setOptions("newAP=true");
-                          }, 
-                          child: Text(
-                            "New AP", 
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontWeight: FontWeight.normal,
-                              decoration: TextDecoration.underline,
-                              decorationColor: Colors.blue,
-                            ),
-                          )
-                        ),
                       ],
                     ),
                   ),
@@ -1091,43 +1187,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     );
   }
 
-  Future<dynamic> newApPrompt(BuildContext context) {
-    return showDialog(
-      context: context, 
-      builder: (context) {
-        return AlertDialog(
-          title: Text('WiFi Manager', style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-          content: Text("Please go to $connectURL in your web browser to reconfigure the Access Point to connect to.", style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  }, 
-                  child: Text("Close", style: TextStyle(color: Theme.of(context).colorScheme.primary),),
-                ),
-                ElevatedButton(
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
-                  ),
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    if (!await launchUrl(Uri.parse('http://$connectURL'))) {
-                      throw Exception('Could not launch http://$connectURL');
-                    }
-                  },
-                  child: Text("Go", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<dynamic> invalidWifiInputPopup(BuildContext context) {
     return showDialog(
       context: context, 
@@ -1261,51 +1320,6 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     }
   }
 
-    //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
-  showConnectDialog(BuildContext context, String title) {
-    final TextEditingController urlController = TextEditingController();
-    urlController.text = connectURL;
-
-    void confirmURL() {
-      setState(() {
-        connectURL = urlController.text;
-        connectToNmeaDataStream();
-      });
-      Navigator.of(context, rootNavigator: true).pop();
-    }
-
-    Widget confirmButton = ElevatedButton(
-      style: ButtonStyle(
-        backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.primary),
-      ),
-      child: Text("Connect", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),),
-      onPressed: () {
-        confirmURL();
-      },
-    );
-    AlertDialog alert = AlertDialog(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      title: Text(title),
-      content: TextFormField(
-        controller: urlController,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-        autofocus: true,
-        onFieldSubmitted: (value) {
-          confirmURL();
-        },
-      ),
-      actions: [
-        confirmButton,
-      ],
-    );
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return alert;
-      },
-    );
-  }
-
   showInputDialog(BuildContext context, String title, var setting, String parameter) {
     final TextEditingController inputController = TextEditingController();
     inputController.text = setting.toString();
@@ -1349,18 +1363,17 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   }
 }
 
-// ─── BLE device scan + picker dialog ─────────────────────────────────────────
-
-/// Scans for nearby NMEATrax BLE devices and lets the user select which one
-/// to connect to. Shows all found devices with their name, ID, and signal
-/// strength. Handles zero, one, or multiple devices gracefully.
-class _BleScanDialog extends StatefulWidget {
+class _ConnectionTabDialog extends StatefulWidget {
+  final String initialIpAddress;
+  final Function(String) onWifiConnect;
   final Function() onDataStreamStarted;
   final Function() onDataUpdated;
   final Function(Map<String, dynamic>) onSettingsUpdated;
   final Function(List<Map<String, dynamic>>) onDownloadsListUpdated;
 
-  const _BleScanDialog({
+  const _ConnectionTabDialog({
+    required this.initialIpAddress,
+    required this.onWifiConnect,
     required this.onDataStreamStarted,
     required this.onDataUpdated,
     required this.onSettingsUpdated,
@@ -1368,10 +1381,141 @@ class _BleScanDialog extends StatefulWidget {
   });
 
   @override
-  State<_BleScanDialog> createState() => _BleScanDialogState();
+  State<_ConnectionTabDialog> createState() => _ConnectionTabDialogState();
 }
 
-class _BleScanDialogState extends State<_BleScanDialog> {
+class _ConnectionTabDialogState extends State<_ConnectionTabDialog>
+    with SingleTickerProviderStateMixin {
+  late final TabController _connectionTabController;
+  late final TextEditingController _ipController;
+
+  @override
+  void initState() {
+    super.initState();
+    _connectionTabController = TabController(length: 2, vsync: this);
+    _ipController = TextEditingController(text: widget.initialIpAddress);
+  }
+
+  @override
+  void dispose() {
+    _connectionTabController.dispose();
+    _ipController.dispose();
+    super.dispose();
+  }
+
+  void _connectWifi() {
+    widget.onWifiConnect(_ipController.text);
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      contentPadding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
+      title: Text(
+        'Connect',
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TabBar(
+              controller: _connectionTabController,
+              labelColor: Theme.of(context).colorScheme.primary,
+              tabs: const [
+                Tab(text: 'WiFi'),
+                Tab(text: 'Bluetooth'),
+              ],
+            ),
+            SizedBox(
+              height: 300,
+              child: TabBarView(
+                controller: _connectionTabController,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'IP Address',
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _ipController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                            signed: false,
+                          ),
+                          autofocus: true,
+                          onFieldSubmitted: (_) => _connectWifi(),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          style: ButtonStyle(
+                            backgroundColor: WidgetStatePropertyAll(
+                              Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          onPressed: _connectWifi,
+                          child: Text(
+                            'Connect',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _BleScanConnectPage(
+                    onDataStreamStarted: widget.onDataStreamStarted,
+                    onDataUpdated: widget.onDataUpdated,
+                    onSettingsUpdated: widget.onSettingsUpdated,
+                    onDownloadsListUpdated: widget.onDownloadsListUpdated,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+          child: Text(
+            'Close',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BleScanConnectPage extends StatefulWidget {
+  final Function() onDataStreamStarted;
+  final Function() onDataUpdated;
+  final Function(Map<String, dynamic>) onSettingsUpdated;
+  final Function(List<Map<String, dynamic>>) onDownloadsListUpdated;
+
+  const _BleScanConnectPage({
+    required this.onDataStreamStarted,
+    required this.onDataUpdated,
+    required this.onSettingsUpdated,
+    required this.onDownloadsListUpdated,
+  });
+
+  @override
+  State<_BleScanConnectPage> createState() => _BleScanConnectPageState();
+}
+
+class _BleScanConnectPageState extends State<_BleScanConnectPage> {
   final List<ScanResult> _foundDevices = [];
   bool _isScanning = true;
   bool _isConnecting = false;
@@ -1445,100 +1589,87 @@ class _BleScanDialogState extends State<_BleScanDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // Sort strongest signal first so the closest device appears at the top.
     final sorted = List<ScanResult>.from(_foundDevices)
       ..sort((a, b) => b.rssi.compareTo(a.rssi));
 
-    // While connecting, show a non-dismissable spinner.
     if (_isConnecting) {
-      return PopScope(
-        canPop: false,
-        child: AlertDialog(
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          content: Row(
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Text(
-                  'Connecting to $_connectingToName…',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                ),
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Text(
+                'Connecting to $_connectingToName...',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
 
-    return AlertDialog(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      title: Row(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      child: Column(
         children: [
-          Text(
-            'Select Device',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-          ),
-          const Spacer(),
           if (_isScanning)
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: LinearProgressIndicator(),
+            ),
+          Expanded(
+            child: sorted.isEmpty
+                ? Center(
+                    child: Text(
+                      _isScanning ? 'Scanning for NMEATrax devices...' : 'No devices found.',
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: sorted.length,
+                    itemBuilder: (context, index) {
+                      final r = sorted[index];
+                      final name = r.device.platformName.isNotEmpty
+                          ? r.device.platformName
+                          : 'NMEATrax';
+                      return ListTile(
+                        leading: Icon(
+                          Icons.bluetooth,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: Text(
+                          name,
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                        ),
+                        subtitle: Text(
+                          r.device.remoteId.str,
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                        trailing: Text(
+                          '${r.rssi} dBm',
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                        onTap: () => _connectTo(r),
+                      );
+                    },
+                  ),
+          ),
+          if (!_isScanning)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _startScan,
+                child: Text(
+                  'Scan Again',
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary),
+                ),
+              ),
             ),
         ],
       ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: sorted.isEmpty
-            ? Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(
-                  _isScanning ? 'Scanning for NMEATrax devices…' : 'No devices found.',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                ),
-              )
-            : ListView.builder(
-                shrinkWrap: true,
-                itemCount: sorted.length,
-                itemBuilder: (context, index) {
-                  final r = sorted[index];
-                  final name = r.device.platformName.isNotEmpty
-                      ? r.device.platformName
-                      : 'NMEATrax';
-                  return ListTile(
-                    leading: Icon(Icons.bluetooth, color: Theme.of(context).colorScheme.primary),
-                    title: Text(name, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-                    subtitle: Text(
-                      r.device.remoteId.str,
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                    ),
-                    trailing: Text(
-                      '${r.rssi} dBm',
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                    ),
-                    onTap: () => _connectTo(r),
-                  );
-                },
-              ),
-      ),
-      actions: [
-        if (!_isScanning)
-          TextButton(
-            onPressed: _startScan,
-            child: Text(
-              'Scan Again',
-              style: TextStyle(color: Theme.of(context).colorScheme.primary),
-            ),
-          ),
-        TextButton(
-          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
-          child: Text(
-            'Cancel',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-          ),
-        ),
-      ],
     );
   }
 }

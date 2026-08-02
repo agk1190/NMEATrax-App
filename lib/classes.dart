@@ -1115,8 +1115,11 @@ class NmeaDevice {
   String? wifiPass;
   String? wifiCredentials;
   String? buildDate;
+  ConnectionMode? commMode;
+  bool wifiEnabled = false;
+  bool bluetoothEnabled = false;
 
-  NmeaDevice({this.id = 0, this.connected = false, this.firmware, this.hardware, this.recMode, this.recInterval, this.isLocalAP, this.wifiSSID, this.wifiPass, this.wifiCredentials, this.buildDate});
+  NmeaDevice({this.id = 0, this.connected = false, this.firmware, this.hardware, this.recMode, this.recInterval, this.isLocalAP, this.wifiSSID, this.wifiPass, this.wifiCredentials, this.buildDate, this.commMode, this.wifiEnabled = false, this.bluetoothEnabled = false});
 
   NmeaDevice updateFromJson(Map<String, dynamic> json) {
     return NmeaDevice(
@@ -1130,6 +1133,9 @@ class NmeaDevice {
       wifiPass: json['wifiPass'] ?? wifiPass,
       wifiCredentials: json['wifiCredentials'] ?? wifiCredentials,
       buildDate: json['buildDate'] ?? buildDate,
+      commMode: json['commMode'] != null ? (json['commMode'] == 1 ? ConnectionMode.wifi : ConnectionMode.bluetooth) : commMode,
+      wifiEnabled: json['wifiEnabled'] ?? wifiEnabled,
+      bluetoothEnabled: json['bleEnabled'] ?? bluetoothEnabled,
     );
   }
 }

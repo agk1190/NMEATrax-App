@@ -36,6 +36,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   Timer? reconnectTimer;
   // bool reconnecting = false;
   late TabController _tabController;
+  ConnectionMode lastConnectionMode = ConnectionMode.bluetooth;
 
   Future<void> savePrefs() async {
     final SharedPreferences prefs = await _prefs;
@@ -47,6 +48,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       prefs.setBool('isLitre', fuelUnit == FuelUnit.litre ? true : false);
       prefs.setBool('useOffset', useDepthOffset);
       prefs.setInt('speedUnit', speedUnit.index);
+      prefs.setBool('lastConnectionModeBle', lastConnectionMode == ConnectionMode.bluetooth ? true : false);
     });
   }
 
@@ -59,6 +61,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     if (prefs.getBool("isLitre") == null) {return;}
     if (prefs.getBool("useOffset") == null) {return;}
     if (prefs.getInt("speedUnit") == null) {return;}
+    if (prefs.getBool("lastConnectionModeBle") == null) {return;}
     setState(() {
       prefs.getBool('darkMode')! == true ? MyApp.themeNotifier.value = ThemeMode.dark : MyApp.themeNotifier.value = ThemeMode.light;
       connectURL = jsonDecode(prefs.getString("ip")!);
@@ -70,16 +73,20 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
       switch (su) {
         case 0:
           speedUnit = SpeedUnit.km;
+          break;
         case 1:
           speedUnit = SpeedUnit.kn;
+          break;
         case 2:
           speedUnit = SpeedUnit.mi;
+          break;
         case 3:
           speedUnit = SpeedUnit.ms;
           break;
         default:
           speedUnit = SpeedUnit.kn;
       }
+      lastConnectionMode = prefs.getBool('lastConnectionModeBle')! ? ConnectionMode.bluetooth : ConnectionMode.wifi;
     });
   }
 
@@ -915,9 +922,11 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                   barrierDismissible: true,
                   builder: (_) => _ConnectionTabDialog(
                     initialIpAddress: connectURL,
+                    lastConnectionMode: lastConnectionMode,
                     onWifiConnect: (ipAddress) {
                       setState(() {
                         connectionMode = ConnectionMode.wifi;
+                        lastConnectionMode = ConnectionMode.wifi;
                         connectURL = ipAddress;
                         connectToNmeaDataStream();
                       });
@@ -1365,6 +1374,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
 
 class _ConnectionTabDialog extends StatefulWidget {
   final String initialIpAddress;
+  final ConnectionMode lastConnectionMode;
   final Function(String) onWifiConnect;
   final Function() onDataStreamStarted;
   final Function() onDataUpdated;
@@ -1373,6 +1383,7 @@ class _ConnectionTabDialog extends StatefulWidget {
 
   const _ConnectionTabDialog({
     required this.initialIpAddress,
+    required this.lastConnectionMode,
     required this.onWifiConnect,
     required this.onDataStreamStarted,
     required this.onDataUpdated,
@@ -1393,6 +1404,7 @@ class _ConnectionTabDialogState extends State<_ConnectionTabDialog>
   void initState() {
     super.initState();
     _connectionTabController = TabController(length: 2, vsync: this);
+    _connectionTabController.index = widget.lastConnectionMode == ConnectionMode.bluetooth ? 1 : 0;
     _ipController = TextEditingController(text: widget.initialIpAddress);
   }
 
@@ -1434,7 +1446,7 @@ class _ConnectionTabDialogState extends State<_ConnectionTabDialog>
               ],
             ),
             SizedBox(
-              height: 300,
+              height: 200,
               child: TabBarView(
                 controller: _connectionTabController,
                 children: [
@@ -1454,7 +1466,7 @@ class _ConnectionTabDialogState extends State<_ConnectionTabDialog>
                             decimal: true,
                             signed: false,
                           ),
-                          autofocus: true,
+                          // autofocus: true,
                           onFieldSubmitted: (_) => _connectWifi(),
                         ),
                         const SizedBox(height: 16),
@@ -1485,15 +1497,15 @@ class _ConnectionTabDialogState extends State<_ConnectionTabDialog>
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
-          child: Text(
-            'Close',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-          ),
-        ),
-      ],
+      // actions: [
+      //   TextButton(
+      //     onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+      //     child: Text(
+      //       'Close',
+      //       style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+      //     ),
+      //   ),
+      // ],
     );
   }
 }

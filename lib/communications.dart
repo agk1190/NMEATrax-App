@@ -57,7 +57,7 @@ class BLEServices {
   /// Connects [connectedDevice] and discovers its GATT services.
   Future<void> _connectAndDiscover() async {
     try {
-      await connectedDevice!.connect(autoConnect: false, license: License.free);
+      await connectedDevice!.connect(autoConnect: false, license: License.nonprofit);
     } on Exception catch (e) {
       // Handle Android GATT error 133 by retrying connection
       if (e.toString().contains('133')) {
@@ -66,7 +66,7 @@ class BLEServices {
           await connectedDevice!.disconnect();
         } catch (_) {}
         await Future.delayed(const Duration(seconds: 1));
-        await connectedDevice!.connect(autoConnect: false, license: License.free);
+        await connectedDevice!.connect(autoConnect: false, license: License.nonprofit);
       } else {
         rethrow;
       }
@@ -178,12 +178,15 @@ class BleFileDownloader {
   BleFileDownloader(this.fileDownloadControlChar, this.fileDownloadChar, {this.expectedSize});
 
   Future<Uint8List> downloadFile(String filename, ValueNotifier<double> progressNotifier) async {
-    _fileBuffer = Uint8List(0);
+    // _fileBuffer = Uint8List(0);
     _receiving = false;
     _completer = Completer<void>();
 
     // Listen for file data
-    _dataSubscription = fileDownloadChar.lastValueStream.listen((value) async {
+    _dataSubscription = fileDownloadChar.onValueReceived.listen((value) async {
+      if (value.isEmpty) {
+        return;
+      }
       _receiving = true;
       _fileBuffer = Uint8List.fromList(_fileBuffer + value);
 

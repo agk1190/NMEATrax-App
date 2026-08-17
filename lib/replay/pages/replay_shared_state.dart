@@ -253,24 +253,24 @@ void removeGpxTrackAt(int index) {
 // ── File loading helpers ──────────────────────────────────────────────────────
 
 Future<File> _pickFile(List<String> extensions) async {
-  final FilePickerResult? result = await FilePicker.platform.pickFiles(
+  final PlatformFile? file = await FilePicker.pickFile(
     type: FileType.custom,
     allowedExtensions: extensions,
   );
-  if (result != null) {
-    return File(result.files.single.path!);
+  if (file != null) {
+    return File(file.path!);
   }
   return currentReplayCsvData().filePath; // user cancelled — return previous path unchanged
 }
 
 Future<List<List<dynamic>>> _loadCSV(File filePath) async {
-  final CsvCodec csvCodec = CsvCodec(dynamicTyping: true);
-  final List<List<List<dynamic>>> rows = await filePath
+  final Csv codec = Csv(dynamicTyping: true);
+  final List<List<dynamic>> rows = await filePath
       .openRead()
       .transform(utf8.decoder)
-      .transform(csvCodec.decoder)
+      .transform(codec.decoder)
       .toList();
-  return rows.first;
+  return rows;
 }
 
 Future<List<Wpt>> _loadGPX(File filePath) async {

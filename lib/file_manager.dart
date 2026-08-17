@@ -35,21 +35,23 @@ class _FilePageState extends State<FilePage> {
       });
     }
 
+  void _updateSelectAll() {
+    if (csvFiles.isEmpty || csvFiles.every((file) => !file.selected)) {
+      selectAll = false;
+    } else if (csvFiles.every((file) => file.selected)) {
+      selectAll = true;
+    } else {
+      selectAll = null;
+    }
+  }
+
   Future<void> addFiles() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['csv'], allowMultiple: true);
-    if (result != null) {
-      for (PlatformFile file in result.files) {
+    List<PlatformFile> files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['csv']);
+    if (files.isNotEmpty) {
+      for (PlatformFile file in files) {
         setState(() {
           csvFiles.add(CsvFile(file: File(file.path!), selected: false));
-          if (csvFiles.any((element) => element.selected == true)) {
-            if (csvFiles.any((element) => element.selected == false)) {
-              selectAll = null;
-            } else {
-              selectAll = true;
-            }
-          } else {
-            selectAll = false;
-          }
+          _updateSelectAll();
         });
       }
     }
@@ -360,24 +362,16 @@ class _FilePageState extends State<FilePage> {
                         onPressed: () {
                           setState(() {
                             csvFiles.removeAt(index);
+                            _updateSelectAll();
                           });
                         },
                       ),
                       onChanged: (value) {
                         setState(() {
                           csvFiles.elementAt(index).selected = value!;
-              
-                          if (csvFiles.any((element) => element.selected == true)) {
-                            if (csvFiles.any((element) => element.selected == false)) {
-                              selectAll = null;
-                            } else {
-                              selectAll = true;
-                            }
-                          } else {
-                            selectAll = false;
-                          }
-                            });
-                          },
+                          _updateSelectAll();
+                        });
+                      },
                     ),
                   );
                 },

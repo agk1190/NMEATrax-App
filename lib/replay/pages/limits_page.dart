@@ -16,7 +16,7 @@ class _LimitsPageState extends State<LimitsPage> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ReplayLimitsData>(
       valueListenable: replayLimitsNotifier,
-      builder: (context, limitsData, __) => ValueListenableBuilder<int>(
+      builder: (context, limitsData, _) => ValueListenableBuilder<int>(
         valueListenable: selectedLimitNotifier,
         builder: (context, selectedLimit, _) => SingleChildScrollView(
           child: Column(
@@ -97,7 +97,7 @@ class _LimitsPageState extends State<LimitsPage> {
   }
 
   //https://www.appsdeveloperblog.com/alert-dialog-with-a-text-field-in-flutter/
-  showInputDialog(BuildContext context, String title, bool upper) {
+  AlertDialog showInputDialog(BuildContext context, String title, bool upper) {
     double input = 0;
 
     Widget confirmButton = ElevatedButton(
@@ -145,6 +145,7 @@ class _LimitsPageState extends State<LimitsPage> {
         return alert;
       },
     );
+    return alert;
   }
 
 }

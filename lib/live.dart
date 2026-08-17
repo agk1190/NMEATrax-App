@@ -1243,29 +1243,35 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     );
   }
 
-  engineStatusChips() {
+  SizedBox engineStatusChips() {
     if (engineData.errors != null) {
-    return SizedBox(  
-      height: 50,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        shrinkWrap: true,
-        itemCount: engineData.errors!.length,
-        itemBuilder: (lcontext, index) {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 2, 8),
-            child: Chip(
-              elevation: 4,
-              label: Text(engineData.errors!.elementAt(index)),
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              labelStyle: const TextStyle(color: Colors.red),
-              side: const BorderSide(color: Colors.red),
-            ),
-          );
-        },
-      ));
+      return SizedBox(  
+        height: 50,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          shrinkWrap: true,
+          itemCount: engineData.errors!.length,
+          itemBuilder: (lcontext, index) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 2, 8),
+              child: Chip(
+                elevation: 4,
+                label: Text(engineData.errors!.elementAt(index)),
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                labelStyle: const TextStyle(color: Colors.red),
+                side: const BorderSide(color: Colors.red),
+              ),
+            );
+          },
+        )
+      );
     } else {
-      return const Text('');
+      return const SizedBox(
+        height: 50,
+        child: Chip(
+          label: Text(''),
+        ),
+      );
     }
   }
 
@@ -1329,7 +1335,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     }
   }
 
-  showInputDialog(BuildContext context, String title, var setting, String parameter) {
+  AlertDialog showInputDialog(BuildContext context, String title, var setting, String parameter) {
     final TextEditingController inputController = TextEditingController();
     inputController.text = setting.toString();
 
@@ -1369,6 +1375,8 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
         return alert;
       },
     );
+
+    return alert;
   }
 }
 

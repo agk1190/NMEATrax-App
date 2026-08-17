@@ -28,7 +28,7 @@ class AnalyzePage extends StatelessWidget {
               visible: analyzeVisible,
               child: ValueListenableBuilder<List<NmeaViolation>>(
                 valueListenable: analyzedDataNotifier,
-                builder: (context, analyzedData, __) => Text(
+                builder: (context, analyzedData, _) => Text(
                   '${analyzedData.length} Violation${analyzedData.length == 1 ? '' : 's'} Found',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -141,7 +141,7 @@ class AnalyzeDataAppBar extends StatelessWidget {
             visible: analyzeVisible,
             child: ValueListenableBuilder<List<NmeaViolation>>(
               valueListenable: analyzedDataNotifier,
-              builder: (context, analyzedData, __) => Text(
+              builder: (context, analyzedData, _) => Text(
                 '${analyzedData.length} Violation${analyzedData.length == 1 ? '' : 's'}',
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               ),

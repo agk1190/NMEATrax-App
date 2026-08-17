@@ -11,10 +11,10 @@ class GraphPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ReplayCsvData>(
       valueListenable: replayCsvNotifier,
-      builder: (context, csvData, __) {
+      builder: (context, csvData, _) {
         return ValueListenableBuilder<List<int>>(
           valueListenable: selectedGraphColumnsNotifier,
-          builder: (context, selectedCols, __) {
+          builder: (context, selectedCols, _) {
             if (csvData.rows.isEmpty || selectedCols.isEmpty) {
               return const Center(child: Text('No data selected'));
             }
@@ -137,7 +137,7 @@ class _GraphAppBarState extends State<GraphAppBar> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ReplayCsvData>(
       valueListenable: replayCsvNotifier,
-      builder: (context, csvData, __) {
+      builder: (context, csvData, _) {
         return ElevatedButton.icon(
           onPressed: csvData.headers.isEmpty ? null : () => _showColumnSelector(context, csvData),
           icon: const Icon(Icons.tune),

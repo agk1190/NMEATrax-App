@@ -234,11 +234,11 @@ class NmeaData {
   dynamic data;
   final Function() onDataUpdated;
 
-  NmeaData.parseData(data, this.onDataUpdated) {
+  NmeaData.parseData(String data, this.onDataUpdated) {
     parseData(data);
   }
 
-  void parseData(data) {
+  void parseData(String data) {
     String msgId;
     Map<String, dynamic> nmeaData;
     try {

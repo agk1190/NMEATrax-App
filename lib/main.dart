@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier, 
-      builder: (_, ThemeMode currentMode, __) {
+      builder: (_, ThemeMode currentMode, _) {
         return MaterialApp(
           title: 'NMEATrax App',
           theme: ThemeData(
@@ -44,7 +44,6 @@ class MyApp extends StatelessWidget {
             useMaterial3: true,
           ),
           themeMode: currentMode,
-          // home: const LivePage(),
           initialRoute: '/live',
           routes: {
             '/live':(context) => const LivePage(),

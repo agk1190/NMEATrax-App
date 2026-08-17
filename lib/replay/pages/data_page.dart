@@ -17,7 +17,7 @@ class _DataPageState extends State<DataPage> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ReplayCsvData>(
       valueListenable: replayCsvNotifier,
-      builder: (context, csvData, __) => LayoutBuilder(
+      builder: (context, csvData, _) => LayoutBuilder(
         builder: (BuildContext context, BoxConstraints viewportConstraints) {
           return SingleChildScrollView(
             child: ConstrainedBox(
@@ -60,7 +60,7 @@ class _DataPageState extends State<DataPage> {
                     const SizedBox(height: 20),
                     ValueListenableBuilder<int>(
                       valueListenable: curLineNumNotifier,
-                      builder: (context, curLineNum, ___) => Slider(
+                      builder: (context, curLineNum, _) => Slider(
                         value: curLineNum.toDouble(),
                         onChanged: onSliderChanged,
                         label: curLineNum.toString(),

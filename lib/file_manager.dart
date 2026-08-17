@@ -316,80 +316,79 @@ class _FilePageState extends State<FilePage> {
         ),
         body: Column(
           children: [
-            // Text(DateFormat('h:mm:ss a EEE MMM dd yyyy').format(DateTime.fromMillisecondsSinceEpoch(1723322540 * 1000, isUtc: true))),
-            ReorderableListView.builder(
-              header: CheckboxListTile(
-                tristate: true,
-                value: selectAll, 
-                onChanged: (value) {
-                  setState(() {
-                    // selectAll = value;
-                    if (value == null) {
-                      for (var item in csvFiles) {
-                        item.selected = false;
-                      }
-                    } else {
-                      for (var item in csvFiles) {
-                        item.selected = value;
-                      }
-                    }
-                    
-                    if (csvFiles.any((element) => element.selected == true)) {
-                      if (csvFiles.any((element) => element.selected == false)) {
-                        selectAll = null;
+            Expanded(
+              child: ReorderableListView.builder(
+                header: CheckboxListTile(
+                  tristate: true,
+                  value: selectAll, 
+                  onChanged: (value) {
+                    setState(() {
+                      // selectAll = value;
+                      if (value == null) {
+                        for (var item in csvFiles) {
+                          item.selected = false;
+                        }
                       } else {
-                        selectAll = true;
+                        for (var item in csvFiles) {
+                          item.selected = value;
+                        }
                       }
-                    } else {
-                      selectAll = false;
-                    }
+                      
+                      if (csvFiles.any((element) => element.selected == true)) {
+                        if (csvFiles.any((element) => element.selected == false)) {
+                          selectAll = null;
+                        } else {
+                          selectAll = true;
+                        }
+                      } else {
+                        selectAll = false;
+                      }
+                    });
+                  },
+                ),
+                // shrinkWrap: true,
+                itemBuilder: (lcontext, index) {
+                  return Padding(
+                    key: ValueKey(csvFiles.elementAt(index).file.path),
+                    padding: const EdgeInsets.fromLTRB(0, 4, 0, 4),
+                    child: CheckboxListTile(
+                      title: Text(basenameWithoutExtension(csvFiles.elementAt(index).file.path), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
+                      tileColor: Theme.of(context).colorScheme.surfaceContainer,
+                      value: csvFiles.elementAt(index).selected,
+                      secondary: IconButton(
+                        icon: Icon(Icons.playlist_remove_rounded, color: Theme.of(context).colorScheme.onSurface,),
+                        onPressed: () {
+                          setState(() {
+                            csvFiles.removeAt(index);
+                          });
+                        },
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          csvFiles.elementAt(index).selected = value!;
+              
+                          if (csvFiles.any((element) => element.selected == true)) {
+                            if (csvFiles.any((element) => element.selected == false)) {
+                              selectAll = null;
+                            } else {
+                              selectAll = true;
+                            }
+                          } else {
+                            selectAll = false;
+                          }
+                            });
+                          },
+                    ),
+                  );
+                },
+                itemCount: csvFiles.length,
+                onReorderItem: (int oldIndex, int newIndex) {
+                  setState(() {
+                    final CsvFile item = csvFiles.removeAt(oldIndex);
+                    csvFiles.insert(newIndex, item);
                   });
                 },
               ),
-              shrinkWrap: true,
-              itemBuilder: (lcontext, index) {
-                return Padding(
-                  key: Key('$index'),
-                  padding: const EdgeInsets.fromLTRB(0, 4, 0, 4),
-                  child: CheckboxListTile(
-                    title: Text(basenameWithoutExtension(csvFiles.elementAt(index).file.path), style: TextStyle(color: Theme.of(context).colorScheme.onSurface),),
-                    tileColor: Theme.of(context).colorScheme.surfaceContainer,
-                    value: csvFiles.elementAt(index).selected,
-                    secondary: IconButton(
-                      icon: Icon(Icons.playlist_remove_rounded, color: Theme.of(context).colorScheme.onSurface,),
-                      onPressed: () {
-                        setState(() {
-                          csvFiles.removeAt(index);
-                        });
-                      },
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        csvFiles.elementAt(index).selected = value!;
-
-                        if (csvFiles.any((element) => element.selected == true)) {
-                          if (csvFiles.any((element) => element.selected == false)) {
-                            selectAll = null;
-                          } else {
-                            selectAll = true;
-                          }
-                        } else {
-                          selectAll = false;
-                        }
-                          });
-                        },
-                  ),
-                );
-              },
-              itemCount: csvFiles.length,
-              onReorder: (oldIndex, newIndex) {
-                setState(() {
-                  if (oldIndex < newIndex) {
-                    newIndex -= 1;
-                  }
-                  csvFiles.insert(newIndex, csvFiles.removeAt(oldIndex));
-                });
-              },
             ),
           ],
         ),

@@ -101,9 +101,8 @@ class _WifiPageState extends State<WifiPage> {
             SizedBox(height: 16),
             Expanded(
               child: ReorderableListView(
-                onReorder: (oldIndex, newIndex) {
+                onReorderItem: (oldIndex, newIndex) {
                   setState(() {
-                    if (newIndex > oldIndex) newIndex -= 1;
                     final item = wifiList.removeAt(oldIndex);
                     wifiList.insert(newIndex, item);
                   });

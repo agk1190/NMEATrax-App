@@ -6,9 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:keep_screen_on/keep_screen_on.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-// import 'package:csv/csv.dart';
 
 import 'classes.dart';
 import 'downloads.dart';
@@ -96,7 +95,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     DeviceConnection.create().connect(
       onDataStreamStarted: () {
         setState(() {
-          if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+          if (Platform.isAndroid) {WakelockPlus.enable();}
           savePrefs();
           startHeartbeat();
         });
@@ -118,7 +117,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
   void disconnectFromNmeaDataStream() {
     DeviceConnection.create().disconnect();
     setState(() {
-      if (Platform.isAndroid) {KeepScreenOn.turnOff();}
+      if (Platform.isAndroid) {WakelockPlus.disable();}
       connectionTimeoutTimer?.cancel();
       reconnectTimer?.cancel();
       clearData();
@@ -217,7 +216,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
     temperatureData = TemperatureData(id: 0);
     downloadList = List<Map<String, dynamic>>.empty(growable: true);
     nmeaDevice = NmeaDevice();
-    if (Platform.isAndroid) {KeepScreenOn.turnOff();}
+    if (Platform.isAndroid) {WakelockPlus.disable();}
   }
 
   @override
@@ -933,7 +932,7 @@ class _LivePageState extends State<LivePage> with SingleTickerProviderStateMixin
                     },
                     onDataStreamStarted: () {
                       setState(() {
-                        if (Platform.isAndroid) {KeepScreenOn.turnOn();}
+                        if (Platform.isAndroid) {WakelockPlus.enable();}
                         nmeaDevice.connected = true;
                         startHeartbeat();
                       });

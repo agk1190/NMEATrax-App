@@ -9,6 +9,13 @@ and this project tries to adhere to [Semantic Versioning](http://semver.org/).
 ### To-Do
 
 
+## [6.7.0] - 2026-08-22
+
+### Changed
+- Migrate to built-in kotlin
+- Change keep_screen_on plugin to wakelock_plus
+
+
 ## [6.5.0] - 2026-05-23
 
 ### Added
